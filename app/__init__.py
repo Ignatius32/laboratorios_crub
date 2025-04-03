@@ -34,23 +34,21 @@ def create_app(config_class=Config):
     app.register_blueprint(tecnicos_bp, url_prefix='/tecnicos')
     app.register_blueprint(main_bp)
     
-    # Create admin user on first run
-    @app.before_first_request
-    def create_admin():
-        with app.app_context():
-            db.create_all()
-            # Check if admin user exists
-            admin = Usuario.query.filter_by(rol='admin').first()
-            if not admin:
-                admin = Usuario(
-                    idUsuario='ADMIN001',
-                    nombre='Administrador',
-                    apellido='Sistema',
-                    email='admin@crub.edu.ar',
-                    rol='admin'
-                )
-                admin.set_password(app.config['ADMIN_PASSWORD'])
-                db.session.add(admin)
-                db.session.commit()
+    # Initialize database and create admin user
+    with app.app_context():
+        db.create_all()
+        # Check if admin user exists
+        admin = Usuario.query.filter_by(rol='admin').first()
+        if not admin:
+            admin = Usuario(
+                idUsuario='ADMIN001',
+                nombre='Administrador',
+                apellido='Sistema',
+                email='admin@crub.edu.ar',
+                rol='admin'
+            )
+            admin.set_password(app.config['ADMIN_PASSWORD'])
+            db.session.add(admin)
+            db.session.commit()
     
     return app
