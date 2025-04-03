@@ -86,3 +86,25 @@ footer {
 .card.shadow {
     box-shadow: 0 .15rem 1.75rem 0 rgba(58,59,69,.15) !important;
 }
+
+/* Navbar logo styling */
+.navbar-logo {
+    height: 40px; /* Base height */
+    max-height: 100%; /* Permite que el logo se ajuste al alto del navbar */
+    width: auto; /* Mantiene la proporción */
+    object-fit: contain; /* Asegura que el logo se muestre completo */
+}
+
+/* Para asegurar que el navbar tenga suficiente altura */
+.navbar {
+    min-height: 60px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+/* Alineación vertical del contenido del navbar */
+.navbar-brand {
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
