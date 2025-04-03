@@ -3,7 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.urls import url_parse
 from app.models.models import Usuario, db
 
-auth = Blueprint('auth', __name__)
+auth = Blueprint('auth', __name__, url_prefix='/auth')
 
 # Import or define forms at the top
 from flask_wtf import FlaskForm
