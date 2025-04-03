@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField
 from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional
+from app.integrations.google_drive import drive_integration
 
 admin = Blueprint('admin', __name__)
 
@@ -66,9 +67,10 @@ class MovimientoForm(FlaskForm):
     
     def __init__(self, *args, **kwargs):
         super(MovimientoForm, self).__init__(*args, **kwargs)
-        # Populate choices
+        # Populate lab choices
         self.idLaboratorio.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
-        # We will update product choices based on selected lab in the frontend
+        # Populate product choices with all products by default
+        self.idProducto.choices = [(p.idProducto, f"{p.nombre} - {p.idLaboratorio}") for p in Producto.query.all()]
 
 # Dashboard
 @admin.route('/')
@@ -219,9 +221,29 @@ def new_laboratorio():
             email=form.email.data
         )
         
+        # Save the laboratory first to get an ID
         db.session.add(laboratorio)
         db.session.commit()
-        flash('Laboratorio creado correctamente', 'success')
+        
+        # Create Google Drive folders
+        try:
+            folder_ids = drive_integration.create_laboratory_folders(
+                laboratorio.idLaboratorio, 
+                laboratorio.nombre
+            )
+            
+            if folder_ids:
+                # Update the laboratory with folder IDs
+                laboratorio.laboratorio_folder_id = folder_ids.get('lab_folder_id')
+                laboratorio.movimiento_folder_id = folder_ids.get('movimientos_folder_id')
+                db.session.commit()
+                flash('Laboratorio creado correctamente con integración a Google Drive', 'success')
+            else:
+                flash('Laboratorio creado correctamente, pero no se pudieron crear las carpetas en Google Drive', 'warning')
+        except Exception as e:
+            current_app.logger.error(f"Error creating Drive folders: {str(e)}")
+            flash('Laboratorio creado correctamente, pero hubo un error en la integración con Google Drive', 'warning')
+        
         return redirect(url_for('admin.list_laboratorios'))
     
     return render_template('admin/laboratorios/form.html', title='Nuevo Laboratorio', form=form)
@@ -232,7 +254,13 @@ def edit_laboratorio(id):
     laboratorio = Laboratorio.query.get_or_404(id)
     form = LaboratorioForm(obj=laboratorio)
     
+    # Exclude idLaboratorio from validation when editing
+    if request.method == 'GET':
+        # No need to set form.idLaboratorio.data as it's already set by obj=laboratorio
+        pass
+    
     if form.validate_on_submit():
+        # Update only editable fields, not the ID
         laboratorio.nombre = form.nombre.data
         laboratorio.direccion = form.direccion.data
         laboratorio.telefono = form.telefono.data
@@ -254,9 +282,30 @@ def delete_laboratorio(id):
         flash('No se puede eliminar el laboratorio porque tiene productos o movimientos asociados', 'danger')
         return redirect(url_for('admin.list_laboratorios'))
     
+    # Store folder IDs before deleting the laboratory
+    folder_ids = {
+        'lab_folder_id': laboratorio.laboratorio_folder_id,
+        'movimientos_folder_id': laboratorio.movimiento_folder_id
+    }
+    
+    # Delete the laboratory from database
     db.session.delete(laboratorio)
     db.session.commit()
-    flash('Laboratorio eliminado correctamente', 'success')
+    
+    # Delete the folders from Google Drive if they exist
+    if folder_ids['lab_folder_id'] or folder_ids['movimientos_folder_id']:
+        try:
+            success = drive_integration.delete_laboratory_folders(folder_ids)
+            if success:
+                flash('Laboratorio y sus carpetas en Google Drive eliminados correctamente', 'success')
+            else:
+                flash('Laboratorio eliminado, pero hubo un problema al eliminar las carpetas de Google Drive', 'warning')
+        except Exception as e:
+            current_app.logger.error(f"Error deleting Drive folders: {str(e)}")
+            flash('Laboratorio eliminado, pero hubo un error en la eliminación de carpetas de Google Drive', 'warning')
+    else:
+        flash('Laboratorio eliminado correctamente', 'success')
+        
     return redirect(url_for('admin.list_laboratorios'))
 
 # CRUD for Productos

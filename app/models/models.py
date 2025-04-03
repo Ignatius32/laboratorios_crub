@@ -41,6 +41,8 @@ class Laboratorio(db.Model):
     direccion = db.Column(db.String(200), nullable=False)
     telefono = db.Column(db.String(20), nullable=True)
     email = db.Column(db.String(120), nullable=True)
+    laboratorio_folder_id = db.Column(db.String(100), nullable=True)
+    movimiento_folder_id = db.Column(db.String(100), nullable=True)
     
     # Relationships
     productos = db.relationship('Producto', backref='laboratorio', lazy=True)
