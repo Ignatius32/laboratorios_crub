@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_laboratorios') }}">Laboratorios</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Editar Laboratorio' if laboratorio else 'Nuevo Laboratorio' }}</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">{{ 'Editar Laboratorio' if laboratorio else 'Nuevo Laboratorio' }}</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <div class="row">
+                    <!-- ID Laboratorio -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.idLaboratorio.label(class="form-label") }}
+                        {% if laboratorio %}
+                            {{ form.idLaboratorio(class="form-control", readonly=True) }}
+                        {% else %}
+                            {% if form.idLaboratorio.errors %}
+                                {{ form.idLaboratorio(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.idLaboratorio.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.idLaboratorio(class="form-control") }}
+                            {% endif %}
+                        {% endif %}
+                        <small class="form-text text-muted">Identificador único del laboratorio (ej: LAB001)</small>
+                    </div>
+                    
+                    <!-- Nombre -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.nombre.label(class="form-label") }}
+                        {% if form.nombre.errors %}
+                            {{ form.nombre(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.nombre.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.nombre(class="form-control") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Dirección -->
+                <div class="mb-3">
+                    {{ form.direccion.label(class="form-label") }}
+                    {% if form.direccion.errors %}
+                        {{ form.direccion(class="form-control is-invalid") }}
+                        <div class="invalid-feedback">
+                            {% for error in form.direccion.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ form.direccion(class="form-control") }}
+                    {% endif %}
+                </div>
+                
+                <div class="row">
+                    <!-- Teléfono -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.telefono.label(class="form-label") }}
+                        {% if form.telefono.errors %}
+                            {{ form.telefono(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.telefono.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.telefono(class="form-control") }}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Email -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {% if form.email.errors %}
+                            {{ form.email(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.email.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.email(class="form-control") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Guardar
+                    </button>
+                    <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

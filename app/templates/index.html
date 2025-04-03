@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-5 my-5 text-center">
+    <h1 class="display-5 fw-bold text-primary">Gestión de Laboratorios CRUB</h1>
+    <div class="col-lg-6 mx-auto">
+        <p class="lead mb-4">
+            Sistema de gestión para los laboratorios del Centro Regional Universitario Bariloche.
+            Administra inventarios, productos químicos, movimientos de stock y usuarios técnicos.
+        </p>
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg px-4 gap-3">
+                <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+            </a>
+            <a href="{{ url_for('main.about') }}" class="btn btn-outline-secondary btn-lg px-4">
+                <i class="fas fa-info-circle me-2"></i>Más Información
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-flask fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Gestión de Laboratorios</h5>
+                    <p class="card-text">Administra todos los laboratorios del Centro Regional Universitario Bariloche.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-vial fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Control de Productos</h5>
+                    <p class="card-text">Mantén actualizado el inventario de reactivos y productos de cada laboratorio.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-exchange-alt fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Seguimiento de Movimientos</h5>
+                    <p class="card-text">Registra y controla todos los ingresos y egresos de productos de los laboratorios.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

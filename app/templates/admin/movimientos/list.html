@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 text-gray-800">Gestión de Movimientos</h1>
+        <a href="{{ url_for('admin.new_movimiento') }}" class="btn btn-primary">
+            <i class="fas fa-plus-circle me-2"></i>Nuevo Movimiento
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Lista de Movimientos</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="movimientos-table" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Unidad</th>
+                            <th>Laboratorio</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for movimiento in movimientos %}
+                        <tr>
+                            <td>{{ movimiento.idMovimiento }}</td>
+                            <td>{{ movimiento.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                {% if movimiento.tipoMovimiento == 'ingreso' %}
+                                    <span class="badge bg-success">Ingreso</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Egreso</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ movimiento.producto.nombre }}</td>
+                            <td>{{ movimiento.cantidad }}</td>
+                            <td>{{ movimiento.unidadMedida }}</td>
+                            <td>{{ movimiento.laboratorio.nombre }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ movimiento.idMovimiento }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Delete Modal for each movement -->
+                        <div class="modal fade" id="deleteModal{{ movimiento.idMovimiento }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ movimiento.idMovimiento }}" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="deleteModalLabel{{ movimiento.idMovimiento }}">Confirmar Eliminación</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        ¿Estás seguro de que deseas eliminar este movimiento?
+                                        <p class="text-danger mt-2">Esta acción no se puede deshacer y puede afectar el stock del producto.</p>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <form action="{{ url_for('admin.delete_movimiento', id=movimiento.idMovimiento) }}" method="POST">
+                                            <button type="submit" class="btn btn-danger">Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center">No hay movimientos registrados</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#movimientos-table').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
+            },
+            order: [[1, 'desc']]  // Order by date, most recent first
+        });
+    });
+</script>
+{% endblock %}
