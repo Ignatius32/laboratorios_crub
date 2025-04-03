@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60" viewBox="0 0 200 60">
+  <style>
+    .text { font-family: Arial, sans-serif; font-weight: bold; }
+    .large { font-size: 24px; }
+    .small { font-size: 14px; }
+    .primary { fill: #4e73df; }
+    .secondary { fill: #5a5c69; }
+    .flask { fill: none; stroke: #4e73df; stroke-width: 2; }
+  </style>
+  
+  <!-- Flask icon -->
+  <path class="flask" d="M40,10 L40,25 C40,35 30,40 20,45 L60,45 C50,40 40,35 40,25 L40,10" />
+  <rect x="35" y="5" width="10" height="5" class="primary" />
+  
+  <!-- Text -->
+  <text x="70" y="30" class="text large primary">CRUB</text>
+  <text x="70" y="45" class="text small secondary">Laboratorios</text>
+</svg>

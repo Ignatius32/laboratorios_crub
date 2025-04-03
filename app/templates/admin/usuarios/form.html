@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_usuarios') }}">Usuarios</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Editar Usuario' if usuario else 'Nuevo Usuario' }}</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">{{ 'Editar Usuario' if usuario else 'Nuevo Usuario' }}</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                
+                <div class="row">
+                    <!-- ID Usuario -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.idUsuario.label(class="form-label") }}
+                        {% if usuario %}
+                            {{ form.idUsuario(class="form-control", readonly=True) }}
+                        {% else %}
+                            {% if form.idUsuario.errors %}
+                                {{ form.idUsuario(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.idUsuario.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.idUsuario(class="form-control") }}
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Rol -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.rol.label(class="form-label") }}
+                        {% if form.rol.errors %}
+                            {{ form.rol(class="form-select is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.rol.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.rol(class="form-select") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- Nombre -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.nombre.label(class="form-label") }}
+                        {% if form.nombre.errors %}
+                            {{ form.nombre(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.nombre.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.nombre(class="form-control") }}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Apellido -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.apellido.label(class="form-label") }}
+                        {% if form.apellido.errors %}
+                            {{ form.apellido(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.apellido.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.apellido(class="form-control") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- Email -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {% if form.email.errors %}
+                            {{ form.email(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.email.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.email(class="form-control") }}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Teléfono -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.telefono.label(class="form-label") }}
+                        {% if form.telefono.errors %}
+                            {{ form.telefono(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.telefono.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.telefono(class="form-control") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Contraseña -->
+                <div class="mb-3">
+                    {{ form.password.label(class="form-label") }}
+                    {% if form.password.errors %}
+                        {{ form.password(class="form-control is-invalid") }}
+                        <div class="invalid-feedback">
+                            {% for error in form.password.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ form.password(class="form-control") }}
+                    {% endif %}
+                    {% if usuario %}
+                    <small class="form-text text-muted">Dejar en blanco para mantener la contraseña actual</small>
+                    {% endif %}
+                </div>
+                
+                <!-- Laboratorios Asignados -->
+                <div class="mb-3">
+                    {{ form.labs_asignados.label(class="form-label") }}
+                    {% if form.labs_asignados.errors %}
+                        {{ form.labs_asignados(class="form-select is-invalid", multiple=True, size=5) }}
+                        <div class="invalid-feedback">
+                            {% for error in form.labs_asignados.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ form.labs_asignados(class="form-select", multiple=True, size=5) }}
+                    {% endif %}
+                    <small class="form-text text-muted">Mantén presionada la tecla Ctrl para seleccionar múltiples laboratorios</small>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Guardar
+                    </button>
+                    <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+/* Main Styles for Laboratorios CRUB */
+
+/* Custom card styling */
+.card {
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    padding: 0.75rem 1.25rem;
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+
+.border-left-danger {
+    border-left: 0.25rem solid #e74a3b !important;
+}
+
+/* Text colors */
+.text-gray-800 {
+    color: #5a5c69 !important;
+}
+
+.text-gray-300 {
+    color: #dddfeb !important;
+}
+
+/* Font weights */
+.font-weight-bold {
+    font-weight: 700 !important;
+}
+
+/* Breadcrumbs */
+.breadcrumb {
+    background-color: #f8f9fc;
+    border-radius: 0.35rem;
+}
+
+/* Custom Badge Colors */
+.bg-primary {
+    background-color: #4e73df !important;
+}
+
+/* Dashboard cards */
+.card-body .h5 {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+/* Tables */
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Footer */
+footer {
+    margin-top: 3rem;
+}
+
+/* Form elements */
+.form-check-input {
+    margin-top: 0.3rem;
+}
+
+/* Custom spacing */
+.py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
+/* Login form */
+.card.shadow {
+    box-shadow: 0 .15rem 1.75rem 0 rgba(58,59,69,.15) !important;
+}

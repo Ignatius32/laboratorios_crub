@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Panel de Técnico</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ laboratorio.nombre }}</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 mb-2 text-gray-800">{{ laboratorio.nombre }}</h1>
+            <p class="mb-4">Gestión del laboratorio con ID: {{ laboratorio.idLaboratorio }}</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{{ url_for('tecnicos.dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Volver al Panel
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <!-- Laboratory Info Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Información del Laboratorio</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h5>{{ laboratorio.nombre }}</h5>
+                        <p class="text-muted">ID: {{ laboratorio.idLaboratorio }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong><i class="fas fa-map-marker-alt text-primary me-2"></i> Dirección:</strong>
+                        <p>{{ laboratorio.direccion }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong><i class="fas fa-phone text-primary me-2"></i> Teléfono:</strong>
+                        <p>{{ laboratorio.telefono }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong><i class="fas fa-envelope text-primary me-2"></i> Email:</strong>
+                        <p>{{ laboratorio.email }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <!-- Quick Actions -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Acciones Rápidas</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary w-100">
+                                <i class="fas fa-vial me-2"></i> Gestionar Productos
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-success w-100">
+                                <i class="fas fa-exchange-alt me-2"></i> Gestionar Movimientos
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-info w-100">
+                                <i class="fas fa-plus-circle me-2"></i> Nuevo Producto
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-warning w-100">
+                                <i class="fas fa-plus-circle me-2"></i> Nuevo Movimiento
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latest Products -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Productos Recientes</h6>
+                    <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-primary">
+                        Ver Todos
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>Stock</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for producto in productos[:5] %}
+                                <tr>
+                                    <td>{{ producto.idProducto }}</td>
+                                    <td>{{ producto.nombre }}</td>
+                                    <td>{{ producto.tipoProducto }}</td>
+                                    <td>{{ producto.stock_actual }}</td>
+                                    <td>
+                                        <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=producto.idProducto) }}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No hay productos registrados</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

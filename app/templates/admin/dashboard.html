@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mt-4 mb-4">Panel de Administración</h1>
+    
+    <div class="row">
+        <!-- Stats Cards -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Usuarios</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ usuarios_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Laboratorios</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ laboratorios_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-flask fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Productos</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ productos_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-vial fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Movimientos</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ movimientos_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exchange-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Quick Access Links -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Acceso Rápido</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-6 mb-3">
+                            <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-users me-2"></i> Gestionar Usuarios
+                            </a>
+                        </div>
+                        <div class="col-lg-6 mb-3">
+                            <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-success w-100">
+                                <i class="fas fa-flask me-2"></i> Gestionar Laboratorios
+                            </a>
+                        </div>
+                        <div class="col-lg-6 mb-3">
+                            <a href="{{ url_for('admin.list_productos') }}" class="btn btn-info w-100">
+                                <i class="fas fa-vial me-2"></i> Gestionar Productos
+                            </a>
+                        </div>
+                        <div class="col-lg-6 mb-3">
+                            <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-exchange-alt me-2"></i> Gestionar Movimientos
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Información del Sistema</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Bienvenido(a), {{ current_user.nombre }} {{ current_user.apellido }}!</strong></p>
+                    <p>Este es el panel de administración del Sistema de Gestión de Laboratorios del Centro Regional Universitario Bariloche.</p>
+                    <p>Desde aquí puedes administrar todos los aspectos del sistema, incluyendo usuarios, laboratorios, productos y movimientos.</p>
+                    <hr>
+                    <p class="mb-0"><small class="text-muted">Versión del sistema: 1.0.0</small></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

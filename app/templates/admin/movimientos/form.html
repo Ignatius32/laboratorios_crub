@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_movimientos') }}">Movimientos</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Nuevo Movimiento</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Registrar Nuevo Movimiento</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <div class="row">
+                    <!-- Tipo de Movimiento -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.tipoMovimiento.label(class="form-label") }}
+                        {% if form.tipoMovimiento.errors %}
+                            {{ form.tipoMovimiento(class="form-select is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.tipoMovimiento.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.tipoMovimiento(class="form-select") }}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Laboratorio -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.idLaboratorio.label(class="form-label") }}
+                        {% if form.idLaboratorio.errors %}
+                            {{ form.idLaboratorio(class="form-select is-invalid", id="lab-select") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.idLaboratorio.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.idLaboratorio(class="form-select", id="lab-select") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Producto -->
+                <div class="mb-3">
+                    {{ form.idProducto.label(class="form-label") }}
+                    {% if form.idProducto.errors %}
+                        {{ form.idProducto(class="form-select is-invalid", id="product-select") }}
+                        <div class="invalid-feedback">
+                            {% for error in form.idProducto.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ form.idProducto(class="form-select", id="product-select") }}
+                    {% endif %}
+                </div>
+                
+                <div class="row">
+                    <!-- Cantidad -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.cantidad.label(class="form-label") }}
+                        {% if form.cantidad.errors %}
+                            {{ form.cantidad(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.cantidad.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.cantidad(class="form-control") }}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Unidad de Medida -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.unidadMedida.label(class="form-label") }}
+                        {% if form.unidadMedida.errors %}
+                            {{ form.unidadMedida(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.unidadMedida.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.unidadMedida(class="form-control") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Guardar
+                    </button>
+                    <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // When laboratory selection changes
+    $('#lab-select').change(function() {
+        var labId = $(this).val();
+        if(labId) {
+            // Clear current product options
+            $('#product-select').empty();
+            
+            // Get products for selected lab via AJAX
+            $.ajax({
+                url: "{{ url_for('admin.get_products_by_lab', lab_id='') }}" + labId,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    if(data.products.length > 0) {
+                        // Add options for each product
+                        $.each(data.products, function(key, product) {
+                            $('#product-select').append('<option value="' + product.id + '">' + product.nombre + '</option>');
+                        });
+                    } else {
+                        $('#product-select').append('<option value="">No hay productos disponibles</option>');
+                    }
+                },
+                error: function() {
+                    $('#product-select').append('<option value="">Error al cargar productos</option>');
+                }
+            });
+        }
+    });
+    
+    // Trigger change event if lab is already selected (e.g., when form is rendered with errors)
+    if ($('#lab-select').val()) {
+        $('#lab-select').trigger('change');
+    }
+});
+</script>
+{% endblock %}

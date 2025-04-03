@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="text-primary mb-4">Acerca del Sistema de Gestión de Laboratorios</h1>
+            
+            <div class="card shadow mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Centro Regional Universitario Bariloche</h5>
+                    <p class="lead">
+                        El Sistema de Gestión de Laboratorios del CRUB es una herramienta desarrollada para facilitar 
+                        la administración de inventarios, productos y movimientos en los laboratorios de la institución.
+                    </p>
+                    
+                    <hr>
+                    
+                    <h5>Características principales:</h5>
+                    <ul class="mb-4">
+                        <li>Gestión completa de inventarios de productos químicos y materiales</li>
+                        <li>Seguimiento de movimientos de entrada y salida</li>
+                        <li>Control de stock en tiempo real</li>
+                        <li>Administración de usuarios y permisos</li>
+                        <li>Acceso a información de seguridad de productos</li>
+                    </ul>
+                    
+                    <h5>Desarrollado para:</h5>
+                    <p>
+                        <strong>Universidad Nacional del Comahue</strong><br>
+                        Centro Regional Universitario Bariloche<br>
+                        Quintral 1250, San Carlos de Bariloche<br>
+                        Río Negro, Argentina
+                    </p>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
