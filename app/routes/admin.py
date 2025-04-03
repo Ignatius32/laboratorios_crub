@@ -67,7 +67,7 @@ class MovimientoForm(FlaskForm):
     
     def __init__(self, *args, **kwargs):
         super(MovimientoForm, self).__init__(*args, **kwargs)
-        # Populate lab choices
+        # Populate choices
         self.idLaboratorio.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
         # Populate product choices with all products by default
         self.idProducto.choices = [(p.idProducto, f"{p.nombre} - {p.idLaboratorio}") for p in Producto.query.all()]
@@ -398,8 +398,9 @@ def new_movimiento():
         if lab_id:
             productos = Producto.query.filter_by(idLaboratorio=lab_id).all()
             form.idProducto.choices = [(p.idProducto, p.nombre) for p in productos]
-        else:
-            form.idProducto.choices = []
+            # If no products found for this lab, keep all products
+            if not productos:
+                form.idProducto.choices = [(p.idProducto, f"{p.nombre} - {p.idLaboratorio}") for p in Producto.query.all()]
     
     if form.validate_on_submit():
         # Generate a unique movement ID
