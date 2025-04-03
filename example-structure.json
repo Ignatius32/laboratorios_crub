@@ -1,0 +1,45 @@
+{
+    "productos": [
+        {
+            "idProducto": "P001",
+            "nombre": "Ácido Sulfúrico",
+            "descripcion": "Ácido inorgánico fuerte",
+            "tipoProducto": "Reactivo",
+            "estadoFisico": "liquido",
+            "controlSedronar": true,
+            "urlFichaSeguridad": "https://example.com/ficha/P001",
+            "idLaboratorio": "LAB001"
+        }
+    ],
+    "movimientos": [
+        {
+            "idProducto": "P001",
+            "timestamp": "2025-04-03T10:00:00Z",
+            "tipoMovimiento": "ingreso",
+            "cantidad": 1000,
+            "unidadMedida": "ml",
+            "idLaboratorio": "LAB001",
+            "idMovimiento": "MOV001"
+        }
+    ],
+    "laboratorios": [
+        {
+            "idLaboratorio": "LAB001",
+            "nombre": "Laboratorio de Química",
+            "direccion": "Quintral 1250",
+            "telefono": "2944123456",
+            "email": "lab.quimica@crub.edu.ar"
+        }
+    ],
+    "usuarios": [
+        {
+            "idUsuario": "U001",
+            "nombre": "María",
+            "apellido": "González",
+            "email": "maria.gonzalez@crub.edu.ar",
+            "telefono": "2944789012",
+            "labs_asignado": "LAB001, LAB002",
+            "rol": "tecnico"
+        }
+    ]
+}
