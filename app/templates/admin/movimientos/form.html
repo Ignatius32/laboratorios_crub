@@ -114,6 +114,17 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
+    // Store the initial product options to restore when needed
+    var allProducts = [];
+    
+    // Save all products initially
+    $('#product-select option').each(function() {
+        allProducts.push({
+            value: $(this).val(),
+            text: $(this).text()
+        });
+    });
+
     // When laboratory selection changes
     $('#lab-select').change(function() {
         var labId = $(this).val();
@@ -133,15 +144,29 @@ $(document).ready(function() {
                             $('#product-select').append('<option value="' + product.id + '">' + product.nombre + '</option>');
                         });
                     } else {
-                        $('#product-select').append('<option value="">No hay productos disponibles</option>');
+                        // If no products for this lab, restore all products
+                        restoreAllProducts();
                     }
                 },
                 error: function() {
-                    $('#product-select').append('<option value="">Error al cargar productos</option>');
+                    // On error, restore all products
+                    restoreAllProducts();
+                    $('#product-select').append('<option value="" disabled>Error al cargar productos</option>');
                 }
             });
+        } else {
+            // If no lab selected, restore all products
+            restoreAllProducts();
         }
     });
+    
+    // Function to restore all products
+    function restoreAllProducts() {
+        $('#product-select').empty();
+        $.each(allProducts, function(index, product) {
+            $('#product-select').append('<option value="' + product.value + '">' + product.text + '</option>');
+        });
+    }
     
     // Trigger change event if lab is already selected (e.g., when form is rendered with errors)
     if ($('#lab-select').val()) {
