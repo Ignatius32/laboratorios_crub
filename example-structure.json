@@ -38,7 +38,7 @@
             "apellido": "González",
             "email": "maria.gonzalez@crub.edu.ar",
             "telefono": "2944789012",
-            "labs_asignado": "LAB001, LAB002",
+            "labs_asignados": "LAB001, LAB002",
             "rol": "tecnico"
         }
     ]
