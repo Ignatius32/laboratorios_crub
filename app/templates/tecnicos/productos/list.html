@@ -12,14 +12,23 @@
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 text-gray-800">Productos - {{ laboratorio.nombre }}</h1>
-        <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary">
-            <i class="fas fa-plus-circle me-2"></i>Nuevo Producto
-        </a>
+        <div>
+            <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary me-2">
+                <i class="fas fa-plus-circle me-2"></i>Nuevo Producto
+            </a>
+            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-success">
+                <i class="fas fa-exchange-alt me-2"></i>Nuevo Movimiento
+            </a>
+        </div>
     </div>
 
     <div class="card shadow mb-4">
-        <div class="card-header py-3">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Lista de Productos</h6>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="mostrarTodos" checked>
+                <label class="form-check-label" for="mostrarTodos">Mostrar todos los productos</label>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -31,40 +40,57 @@
                             <th>Tipo</th>
                             <th>Estado Físico</th>
                             <th>Control Sedronar</th>
-                            <th>Stock Actual</th>
+                            <th>Stock en Laboratorio</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for producto in productos %}
-                        <tr>
-                            <td>{{ producto.idProducto }}</td>
-                            <td>{{ producto.nombre }}</td>
-                            <td>{{ producto.tipoProducto }}</td>
+                        {% for item in productos_con_stock %}
+                        <tr data-stock="{{ item.stock }}">
+                            <td>{{ item.producto.idProducto }}</td>
+                            <td>{{ item.producto.nombre }}</td>
                             <td>
-                                {% if producto.estadoFisico == 'solido' %}
+                                {% if item.producto.tipoProducto == 'botiquin' %}
+                                    <span class="badge bg-primary">Botiquín</span>
+                                {% elif item.producto.tipoProducto == 'droguero' %}
+                                    <span class="badge bg-warning">Droguero</span>
+                                {% elif item.producto.tipoProducto == 'vidrio' %}
+                                    <span class="badge bg-info">Materiales de vidrio</span>
+                                {% elif item.producto.tipoProducto == 'seguridad' %}
+                                    <span class="badge bg-success">Elementos de seguridad</span>
+                                {% elif item.producto.tipoProducto == 'residuos' %}
+                                    <span class="badge bg-danger">Residuos peligrosos</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Otro</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.producto.estadoFisico == 'solido' %}
                                     <span class="badge bg-secondary">Sólido</span>
-                                {% elif producto.estadoFisico == 'liquido' %}
+                                {% elif item.producto.estadoFisico == 'liquido' %}
                                     <span class="badge bg-info">Líquido</span>
                                 {% else %}
                                     <span class="badge bg-warning">Gaseoso</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if producto.controlSedronar %}
+                                {% if item.producto.controlSedronar %}
                                     <span class="badge bg-danger">Sí</span>
                                 {% else %}
                                     <span class="badge bg-success">No</span>
                                 {% endif %}
                             </td>
-                            <td>{{ producto.stock_actual }}</td>
+                            <td>{{ item.stock }}</td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=producto.idProducto) }}" class="btn btn-sm btn-info">
+                                    <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}" class="btn btn-sm btn-info">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="{{ url_for('tecnicos.edit_producto', lab_id=laboratorio.idLaboratorio, id=producto.idProducto) }}" class="btn btn-sm btn-warning">
+                                    <a href="{{ url_for('tecnicos.edit_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}" class="btn btn-sm btn-warning">
                                         <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}?producto={{ item.producto.idProducto }}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-exchange-alt"></i>
                                     </a>
                                 </div>
                             </td>
@@ -85,10 +111,28 @@
 {% block scripts %}
 <script>
     $(document).ready(function() {
-        $('#productos-table').DataTable({
+        const dataTable = $('#productos-table').DataTable({
             language: {
                 url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
             }
+        });
+
+        // Función para filtrar productos con stock
+        $('#mostrarTodos').change(function() {
+            if (!this.checked) {
+                // Filtrar productos con stock > 0
+                $.fn.dataTable.ext.search.push(
+                    function(settings, data, dataIndex) {
+                        const row = $('#productos-table tbody tr:eq(' + dataIndex + ')');
+                        const stock = parseFloat(row.attr('data-stock') || 0);
+                        return stock > 0;
+                    }
+                );
+            } else {
+                // Mostrar todos los productos
+                $.fn.dataTable.ext.search.pop();
+            }
+            dataTable.draw();
         });
     });
 </script>

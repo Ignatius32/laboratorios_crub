@@ -4,14 +4,19 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 text-gray-800">Gestión de Productos</h1>
-        <a href="{{ url_for('admin.new_producto') }}" class="btn btn-primary">
-            <i class="fas fa-plus-circle me-2"></i>Nuevo Producto
-        </a>
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('admin.importar_productos') }}" class="btn btn-success me-2">
+                <i class="fas fa-file-excel me-2"></i>Importar Excel
+            </a>
+            <a href="{{ url_for('admin.new_producto') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-2"></i>Nuevo Producto
+            </a>
+        </div>
     </div>
 
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Lista de Productos</h6>
+            <h6 class="m-0 font-weight-bold text-primary">Lista de Productos Globales</h6>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -23,8 +28,7 @@
                             <th>Tipo</th>
                             <th>Estado Físico</th>
                             <th>Control Sedronar</th>
-                            <th>Stock Actual</th>
-                            <th>Laboratorio</th>
+                            <th>Stock Total</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -33,7 +37,21 @@
                         <tr>
                             <td>{{ producto.idProducto }}</td>
                             <td>{{ producto.nombre }}</td>
-                            <td>{{ producto.tipoProducto }}</td>
+                            <td>
+                                {% if producto.tipoProducto == 'botiquin' %}
+                                    <span class="badge bg-primary">Botiquín</span>
+                                {% elif producto.tipoProducto == 'droguero' %}
+                                    <span class="badge bg-warning">Droguero</span>
+                                {% elif producto.tipoProducto == 'vidrio' %}
+                                    <span class="badge bg-info">Materiales de vidrio</span>
+                                {% elif producto.tipoProducto == 'seguridad' %}
+                                    <span class="badge bg-success">Elementos de seguridad</span>
+                                {% elif producto.tipoProducto == 'residuos' %}
+                                    <span class="badge bg-danger">Residuos peligrosos</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Otro</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if producto.estadoFisico == 'solido' %}
                                     <span class="badge bg-secondary">Sólido</span>
@@ -50,8 +68,7 @@
                                     <span class="badge bg-success">No</span>
                                 {% endif %}
                             </td>
-                            <td>{{ producto.stock_actual }}</td>
-                            <td>{{ producto.laboratorio.nombre }}</td>
+                            <td>{{ producto.stock_total }}</td>
                             <td>
                                 <div class="btn-group" role="group">
                                     <a href="{{ url_for('admin.edit_producto', id=producto.idProducto) }}" class="btn btn-sm btn-warning">
@@ -88,7 +105,7 @@
                         </div>
                         {% else %}
                         <tr>
-                            <td colspan="8" class="text-center">No hay productos registrados</td>
+                            <td colspan="7" class="text-center">No hay productos registrados</td>
                         </tr>
                         {% endfor %}
                     </tbody>

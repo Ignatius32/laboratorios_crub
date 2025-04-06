@@ -45,8 +45,15 @@ class Laboratorio(db.Model):
     movimiento_folder_id = db.Column(db.String(100), nullable=True)
     
     # Relationships
-    productos = db.relationship('Producto', backref='laboratorio', lazy=True)
     movimientos = db.relationship('Movimiento', backref='laboratorio', lazy=True)
+    
+    # Método para obtener el stock de un producto específico en este laboratorio
+    def get_stock_producto(self, id_producto):
+        ingresos = sum(m.cantidad for m in self.movimientos 
+                      if m.idProducto == id_producto and m.tipoMovimiento == 'ingreso')
+        egresos = sum(m.cantidad for m in self.movimientos 
+                     if m.idProducto == id_producto and m.tipoMovimiento == 'egreso')
+        return ingresos - egresos
 
 class Producto(db.Model):
     __tablename__ = 'producto'
@@ -58,17 +65,22 @@ class Producto(db.Model):
     controlSedronar = db.Column(db.Boolean, default=False)
     urlFichaSeguridad = db.Column(db.String(200), nullable=True)
     
-    # Foreign key
-    idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False)
-    
     # Relationships
     movimientos = db.relationship('Movimiento', backref='producto', lazy=True)
     
-    # Calculate current stock based on movements
+    # Calcular el stock total en todos los laboratorios
     @property
-    def stock_actual(self):
+    def stock_total(self):
         ingresos = sum(m.cantidad for m in self.movimientos if m.tipoMovimiento == 'ingreso')
         egresos = sum(m.cantidad for m in self.movimientos if m.tipoMovimiento == 'egreso')
+        return ingresos - egresos
+    
+    # Calcular el stock por laboratorio
+    def stock_en_laboratorio(self, lab_id):
+        ingresos = sum(m.cantidad for m in self.movimientos 
+                       if m.tipoMovimiento == 'ingreso' and m.idLaboratorio == lab_id)
+        egresos = sum(m.cantidad for m in self.movimientos 
+                      if m.tipoMovimiento == 'egreso' and m.idLaboratorio == lab_id)
         return ingresos - egresos
 
 class Movimiento(db.Model):

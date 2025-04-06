@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_productos') }}">Productos</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Importar Productos</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Importar Productos desde Excel</h6>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <h5 class="alert-heading">Instrucciones</h5>
+                <p>Sube un archivo Excel (.xlsx) con los siguientes encabezados en la primera fila:</p>
+                <ul>
+                    <li><strong>ID Producto</strong>: Identificador único del producto (ej: P001)</li>
+                    <li><strong>Nombre</strong>: Nombre del producto</li>
+                    <li><strong>Tipo de Producto</strong>: Botiquín, Droguero, Materiales de vidrio, Elementos de seguridad o Residuos peligrosos</li>
+                    <li><strong>Estado Físico</strong>: Sólido, Líquido o Gaseoso</li>
+                    <li><strong>URL Ficha de Seguridad</strong>: URL a la ficha de seguridad (opcional)</li>
+                    <li><strong>Descripción</strong>: Descripción del producto (opcional)</li>
+                    <li><strong>Control Sedronar</strong>: Sí/No, True/False (opcional, solo aplicable a productos Droguero)</li>
+                </ul>
+                <p>Si un producto con el mismo ID ya existe, se actualizará con los datos del archivo.</p>
+                <p class="mb-0"><a href="#" class="text-primary" id="download-template">Descargar plantilla de ejemplo</a></p>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="mt-4">
+                {{ form.hidden_tag() }}
+                
+                <div class="mb-3">
+                    {{ form.archivo.label(class="form-label") }}
+                    {% if form.archivo.errors %}
+                        {{ form.archivo(class="form-control is-invalid") }}
+                        <div class="invalid-feedback">
+                            {% for error in form.archivo.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ form.archivo(class="form-control") }}
+                    {% endif %}
+                    <small class="form-text text-muted">Formatos permitidos: .xlsx</small>
+                </div>
+                
+                <div class="alert alert-success">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Productos Globales:</strong> Todos los productos importados serán globales y estarán disponibles para todos los laboratorios.
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-file-import me-2"></i>Importar Productos
+                    </button>
+                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Función para generar y descargar la plantilla Excel
+        document.getElementById('download-template').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Crear un array de datos con los encabezados
+            const data = [
+                ['ID Producto', 'Nombre', 'Tipo de Producto', 'Estado Físico', 'URL Ficha de Seguridad', 'Descripción', 'Control Sedronar'],
+                ['P001', 'Ácido Clorhídrico', 'Droguero', 'Líquido', 'https://ejemplo.com/ficha1', 'Ejemplo de descripción', 'Sí'],
+                ['P002', 'Microscopio', 'Vidrio', 'Sólido', '', 'Microscopio binocular', ''],
+            ];
+            
+            // Crear un libro de trabajo y una hoja
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.aoa_to_sheet(data);
+            
+            // Añadir la hoja al libro
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Productos');
+            
+            // Generar y descargar el archivo
+            XLSX.writeFile(workbook, 'plantilla_productos.xlsx');
+        });
+    });
+</script>
+
+<!-- SheetJS para generar la plantilla Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+{% endblock %}

@@ -1,11 +1,13 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
 from flask_login import login_required, current_user
 from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento
 from werkzeug.security import generate_password_hash
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField, FileField
 from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional
 from app.integrations.google_drive import drive_integration
+import pandas as pd
+import io
 
 admin = Blueprint('admin', __name__)
 
@@ -46,17 +48,16 @@ class ProductoForm(FlaskForm):
     idProducto = StringField('ID Producto', validators=[DataRequired(), Length(min=4, max=10)])
     nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
     descripcion = TextAreaField('Descripción', validators=[Optional()])
-    tipoProducto = StringField('Tipo de Producto', validators=[DataRequired(), Length(max=50)])
+    tipoProducto = SelectField('Tipo de Producto', 
+                              choices=[('botiquin', 'Botiquín'), 
+                                      ('droguero', 'Droguero'), 
+                                      ('vidrio', 'Materiales de vidrio'), 
+                                      ('seguridad', 'Elementos de seguridad'),
+                                      ('residuos', 'Residuos peligrosos')])
     estadoFisico = SelectField('Estado Físico', 
                               choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
     controlSedronar = BooleanField('Control Sedronar')
     urlFichaSeguridad = StringField('URL Ficha de Seguridad', validators=[Optional(), URL(), Length(max=200)])
-    idLaboratorio = SelectField('Laboratorio', validators=[DataRequired()], coerce=str)
-    
-    def __init__(self, *args, **kwargs):
-        super(ProductoForm, self).__init__(*args, **kwargs)
-        # Populate lab choices
-        self.idLaboratorio.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
 
 class MovimientoForm(FlaskForm):
     tipoMovimiento = SelectField('Tipo de Movimiento', choices=[('ingreso', 'Ingreso'), ('egreso', 'Egreso')])
@@ -69,8 +70,11 @@ class MovimientoForm(FlaskForm):
         super(MovimientoForm, self).__init__(*args, **kwargs)
         # Populate choices
         self.idLaboratorio.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
-        # Populate product choices with all products by default
-        self.idProducto.choices = [(p.idProducto, f"{p.nombre} - {p.idLaboratorio}") for p in Producto.query.all()]
+        # Populate product choices with all products
+        self.idProducto.choices = [(p.idProducto, p.nombre) for p in Producto.query.all()]
+
+class ExcelUploadForm(FlaskForm):
+    archivo = FileField('Archivo Excel', validators=[DataRequired()])
 
 # Dashboard
 @admin.route('/')
@@ -333,8 +337,7 @@ def new_producto():
             tipoProducto=form.tipoProducto.data,
             estadoFisico=form.estadoFisico.data,
             controlSedronar=form.controlSedronar.data,
-            urlFichaSeguridad=form.urlFichaSeguridad.data,
-            idLaboratorio=form.idLaboratorio.data
+            urlFichaSeguridad=form.urlFichaSeguridad.data
         )
         
         db.session.add(producto)
@@ -357,7 +360,6 @@ def edit_producto(id):
         producto.estadoFisico = form.estadoFisico.data
         producto.controlSedronar = form.controlSedronar.data
         producto.urlFichaSeguridad = form.urlFichaSeguridad.data
-        producto.idLaboratorio = form.idLaboratorio.data
         
         db.session.commit()
         flash('Producto actualizado correctamente', 'success')
@@ -380,6 +382,149 @@ def delete_producto(id):
     flash('Producto eliminado correctamente', 'success')
     return redirect(url_for('admin.list_productos'))
 
+@admin.route('/productos/importar', methods=['GET', 'POST'])
+@admin_required
+def importar_productos():
+    form = ExcelUploadForm()
+    
+    # Eliminar el campo idLaboratorio del formulario ya que los productos ahora son globales
+    if hasattr(form, 'idLaboratorio'):
+        delattr(form, 'idLaboratorio')
+    
+    if form.validate_on_submit():
+        try:
+            # Leer el archivo Excel
+            file_content = form.archivo.data.read()
+            data_frame = pd.read_excel(io.BytesIO(file_content))
+            
+            # Validar las columnas del archivo
+            required_columns = ['ID Producto', 'Nombre', 'Tipo de Producto', 
+                               'Estado Físico', 'URL Ficha de Seguridad', 'Descripción', 'Control Sedronar']
+            
+            # Verificar si todas las columnas requeridas están presentes
+            if not all(col in data_frame.columns for col in required_columns):
+                missing_cols = [col for col in required_columns if col not in data_frame.columns]
+                flash(f'El archivo no contiene todas las columnas requeridas. Faltan: {", ".join(missing_cols)}', 'danger')
+                return redirect(url_for('admin.importar_productos'))
+            
+            # Mapeo de valores de campos a valores de la BD
+            tipo_producto_map = {
+                'Botiquín': 'botiquin',
+                'Droguero': 'droguero',
+                'Materiales de vidrio': 'vidrio',
+                'Elementos de seguridad': 'seguridad',
+                'Residuos peligrosos': 'residuos'
+            }
+            
+            estado_fisico_map = {
+                'Sólido': 'solido',
+                'Líquido': 'liquido',
+                'Gaseoso': 'gaseoso'
+            }
+            
+            # Contadores para la información de proceso
+            productos_creados = 0
+            productos_actualizados = 0
+            productos_saltados = 0
+            errores = []
+            
+            # Procesar cada fila del Excel
+            for index, row in data_frame.iterrows():
+                try:
+                    id_producto = str(row['ID Producto']).strip()
+                    
+                    # Mapear tipo de producto
+                    tipo_producto_excel = str(row['Tipo de Producto']).strip()
+                    tipo_producto = tipo_producto_map.get(tipo_producto_excel, None)
+                    if not tipo_producto:
+                        if tipo_producto_excel.lower() in tipo_producto_map.values():
+                            # Si es una clave válida directamente
+                            tipo_producto = tipo_producto_excel.lower()
+                        else:
+                            errores.append(f"Fila {index+2}: Tipo de producto '{tipo_producto_excel}' no válido.")
+                            productos_saltados += 1
+                            continue
+                    
+                    # Mapear estado físico
+                    estado_fisico_excel = str(row['Estado Físico']).strip()
+                    estado_fisico = estado_fisico_map.get(estado_fisico_excel, None)
+                    if not estado_fisico:
+                        if estado_fisico_excel.lower() in estado_fisico_map.values():
+                            # Si es una clave válida directamente
+                            estado_fisico = estado_fisico_excel.lower()
+                        else:
+                            errores.append(f"Fila {index+2}: Estado físico '{estado_fisico_excel}' no válido.")
+                            productos_saltados += 1
+                            continue
+                    
+                    # Manejar Control Sedronar como booleano
+                    control_sedronar = False
+                    if not pd.isna(row['Control Sedronar']):
+                        control_value = str(row['Control Sedronar']).strip().lower()
+                        control_sedronar = control_value in ['true', 'verdadero', 'sí', 'si', '1', 'yes', 'y', 'true']
+                    
+                    # URL de ficha de seguridad (opcional)
+                    url_ficha = None
+                    if not pd.isna(row['URL Ficha de Seguridad']):
+                        url_ficha = str(row['URL Ficha de Seguridad']).strip()
+                    
+                    # Descripción (opcional)
+                    descripcion = None
+                    if not pd.isna(row['Descripción']):
+                        descripcion = str(row['Descripción']).strip()
+                    
+                    # Verificar si el producto ya existe
+                    producto_existente = Producto.query.filter_by(idProducto=id_producto).first()
+                    
+                    if producto_existente:
+                        # Actualizar producto existente
+                        producto_existente.nombre = str(row['Nombre']).strip()
+                        producto_existente.descripcion = descripcion
+                        producto_existente.tipoProducto = tipo_producto
+                        producto_existente.estadoFisico = estado_fisico
+                        producto_existente.controlSedronar = control_sedronar
+                        producto_existente.urlFichaSeguridad = url_ficha
+                        productos_actualizados += 1
+                    else:
+                        # Crear nuevo producto (ahora son globales, sin asignación a laboratorio)
+                        nuevo_producto = Producto(
+                            idProducto=id_producto,
+                            nombre=str(row['Nombre']).strip(),
+                            descripcion=descripcion,
+                            tipoProducto=tipo_producto,
+                            estadoFisico=estado_fisico,
+                            controlSedronar=control_sedronar,
+                            urlFichaSeguridad=url_ficha
+                        )
+                        
+                        db.session.add(nuevo_producto)
+                        productos_creados += 1
+                        
+                except Exception as e:
+                    errores.append(f"Fila {index+2}: Error procesando producto: {str(e)}")
+                    productos_saltados += 1
+            
+            # Guardar cambios en la base de datos
+            db.session.commit()
+            
+            # Mostrar resumen del proceso
+            flash(f'Importación completada: {productos_creados} productos creados, {productos_actualizados} actualizados, {productos_saltados} saltados', 'success')
+            
+            # Mostrar errores si ocurrieron
+            if errores:
+                error_message = "<br>".join(errores[:10])
+                if len(errores) > 10:
+                    error_message += f"<br>... y {len(errores) - 10} errores más."
+                flash(f'Se encontraron los siguientes errores:<br>{error_message}', 'warning')
+            
+            return redirect(url_for('admin.list_productos'))
+            
+        except Exception as e:
+            flash(f'Error al procesar el archivo: {str(e)}', 'danger')
+            return redirect(url_for('admin.importar_productos'))
+    
+    return render_template('admin/productos/importar.html', title='Importar Productos', form=form)
+
 # CRUD for Movimientos
 @admin.route('/movimientos')
 @admin_required
@@ -392,21 +537,23 @@ def list_movimientos():
 def new_movimiento():
     form = MovimientoForm()
     
-    # Get products for selected lab (will be handled with JavaScript in frontend)
-    if request.method == 'GET':
-        lab_id = request.args.get('lab_id', '')
-        if lab_id:
-            productos = Producto.query.filter_by(idLaboratorio=lab_id).all()
-            form.idProducto.choices = [(p.idProducto, p.nombre) for p in productos]
-            # If no products found for this lab, keep all products
-            if not productos:
-                form.idProducto.choices = [(p.idProducto, f"{p.nombre} - {p.idLaboratorio}") for p in Producto.query.all()]
-    
     if form.validate_on_submit():
         # Generate a unique movement ID
         import random
         import string
         movement_id = 'MOV' + ''.join(random.choices(string.digits, k=6))
+        
+        # Para movimientos de tipo egreso, verificar stock disponible en el laboratorio
+        if form.tipoMovimiento.data == 'egreso':
+            producto = Producto.query.get_or_404(form.idProducto.data)
+            laboratorio = Laboratorio.query.get_or_404(form.idLaboratorio.data)
+            
+            # Obtener el stock actual del producto en ese laboratorio
+            stock_actual = laboratorio.get_stock_producto(form.idProducto.data)
+            
+            if form.cantidad.data > stock_actual:
+                flash(f'Stock insuficiente. Stock actual en este laboratorio: {stock_actual}', 'danger')
+                return render_template('admin/movimientos/form.html', title='Nuevo Movimiento', form=form)
         
         movimiento = Movimiento(
             idMovimiento=movement_id,
@@ -428,6 +575,12 @@ def new_movimiento():
 @admin_required
 def get_products_by_lab(lab_id):
     productos = Producto.query.filter_by(idLaboratorio=lab_id).all()
+    return {'products': [{'id': p.idProducto, 'nombre': p.nombre} for p in productos]}
+
+@admin.route('/api/get_products')
+@admin_required
+def get_products():
+    productos = Producto.query.all()
     return {'products': [{'id': p.idProducto, 'nombre': p.nombre} for p in productos]}
 
 @admin.route('/movimientos/delete/<string:id>', methods=['POST'])
