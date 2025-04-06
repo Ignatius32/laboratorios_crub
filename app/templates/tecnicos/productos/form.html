@@ -61,14 +61,14 @@
                     <div class="col-md-6 mb-3">
                         {{ form.tipoProducto.label(class="form-label") }}
                         {% if form.tipoProducto.errors %}
-                            {{ form.tipoProducto(class="form-control is-invalid") }}
+                            {{ form.tipoProducto(class="form-select is-invalid", id="tipoProducto") }}
                             <div class="invalid-feedback">
                                 {% for error in form.tipoProducto.errors %}
                                     {{ error }}
                                 {% endfor %}
                             </div>
                         {% else %}
-                            {{ form.tipoProducto(class="form-control") }}
+                            {{ form.tipoProducto(class="form-select", id="tipoProducto") }}
                         {% endif %}
                     </div>
                     
@@ -119,7 +119,7 @@
                 </div>
                 
                 <!-- Control Sedronar -->
-                <div class="mb-3 form-check">
+                <div class="mb-3 form-check" id="controlSedronarContainer">
                     {{ form.controlSedronar(class="form-check-input") }}
                     {{ form.controlSedronar.label(class="form-check-label") }}
                     {% if form.controlSedronar.errors %}
@@ -143,4 +143,30 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tipoProducto = document.getElementById('tipoProducto');
+        const controlSedronarContainer = document.getElementById('controlSedronarContainer');
+        
+        // Función para mostrar/ocultar el campo de control SEDRONAR
+        function updateSedronarField() {
+            if (tipoProducto.value === 'droguero') {
+                controlSedronarContainer.style.display = 'block';
+            } else {
+                controlSedronarContainer.style.display = 'none';
+                // Si no es droguero, desmarcamos el checkbox
+                document.querySelector('#controlSedronarContainer input').checked = false;
+            }
+        }
+        
+        // Ejecutar al cargar la página
+        updateSedronarField();
+        
+        // Añadir listener para cuando cambie el tipo de producto
+        tipoProducto.addEventListener('change', updateSedronarField);
+    });
+</script>
 {% endblock %}

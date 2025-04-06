@@ -41,17 +41,25 @@ class MovimientoTecnicoForm(FlaskForm):
     unidadMedida = StringField('Unidad de Medida', validators=[DataRequired(), Length(max=10)])
     idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
     
-    def __init__(self, lab_id, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(MovimientoTecnicoForm, self).__init__(*args, **kwargs)
-        # Populate product choices for the given laboratory
-        productos = Producto.query.filter_by(idLaboratorio=lab_id).all()
-        self.idProducto.choices = [(p.idProducto, p.nombre) for p in productos]
+        # Populate product choices with all products
+        productos = Producto.query.all()
+        if productos:
+            self.idProducto.choices = [(p.idProducto, p.nombre) for p in productos]
+        else:
+            self.idProducto.choices = [('', 'No hay productos disponibles')]
 
 class ProductoTecnicoForm(FlaskForm):
     idProducto = StringField('ID Producto', validators=[DataRequired(), Length(min=4, max=10)])
     nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
     descripcion = TextAreaField('Descripción', validators=[Optional()])
-    tipoProducto = StringField('Tipo de Producto', validators=[DataRequired(), Length(max=50)])
+    tipoProducto = SelectField('Tipo de Producto', 
+                              choices=[('botiquin', 'Botiquín'), 
+                                      ('droguero', 'Droguero'), 
+                                      ('vidrio', 'Materiales de vidrio'), 
+                                      ('seguridad', 'Elementos de seguridad'),
+                                      ('residuos', 'Residuos peligrosos')])
     estadoFisico = SelectField('Estado Físico', 
                               choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
     controlSedronar = BooleanField('Control Sedronar')
@@ -75,11 +83,26 @@ def dashboard():
 @lab_access_required
 def panel_laboratorio(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
-    productos = Producto.query.filter_by(idLaboratorio=lab_id).all()
+    
+    # En lugar de filtrar por laboratorio, obtenemos todos los productos
+    # y calculamos su stock en este laboratorio específico
+    productos = Producto.query.all()
+    
+    # Para cada producto, calcular su stock en este laboratorio específico
+    productos_con_stock = []
+    for producto in productos:
+        stock_en_lab = producto.stock_en_laboratorio(lab_id)
+        # Solo mostramos productos que tienen stock en este laboratorio
+        if stock_en_lab > 0:
+            productos_con_stock.append({
+                'producto': producto,
+                'stock': stock_en_lab
+            })
+    
     return render_template('tecnicos/panel_laboratorio.html',
                            title=f'Panel - {laboratorio.nombre}',
                            laboratorio=laboratorio,
-                           productos=productos)
+                           productos_con_stock=productos_con_stock)
 
 # Product management for technicians
 @tecnicos.route('/panel/<string:lab_id>/productos')
@@ -88,11 +111,23 @@ def panel_laboratorio(lab_id):
 @lab_access_required
 def list_productos(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
-    productos = Producto.query.filter_by(idLaboratorio=lab_id).all()
+    
+    # Obtenemos todos los productos
+    productos = Producto.query.all()
+    
+    # Para cada producto, calculamos su stock en este laboratorio específico
+    productos_con_stock = []
+    for producto in productos:
+        stock_en_lab = producto.stock_en_laboratorio(lab_id)
+        productos_con_stock.append({
+            'producto': producto,
+            'stock': stock_en_lab
+        })
+    
     return render_template('tecnicos/productos/list.html',
-                           title=f'Productos - {laboratorio.nombre}',
-                           laboratorio=laboratorio,
-                           productos=productos)
+                          title=f'Productos - {laboratorio.nombre}',
+                          laboratorio=laboratorio,
+                          productos_con_stock=productos_con_stock)
 
 @tecnicos.route('/panel/<string:lab_id>/productos/new', methods=['GET', 'POST'])
 @login_required
@@ -118,12 +153,29 @@ def new_producto(lab_id):
             tipoProducto=form.tipoProducto.data,
             estadoFisico=form.estadoFisico.data,
             controlSedronar=form.controlSedronar.data,
-            urlFichaSeguridad=form.urlFichaSeguridad.data,
-            idLaboratorio=lab_id
+            urlFichaSeguridad=form.urlFichaSeguridad.data
         )
         
         db.session.add(producto)
         db.session.commit()
+        
+        # Crear un movimiento de ingreso inicial para este laboratorio
+        import random
+        import string
+        movement_id = 'MOV' + ''.join(random.choices(string.digits, k=6))
+        
+        movimiento = Movimiento(
+            idMovimiento=movement_id,
+            tipoMovimiento='ingreso',
+            cantidad=0,  # Stock inicial 0
+            unidadMedida='unidades',  # Unidad por defecto
+            idProducto=form.idProducto.data,
+            idLaboratorio=lab_id
+        )
+        
+        db.session.add(movimiento)
+        db.session.commit()
+        
         flash('Producto creado correctamente', 'success')
         return redirect(url_for('tecnicos.list_productos', lab_id=lab_id))
     
@@ -139,11 +191,6 @@ def new_producto(lab_id):
 def edit_producto(lab_id, id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     producto = Producto.query.get_or_404(id)
-    
-    # Ensure the product belongs to the lab
-    if producto.idLaboratorio != lab_id:
-        flash('Este producto no pertenece a este laboratorio', 'danger')
-        return redirect(url_for('tecnicos.list_productos', lab_id=lab_id))
     
     form = ProductoTecnicoForm(obj=producto)
     
@@ -184,7 +231,7 @@ def list_movimientos(lab_id):
 @lab_access_required
 def new_movimiento(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
-    form = MovimientoTecnicoForm(lab_id)
+    form = MovimientoTecnicoForm()
     
     if form.validate_on_submit():
         # Generate a unique movement ID
@@ -192,33 +239,23 @@ def new_movimiento(lab_id):
         import string
         movement_id = 'MOV' + ''.join(random.choices(string.digits, k=6))
         
-        # Verify the product belongs to this laboratory
+        # Verificar que el producto existe
         producto = Producto.query.get(form.idProducto.data)
-        if not producto or producto.idLaboratorio != lab_id:
-            flash('El producto seleccionado no pertenece a este laboratorio', 'danger')
+        if not producto:
+            flash('El producto seleccionado no existe', 'danger')
             return redirect(url_for('tecnicos.new_movimiento', lab_id=lab_id))
         
-        # For outgoing movements, check if there is enough stock
+        # Para movimientos de egreso, verificar que haya suficiente stock en este laboratorio
         if form.tipoMovimiento.data == 'egreso':
-            # Calculate current stock
-            ingresos = sum(m.cantidad for m in Movimiento.query.filter_by(
-                idProducto=form.idProducto.data, 
-                tipoMovimiento='ingreso'
-            ).all())
-            
-            egresos = sum(m.cantidad for m in Movimiento.query.filter_by(
-                idProducto=form.idProducto.data, 
-                tipoMovimiento='egreso'
-            ).all())
-            
-            stock_actual = ingresos - egresos
+            # Calcular stock actual en este laboratorio
+            stock_actual = laboratorio.get_stock_producto(form.idProducto.data)
             
             if form.cantidad.data > stock_actual:
-                flash(f'No hay suficiente stock disponible. Stock actual: {stock_actual} {producto.unidadMedida}', 'danger')
+                flash(f'No hay suficiente stock disponible en este laboratorio. Stock actual: {stock_actual} {form.unidadMedida.data}', 'danger')
                 return render_template('tecnicos/movimientos/form.html',
-                                      title='Nuevo Movimiento',
-                                      form=form,
-                                      laboratorio=laboratorio)
+                                     title='Nuevo Movimiento',
+                                     form=form,
+                                     laboratorio=laboratorio)
         
         movimiento = Movimiento(
             idMovimiento=movement_id,
@@ -248,16 +285,18 @@ def view_producto(lab_id, id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     producto = Producto.query.get_or_404(id)
     
-    # Ensure the product belongs to the lab
-    if producto.idLaboratorio != lab_id:
-        flash('Este producto no pertenece a este laboratorio', 'danger')
-        return redirect(url_for('tecnicos.list_productos', lab_id=lab_id))
+    # Calcular el stock de este producto en este laboratorio específico
+    stock_en_lab = producto.stock_en_laboratorio(lab_id)
     
-    # Get all movements for this product
-    movimientos = Movimiento.query.filter_by(idProducto=id).order_by(Movimiento.timestamp.desc()).all()
+    # Obtener los movimientos de este producto en este laboratorio
+    movimientos = Movimiento.query.filter_by(
+        idProducto=id, 
+        idLaboratorio=lab_id
+    ).order_by(Movimiento.timestamp.desc()).all()
     
     return render_template('tecnicos/productos/view.html',
                            title=f'Producto: {producto.nombre}',
                            producto=producto,
                            laboratorio=laboratorio,
+                           stock_en_lab=stock_en_lab,
                            movimientos=movimientos)

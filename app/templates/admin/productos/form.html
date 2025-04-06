@@ -39,23 +39,6 @@
                         <small class="form-text text-muted">Identificador único del producto (ej: P001)</small>
                     </div>
                     
-                    <!-- Laboratorio -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.idLaboratorio.label(class="form-label") }}
-                        {% if form.idLaboratorio.errors %}
-                            {{ form.idLaboratorio(class="form-select is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.idLaboratorio.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.idLaboratorio(class="form-select") }}
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="row">
                     <!-- Nombre -->
                     <div class="col-md-6 mb-3">
                         {{ form.nombre.label(class="form-label") }}
@@ -70,24 +53,24 @@
                             {{ form.nombre(class="form-control") }}
                         {% endif %}
                     </div>
-                    
+                </div>
+                
+                <div class="row">
                     <!-- Tipo Producto -->
                     <div class="col-md-6 mb-3">
                         {{ form.tipoProducto.label(class="form-label") }}
                         {% if form.tipoProducto.errors %}
-                            {{ form.tipoProducto(class="form-control is-invalid") }}
+                            {{ form.tipoProducto(class="form-select is-invalid", id="tipoProducto") }}
                             <div class="invalid-feedback">
                                 {% for error in form.tipoProducto.errors %}
                                     {{ error }}
                                 {% endfor %}
                             </div>
                         {% else %}
-                            {{ form.tipoProducto(class="form-control") }}
+                            {{ form.tipoProducto(class="form-select", id="tipoProducto") }}
                         {% endif %}
                     </div>
-                </div>
-                
-                <div class="row">
+                    
                     <!-- Estado Físico -->
                     <div class="col-md-6 mb-3">
                         {{ form.estadoFisico.label(class="form-label") }}
@@ -102,9 +85,11 @@
                             {{ form.estadoFisico(class="form-select") }}
                         {% endif %}
                     </div>
-                    
+                </div>
+                
+                <div class="row">
                     <!-- URL Ficha Seguridad -->
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-12 mb-3">
                         {{ form.urlFichaSeguridad.label(class="form-label") }}
                         {% if form.urlFichaSeguridad.errors %}
                             {{ form.urlFichaSeguridad(class="form-control is-invalid") }}
@@ -135,7 +120,7 @@
                 </div>
                 
                 <!-- Control Sedronar -->
-                <div class="mb-3 form-check">
+                <div class="mb-3 form-check" id="controlSedronarContainer">
                     {{ form.controlSedronar(class="form-check-input") }}
                     {{ form.controlSedronar.label(class="form-check-label") }}
                     {% if form.controlSedronar.errors %}
@@ -159,4 +144,30 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tipoProducto = document.getElementById('tipoProducto');
+        const controlSedronarContainer = document.getElementById('controlSedronarContainer');
+        
+        // Función para mostrar/ocultar el campo de control SEDRONAR
+        function updateSedronarField() {
+            if (tipoProducto.value === 'droguero') {
+                controlSedronarContainer.style.display = 'block';
+            } else {
+                controlSedronarContainer.style.display = 'none';
+                // Si no es droguero, desmarcamos el checkbox
+                document.querySelector('#controlSedronarContainer input').checked = false;
+            }
+        }
+        
+        // Ejecutar al cargar la página
+        updateSedronarField();
+        
+        // Añadir listener para cuando cambie el tipo de producto
+        tipoProducto.addEventListener('change', updateSedronarField);
+    });
+</script>
 {% endblock %}
