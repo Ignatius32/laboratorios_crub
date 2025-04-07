@@ -17,9 +17,6 @@
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="m-0 font-weight-bold text-primary">Detalles del Producto</h6>
                     <div>
-                        <a href="{{ url_for('tecnicos.edit_producto', lab_id=laboratorio.idLaboratorio, id=producto.idProducto) }}" class="btn btn-sm btn-warning">
-                            <i class="fas fa-edit me-1"></i> Editar
-                        </a>
                         <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-success">
                             <i class="fas fa-plus-circle me-1"></i> Nuevo Movimiento
                         </a>

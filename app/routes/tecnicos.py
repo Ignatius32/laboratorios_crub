@@ -189,28 +189,9 @@ def new_producto(lab_id):
 @tecnico_required
 @lab_access_required
 def edit_producto(lab_id, id):
-    laboratorio = Laboratorio.query.get_or_404(lab_id)
-    producto = Producto.query.get_or_404(id)
-    
-    form = ProductoTecnicoForm(obj=producto)
-    
-    if form.validate_on_submit():
-        producto.nombre = form.nombre.data
-        producto.descripcion = form.descripcion.data
-        producto.tipoProducto = form.tipoProducto.data
-        producto.estadoFisico = form.estadoFisico.data
-        producto.controlSedronar = form.controlSedronar.data
-        producto.urlFichaSeguridad = form.urlFichaSeguridad.data
-        
-        db.session.commit()
-        flash('Producto actualizado correctamente', 'success')
-        return redirect(url_for('tecnicos.list_productos', lab_id=lab_id))
-    
-    return render_template('tecnicos/productos/form.html',
-                           title='Editar Producto',
-                           form=form,
-                           producto=producto,
-                           laboratorio=laboratorio)
+    # Redirigir a la vista de detalle del producto, ya que los técnicos no pueden editar productos
+    flash('Solo los administradores pueden editar productos', 'warning')
+    return redirect(url_for('tecnicos.view_producto', lab_id=lab_id, id=id))
 
 # Movement management for technicians
 @tecnicos.route('/panel/<string:lab_id>/movimientos')
