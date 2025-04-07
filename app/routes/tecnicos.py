@@ -56,7 +56,6 @@ class ProductoTecnicoForm(FlaskForm):
     descripcion = TextAreaField('Descripción', validators=[Optional()])
     tipoProducto = SelectField('Tipo de Producto', 
                               choices=[('botiquin', 'Botiquín'), 
-                                      ('droguero', 'Droguero'), 
                                       ('vidrio', 'Materiales de vidrio'), 
                                       ('seguridad', 'Elementos de seguridad'),
                                       ('residuos', 'Residuos peligrosos')])
@@ -141,6 +140,14 @@ def new_producto(lab_id):
         # Check if product ID already exists
         if Producto.query.filter_by(idProducto=form.idProducto.data).first():
             flash('El ID de producto ya existe', 'danger')
+            return render_template('tecnicos/productos/form.html', 
+                                  title='Nuevo Producto', 
+                                  form=form,
+                                  laboratorio=laboratorio)
+        
+        # Verificar que no se está intentando crear un producto tipo droguero
+        if form.tipoProducto.data == 'droguero':
+            flash('Los técnicos no están autorizados para crear productos de tipo Droguero', 'danger')
             return render_template('tecnicos/productos/form.html', 
                                   title='Nuevo Producto', 
                                   form=form,
