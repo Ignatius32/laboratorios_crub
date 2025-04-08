@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento
 from flask_wtf import FlaskForm
-from wtforms import SelectField, FloatField, StringField, TextAreaField, BooleanField
+from wtforms import SelectField, FloatField, StringField, TextAreaField, BooleanField, FileField
 from wtforms.validators import DataRequired, Length, URL, Optional
 
 tecnicos = Blueprint('tecnicos', __name__)
@@ -36,19 +36,44 @@ def lab_access_required(f):
 
 # Forms
 class MovimientoTecnicoForm(FlaskForm):
-    tipoMovimiento = SelectField('Tipo de Movimiento', choices=[('ingreso', 'Ingreso'), ('egreso', 'Egreso')])
+    tipoMovimiento = SelectField('Tipo de Movimiento', choices=[
+        ('ingreso', 'Ingreso'), 
+        ('compra', 'Compra'), 
+        ('uso', 'Uso'),
+        ('transferencia', 'Transferencia')
+    ])
     cantidad = FloatField('Cantidad', validators=[DataRequired()])
     unidadMedida = StringField('Unidad de Medida', validators=[DataRequired(), Length(max=10)])
     idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
     
+    # Campos para movimientos tipo 'compra'
+    tipoDocumento = SelectField('Tipo de Documento', choices=[
+        ('factura', 'Factura'),
+        ('remito', 'Remito')
+    ], validators=[Optional()])
+    fechaFactura = StringField('Fecha de Factura', validators=[Optional()])
+    cuitProveedor = StringField('CUIT del Proveedor', validators=[Optional(), Length(max=13)])
+    documento = FileField('Documento (PDF)', validators=[Optional()])
+    
+    # Campo para movimientos tipo 'transferencia'
+    laboratorioDestino = SelectField('Laboratorio Destino', coerce=str, validators=[Optional()])
+    
     def __init__(self, *args, **kwargs):
+        self.laboratorios = kwargs.pop('laboratorios', [])
         super(MovimientoTecnicoForm, self).__init__(*args, **kwargs)
+        
         # Populate product choices with all products
         productos = Producto.query.all()
         if productos:
             self.idProducto.choices = [(p.idProducto, p.nombre) for p in productos]
         else:
             self.idProducto.choices = [('', 'No hay productos disponibles')]
+            
+        # Populate laboratory destination choices
+        if self.laboratorios:
+            self.laboratorioDestino.choices = [(lab.idLaboratorio, lab.nombre) for lab in self.laboratorios]
+        else:
+            self.laboratorioDestino.choices = [('', 'No hay laboratorios disponibles')]
 
 class ProductoTecnicoForm(FlaskForm):
     idProducto = StringField('ID Producto', validators=[DataRequired(), Length(min=4, max=10)])
@@ -219,7 +244,17 @@ def list_movimientos(lab_id):
 @lab_access_required
 def new_movimiento(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
-    form = MovimientoTecnicoForm()
+    
+    # Get all laboratories the user has access to for transfers
+    user_laboratorios = current_user.laboratorios
+    available_labs = [lab for lab in user_laboratorios if lab.idLaboratorio != lab_id]
+    
+    # Initialize form with available laboratories
+    form = MovimientoTecnicoForm(laboratorios=available_labs)
+    
+    # Pre-select product if provided in query param
+    if request.args.get('producto'):
+        form.idProducto.data = request.args.get('producto')
     
     if form.validate_on_submit():
         # Generate a unique movement ID
@@ -233,8 +268,67 @@ def new_movimiento(lab_id):
             flash('El producto seleccionado no existe', 'danger')
             return redirect(url_for('tecnicos.new_movimiento', lab_id=lab_id))
         
-        # Para movimientos de egreso, verificar que haya suficiente stock en este laboratorio
-        if form.tipoMovimiento.data == 'egreso':
+        # Variables for movement
+        tipo_movimiento = form.tipoMovimiento.data
+        url_documento = None
+        lab_destino = None
+        tipo_documento = None
+          # Process based on movement type
+        if tipo_movimiento == 'compra':
+            # For purchase movements, handle document upload
+            tipo_documento = form.tipoDocumento.data
+            
+            # Process fecha_factura (converting string to date if provided)
+            fecha_factura = None
+            if form.fechaFactura.data:
+                from datetime import datetime
+                try:
+                    fecha_factura = datetime.strptime(form.fechaFactura.data, '%Y-%m-%d').date()
+                except ValueError:
+                    flash('El formato de la fecha de factura no es válido. Utilice el formato YYYY-MM-DD.', 'warning')
+            
+            # Get CUIT proveedor
+            cuit_proveedor = form.cuitProveedor.data
+            
+            # Check if document was uploaded
+            if form.documento.data:
+                try:
+                    import base64
+                    from app.integrations.google_drive import drive_integration
+                    
+                    # Read file and encode as base64
+                    file_data = base64.b64encode(form.documento.data.read()).decode('utf-8')
+                    file_name = form.documento.data.filename
+                    file_type = "application/pdf"  # Assuming PDFs only
+                    
+                    # Upload document to Google Drive
+                    result = drive_integration.upload_movimiento_documento(
+                        lab_id=lab_id,
+                        movimiento_id=movement_id,
+                        file_data=file_data,
+                        file_name=file_name,
+                        file_type=file_type
+                    )
+                    
+                    if result:
+                        url_documento = result.get('file_url')
+                    else:
+                        flash('Error al subir el documento. El movimiento se registrará sin documento adjunto.', 'warning')
+                except Exception as e:
+                    flash(f'Error al procesar el documento: {str(e)}', 'danger')
+        
+        elif tipo_movimiento == 'transferencia':
+            # For transfer movements, set destination laboratory
+            lab_destino = form.laboratorioDestino.data
+            if not lab_destino:
+                flash('Debe seleccionar un laboratorio destino para la transferencia', 'danger')
+                return render_template('tecnicos/movimientos/form.html',
+                                     title='Nuevo Movimiento',
+                                     form=form,
+                                     laboratorio=laboratorio)
+        
+        # For all egress-like movements (uso, transferencia), check stock
+        if tipo_movimiento in ['uso', 'transferencia']:
             # Calcular stock actual en este laboratorio
             stock_actual = laboratorio.get_stock_producto(form.idProducto.data)
             
@@ -244,17 +338,40 @@ def new_movimiento(lab_id):
                                      title='Nuevo Movimiento',
                                      form=form,
                                      laboratorio=laboratorio)
-        
+          # Create the movement record
         movimiento = Movimiento(
             idMovimiento=movement_id,
-            tipoMovimiento=form.tipoMovimiento.data,
+            tipoMovimiento=tipo_movimiento,
             cantidad=form.cantidad.data,
             unidadMedida=form.unidadMedida.data,
             idProducto=form.idProducto.data,
-            idLaboratorio=lab_id
+            idLaboratorio=lab_id,
+            tipoDocumento=tipo_documento,
+            urlDocumento=url_documento,
+            laboratorioDestino=lab_destino,
+            fechaFactura=fecha_factura if tipo_movimiento == 'compra' else None,
+            cuitProveedor=cuit_proveedor if tipo_movimiento == 'compra' else None
         )
         
         db.session.add(movimiento)
+        
+        # If it's a transfer, create an ingress movement for the destination laboratory
+        if tipo_movimiento == 'transferencia' and lab_destino:
+            movement_id_dest = 'MOV' + ''.join(random.choices(string.digits, k=6))
+            
+            movimiento_dest = Movimiento(
+                idMovimiento=movement_id_dest,
+                tipoMovimiento='ingreso',
+                cantidad=form.cantidad.data,
+                unidadMedida=form.unidadMedida.data,
+                idProducto=form.idProducto.data,
+                idLaboratorio=lab_destino,
+                # We include a reference to the original movement
+                tipoDocumento='transferencia',
+                laboratorioDestino=lab_id  # Original lab becomes "source" in this context
+            )
+            db.session.add(movimiento_dest)
+        
         db.session.commit()
         flash('Movimiento registrado correctamente', 'success')
         return redirect(url_for('tecnicos.list_movimientos', lab_id=lab_id))

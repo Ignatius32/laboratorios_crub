@@ -127,5 +127,71 @@ class GoogleDriveIntegration:
             current_app.logger.error(f"Exception in Google Drive folder deletion: {str(e)}")
             return False
 
+    def upload_movimiento_documento(self, lab_id, movimiento_id, file_data, file_name, file_type):
+        """
+        Uploads a document for a movement to Google Drive
+        
+        Args:
+            lab_id (str): The laboratory ID
+            movimiento_id (str): The movement ID
+            file_data (str): Base64 encoded file data
+            file_name (str): Original file name
+            file_type (str): MIME type of the file
+            
+        Returns:
+            dict: Dictionary with file ID and URL or None if there was an error
+        """
+        if not self.script_url:
+            current_app.logger.error("Google Script URL not configured")
+            return None
+            
+        try:
+            # Get current date for folder name
+            from datetime import datetime
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            folder_name = f"{movimiento_id}_{current_date}"
+            
+            # Prepare the request data
+            data = {
+                'action': 'uploadMovimientoDocumento',
+                'token': str(self.secure_token),
+                'labId': lab_id,
+                'folderName': folder_name,
+                'fileName': file_name,
+                'fileData': file_data,
+                'fileType': file_type
+            }
+            
+            # Log the request for debugging (excluding file data)
+            log_data = {k: v for k, v in data.items() if k != 'fileData'}
+            current_app.logger.info(f"Sending document upload request to Google Script: {log_data}")
+            
+            # Send request to Google Apps Script
+            response = requests.post(
+                self.script_url,
+                json=data,
+                headers={'Content-Type': 'application/json'},
+                timeout=60  # Longer timeout for file uploads
+            )
+            
+            # Check response
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    return {
+                        'file_id': result.get('fileId'),
+                        'file_url': result.get('fileUrl')
+                    }
+                else:
+                    current_app.logger.error(f"Drive API Error: {result.get('error')}")
+                    return None
+            else:
+                current_app.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
+                return None
+                
+        except Exception as e:
+            current_app.logger.error(f"Exception in Google Drive document upload: {str(e)}")
+            return None
+
 # Create a singleton instance
 drive_integration = GoogleDriveIntegration()

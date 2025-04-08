@@ -32,6 +32,7 @@
                             <th>Producto</th>
                             <th>Cantidad</th>
                             <th>Unidad</th>
+                            <th>Detalles</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -42,17 +43,53 @@
                             <td>
                                 {% if movimiento.tipoMovimiento == 'ingreso' %}
                                     <span class="badge bg-success">Ingreso</span>
+                                {% elif movimiento.tipoMovimiento == 'compra' %}
+                                    <span class="badge bg-primary">Compra</span>
+                                {% elif movimiento.tipoMovimiento == 'uso' %}
+                                    <span class="badge bg-danger">Uso</span>
+                                {% elif movimiento.tipoMovimiento == 'transferencia' %}
+                                    <span class="badge bg-warning">Transferencia</span>
                                 {% else %}
-                                    <span class="badge bg-danger">Egreso</span>
+                                    <span class="badge bg-secondary">Egreso</span>
                                 {% endif %}
                             </td>
                             <td>{{ movimiento.producto.nombre }}</td>
                             <td>{{ movimiento.cantidad }}</td>
                             <td>{{ movimiento.unidadMedida }}</td>
+                            <td>
+                                {% if movimiento.tipoMovimiento == 'compra' %}
+                                    {% if movimiento.tipoDocumento %}
+                                        <span class="badge bg-info">{{ movimiento.tipoDocumento|capitalize }}</span>
+                                    {% endif %}
+                                    {% if movimiento.urlDocumento %}
+                                        <a href="{{ movimiento.urlDocumento }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                    {% endif %}
+                                {% elif movimiento.tipoMovimiento == 'transferencia' %}
+                                    {% if movimiento.laboratorioDestino %}
+                                        <span class="badge bg-info">Destino: 
+                                            {% for lab in current_user.laboratorios %}
+                                                {% if lab.idLaboratorio == movimiento.laboratorioDestino %}
+                                                    {{ lab.nombre }}
+                                                {% endif %}
+                                            {% endfor %}
+                                        </span>
+                                    {% endif %}
+                                {% elif movimiento.tipoDocumento == 'transferencia' %}
+                                    <span class="badge bg-info">Origen: 
+                                        {% for lab in current_user.laboratorios %}
+                                            {% if lab.idLaboratorio == movimiento.laboratorioDestino %}
+                                                {{ lab.nombre }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="text-center">No hay movimientos registrados</td>
+                            <td colspan="7" class="text-center">No hay movimientos registrados</td>
                         </tr>
                         {% endfor %}
                     </tbody>
