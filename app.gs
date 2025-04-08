@@ -22,12 +22,13 @@ function doPost(e) {
       console.error("Token validation failed. Received: " + requestData.token + ", Expected: " + secureToken);
       return createErrorResponse("Invalid security token");
     }
-    
-    // Handle different actions
+      // Handle different actions
     if (requestData.action === "createLabFolders") {
       return handleCreateLabFolders(requestData);
     } else if (requestData.action === "deleteLabFolders") {
       return handleDeleteLabFolders(requestData);
+    } else if (requestData.action === "uploadMovimientoDocumento") {
+      return handleUploadMovimientoDocumento(requestData);
     } else {
       return createErrorResponse("Unknown action");
     }
@@ -172,6 +173,80 @@ function createErrorResponse(errorMessage) {
     success: false,
     error: errorMessage
   })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Handles uploading a document for a movement and storing it in a dedicated folder
+ */
+function handleUploadMovimientoDocumento(data) {
+  // Validate required fields
+  if (!data.labId || !data.folderName || !data.fileName || !data.fileData || !data.fileType) {
+    return createErrorResponse("Missing required fields for document upload");
+  }
+  
+  try {
+    // First, get the movements folder for this lab
+    const labFolderName = "lab_" + data.labId;
+    const movimientosFolderName = "movimientos_" + data.labId;
+    
+    // Get the root folder
+    const rootFolder = DriveApp.getFolderById(ROOT_FOLDER_ID);
+    if (!rootFolder) {
+      return createErrorResponse("Could not access root folder");
+    }
+    
+    // Find the lab folder
+    let labFolder = null;
+    const labFolders = rootFolder.getFoldersByName(labFolderName);
+    if (labFolders.hasNext()) {
+      labFolder = labFolders.next();
+    } else {
+      return createErrorResponse("Laboratory folder does not exist");
+    }
+    
+    // Find the movements folder
+    let movimientosFolder = null;
+    const movimientosFolders = labFolder.getFoldersByName(movimientosFolderName);
+    if (movimientosFolders.hasNext()) {
+      movimientosFolder = movimientosFolders.next();
+    } else {
+      return createErrorResponse("Movements folder does not exist");
+    }
+    
+    // Create or get the specific movement folder with format "movimiento+fecha"
+    let movimientoSpecificFolder = null;
+    const specificFolders = movimientosFolder.getFoldersByName(data.folderName);
+    
+    if (specificFolders.hasNext()) {
+      movimientoSpecificFolder = specificFolders.next();
+      console.log("Found existing specific movement folder: " + data.folderName);
+    } else {
+      // Create new specific movement folder
+      movimientoSpecificFolder = movimientosFolder.createFolder(data.folderName);
+      console.log("Created new specific movement folder: " + data.folderName);
+    }
+    
+    // Process and create the file
+    const fileBlob = Utilities.newBlob(
+      Utilities.base64Decode(data.fileData),
+      data.fileType,
+      data.fileName
+    );
+    
+    // Create the file in the specific movement folder
+    const file = movimientoSpecificFolder.createFile(fileBlob);
+    console.log("Created file: " + file.getName() + " in folder: " + data.folderName);
+    
+    // Return success with file info
+    return createSuccessResponse({
+      fileId: file.getId(),
+      fileUrl: file.getUrl()
+    });
+    
+  } catch (error) {
+    console.error("Error uploading document: " + error);
+    return createErrorResponse("Error uploading document: " + error.toString());
+  }
 }
 
 /**

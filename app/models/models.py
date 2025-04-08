@@ -45,14 +45,12 @@ class Laboratorio(db.Model):
     movimiento_folder_id = db.Column(db.String(100), nullable=True)
     
     # Relationships
-    movimientos = db.relationship('Movimiento', backref='laboratorio', lazy=True)
-    
-    # Método para obtener el stock de un producto específico en este laboratorio
+    movimientos = db.relationship('Movimiento', backref='laboratorio', lazy=True)    # Método para obtener el stock de un producto específico en este laboratorio
     def get_stock_producto(self, id_producto):
         ingresos = sum(m.cantidad for m in self.movimientos 
-                      if m.idProducto == id_producto and m.tipoMovimiento == 'ingreso')
+                      if m.idProducto == id_producto and m.tipoMovimiento.lower() in ['ingreso', 'compra'])
         egresos = sum(m.cantidad for m in self.movimientos 
-                     if m.idProducto == id_producto and m.tipoMovimiento == 'egreso')
+                     if m.idProducto == id_producto and m.tipoMovimiento.lower() in ['egreso', 'uso', 'transferencia'])
         return ingresos - egresos
 
 class Producto(db.Model):
@@ -66,30 +64,33 @@ class Producto(db.Model):
     urlFichaSeguridad = db.Column(db.String(200), nullable=True)
     
     # Relationships
-    movimientos = db.relationship('Movimiento', backref='producto', lazy=True)
-    
-    # Calcular el stock total en todos los laboratorios
+    movimientos = db.relationship('Movimiento', backref='producto', lazy=True)      # Calcular el stock total en todos los laboratorios
     @property
     def stock_total(self):
-        ingresos = sum(m.cantidad for m in self.movimientos if m.tipoMovimiento == 'ingreso')
-        egresos = sum(m.cantidad for m in self.movimientos if m.tipoMovimiento == 'egreso')
-        return ingresos - egresos
-    
-    # Calcular el stock por laboratorio
+        ingresos = sum(m.cantidad for m in self.movimientos if m.tipoMovimiento.lower() in ['ingreso', 'compra'])
+        egresos = sum(m.cantidad for m in self.movimientos if m.tipoMovimiento.lower() in ['egreso', 'uso', 'transferencia'])
+        return ingresos - egresos      # Calcular el stock por laboratorio
     def stock_en_laboratorio(self, lab_id):
         ingresos = sum(m.cantidad for m in self.movimientos 
-                       if m.tipoMovimiento == 'ingreso' and m.idLaboratorio == lab_id)
+                       if m.tipoMovimiento.lower() in ['ingreso', 'compra'] and m.idLaboratorio == lab_id)
         egresos = sum(m.cantidad for m in self.movimientos 
-                      if m.tipoMovimiento == 'egreso' and m.idLaboratorio == lab_id)
+                      if m.tipoMovimiento.lower() in ['egreso', 'uso', 'transferencia'] and m.idLaboratorio == lab_id)
         return ingresos - egresos
 
 class Movimiento(db.Model):
     __tablename__ = 'movimiento'
     idMovimiento = db.Column(db.String(10), primary_key=True)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    tipoMovimiento = db.Column(db.String(20), nullable=False)  # 'ingreso' or 'egreso'
+    tipoMovimiento = db.Column(db.String(20), nullable=False)  # 'ingreso', 'compra', 'uso', 'transferencia'
     cantidad = db.Column(db.Float, nullable=False)
     unidadMedida = db.Column(db.String(10), nullable=False)
+    
+    # New fields for the specialized movement types
+    tipoDocumento = db.Column(db.String(20), nullable=True)  # 'factura' or 'remito' for 'compra' type
+    urlDocumento = db.Column(db.String(255), nullable=True)  # URL to the stored document in Google Drive
+    laboratorioDestino = db.Column(db.String(10), nullable=True)  # For 'transferencia' type
+    fechaFactura = db.Column(db.Date, nullable=True)  # Date of the invoice for 'compra' type
+    cuitProveedor = db.Column(db.String(13), nullable=True)  # CUIT of the supplier for 'compra' type
     
     # Foreign keys
     idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False)
