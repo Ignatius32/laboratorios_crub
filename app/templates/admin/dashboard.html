@@ -79,8 +79,7 @@
                     <h6 class="m-0 font-weight-bold text-primary">Acceso Rápido</h6>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-lg-6 mb-3">
+                    <div class="row">                        <div class="col-lg-6 mb-3">
                             <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-primary w-100">
                                 <i class="fas fa-users me-2"></i> Gestionar Usuarios
                             </a>
@@ -98,6 +97,11 @@
                         <div class="col-lg-6 mb-3">
                             <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-warning w-100">
                                 <i class="fas fa-exchange-alt me-2"></i> Gestionar Movimientos
+                            </a>
+                        </div>
+                        <div class="col-lg-6 mb-3">
+                            <a href="{{ url_for('admin.list_proveedores') }}" class="btn btn-secondary w-100">
+                                <i class="fas fa-truck me-2"></i> Gestionar Proveedores
                             </a>
                         </div>
                     </div>
