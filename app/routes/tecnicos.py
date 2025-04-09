@@ -1,9 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
 from flask_login import login_required, current_user
-from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento
+from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor
 from flask_wtf import FlaskForm
-from wtforms import SelectField, FloatField, StringField, TextAreaField, BooleanField, FileField
-from wtforms.validators import DataRequired, Length, URL, Optional
+from wtforms import SelectField, FloatField, StringField, TextAreaField, BooleanField, FileField, SubmitField
+from wtforms.validators import DataRequired, Length, URL, Optional, Email, Regexp, ValidationError
 
 tecnicos = Blueprint('tecnicos', __name__)
 
@@ -35,6 +35,27 @@ def lab_access_required(f):
     return decorated_function
 
 # Forms
+class ProveedorTecnicoForm(FlaskForm):
+    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
+    direccion = StringField('Dirección', validators=[Optional(), Length(max=200)])
+    telefono = StringField('Teléfono', validators=[Optional(), Length(max=50)])
+    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
+    cuit = StringField('CUIT', validators=[
+        DataRequired(), 
+        Length(min=11, max=13),
+        Regexp(r'^\d{2}-?\d{8}-?\d{1}$', message='Formato de CUIT inválido. Use XX-XXXXXXXX-X o XXXXXXXXXXX.')
+    ])
+    submit = SubmitField('Guardar')
+    
+    def validate_cuit(self, cuit):
+        # Limpiar CUIT (remover guiones) antes de verificar unicidad
+        cleaned_cuit = ''.join(filter(str.isdigit, cuit.data))
+        
+        # Verificar si el CUIT ya existe
+        proveedor = Proveedor.query.filter_by(cuit=cleaned_cuit).first()
+        if proveedor:
+            raise ValidationError('Este CUIT ya está registrado.')
+
 class MovimientoTecnicoForm(FlaskForm):
     tipoMovimiento = SelectField('Tipo de Movimiento', choices=[
         ('ingreso', 'Ingreso'), 
@@ -405,3 +426,54 @@ def view_producto(lab_id, id):
                            laboratorio=laboratorio,
                            stock_en_lab=stock_en_lab,
                            movimientos=movimientos)
+
+# Proveedores management for technicians
+@tecnicos.route('/proveedores')
+@login_required
+@tecnico_required
+def list_proveedores():
+    proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
+    return render_template('tecnicos/proveedores/list.html', 
+                          title='Lista de Proveedores',
+                          proveedores=proveedores)
+
+@tecnicos.route('/proveedores/new', methods=['GET', 'POST'])
+@login_required
+@tecnico_required
+def new_proveedor():
+    form = ProveedorTecnicoForm()
+    
+    if form.validate_on_submit():
+        # Limpiar CUIT (remover guiones) antes de guardar
+        cleaned_cuit = ''.join(filter(str.isdigit, form.cuit.data))
+        
+        proveedor = Proveedor(
+            nombre=form.nombre.data,
+            direccion=form.direccion.data,
+            telefono=form.telefono.data,
+            email=form.email.data,
+            cuit=cleaned_cuit
+        )
+        
+        db.session.add(proveedor)
+        db.session.commit()
+        flash('Proveedor creado correctamente', 'success')
+        return redirect(url_for('tecnicos.list_proveedores'))
+    
+    return render_template('tecnicos/proveedores/form.html', 
+                          title='Nuevo Proveedor', 
+                          form=form)
+
+@tecnicos.route('/proveedores/<int:id>')
+@login_required
+@tecnico_required
+def view_proveedor(id):
+    proveedor = Proveedor.query.get_or_404(id)
+    
+    # Buscar movimientos asociados a este proveedor
+    movimientos = Movimiento.query.filter_by(cuitProveedor=proveedor.cuit).all()
+    
+    return render_template('tecnicos/proveedores/view.html',
+                          title=f'Proveedor: {proveedor.nombre}',
+                          proveedor=proveedor,
+                          movimientos=movimientos)

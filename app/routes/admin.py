@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
 from flask_login import login_required, current_user
-from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento
+from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor
 from werkzeug.security import generate_password_hash
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField, FileField
-from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField, FileField, SubmitField
+from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional, Regexp
 from app.integrations.google_drive import drive_integration
 import pandas as pd
 import io
@@ -22,6 +22,35 @@ def admin_required(f):
     return decorated_function
 
 # Forms
+class ProveedorForm(FlaskForm):
+    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
+    direccion = StringField('Dirección', validators=[Optional(), Length(max=200)])
+    telefono = StringField('Teléfono', validators=[Optional(), Length(max=50)])
+    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
+    cuit = StringField('CUIT', validators=[
+        DataRequired(), 
+        Length(min=11, max=13),
+        Regexp(r'^\d{2}-?\d{8}-?\d{1}$', message='Formato de CUIT inválido. Use XX-XXXXXXXX-X o XXXXXXXXXXX.')
+    ])
+    submit = SubmitField('Guardar')
+
+    def __init__(self, *args, **kwargs):
+        self.proveedor = kwargs.pop('obj', None)
+        super(ProveedorForm, self).__init__(*args, **kwargs)
+
+    def validate_cuit(self, cuit):
+        # Limpiar CUIT (remover guiones) antes de verificar unicidad
+        cleaned_cuit = ''.join(filter(str.isdigit, cuit.data))
+        
+        # Buscar un proveedor con el mismo CUIT
+        proveedor = Proveedor.query.filter_by(cuit=cleaned_cuit).first()
+        
+        # Si estamos editando, excluir el proveedor actual de la validación de unicidad
+        if proveedor and self.proveedor and proveedor.idProveedor != self.proveedor.idProveedor:
+            raise ValidationError('Este CUIT ya está registrado para otro proveedor.')
+        elif proveedor and not self.proveedor:
+            raise ValidationError('Este CUIT ya está registrado.')
+
 class UsuarioForm(FlaskForm):
     idUsuario = StringField('ID Usuario', validators=[DataRequired(), Length(min=4, max=10)])
     nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
@@ -591,3 +620,83 @@ def delete_movimiento(id):
     db.session.commit()
     flash('Movimiento eliminado correctamente', 'success')
     return redirect(url_for('admin.list_movimientos'))
+
+# CRUD for Proveedores
+@admin.route('/proveedores')
+@admin_required
+def list_proveedores():
+    proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
+    return render_template('admin/proveedores/list.html', 
+                           title='Gestión de Proveedores', 
+                           proveedores=proveedores)
+
+@admin.route('/proveedores/new', methods=['GET', 'POST'])
+@admin_required
+def new_proveedor():
+    form = ProveedorForm()
+    
+    if form.validate_on_submit():
+        # Limpiar CUIT (remover guiones) antes de guardar
+        cleaned_cuit = ''.join(filter(str.isdigit, form.cuit.data))
+        
+        proveedor = Proveedor(
+            nombre=form.nombre.data,
+            direccion=form.direccion.data,
+            telefono=form.telefono.data,
+            email=form.email.data,
+            cuit=cleaned_cuit
+        )
+        
+        db.session.add(proveedor)
+        db.session.commit()
+        flash('Proveedor creado correctamente', 'success')
+        return redirect(url_for('admin.list_proveedores'))
+    
+    return render_template('admin/proveedores/form.html', 
+                           title='Nuevo Proveedor', 
+                           form=form)
+
+@admin.route('/proveedores/edit/<int:id>', methods=['GET', 'POST'])
+@admin_required
+def edit_proveedor(id):
+    proveedor = Proveedor.query.get_or_404(id)
+    form = ProveedorForm(obj=proveedor)
+    
+    # Para la validación de unicidad del CUIT
+    form.proveedor = proveedor
+    
+    if form.validate_on_submit():
+        # Limpiar CUIT (remover guiones) antes de guardar
+        cleaned_cuit = ''.join(filter(str.isdigit, form.cuit.data))
+        
+        proveedor.nombre = form.nombre.data
+        proveedor.direccion = form.direccion.data
+        proveedor.telefono = form.telefono.data
+        proveedor.email = form.email.data
+        proveedor.cuit = cleaned_cuit
+        
+        db.session.commit()
+        flash('Proveedor actualizado correctamente', 'success')
+        return redirect(url_for('admin.list_proveedores'))
+    
+    return render_template('admin/proveedores/form.html', 
+                           title='Editar Proveedor', 
+                           form=form, 
+                           proveedor=proveedor)
+
+@admin.route('/proveedores/delete/<int:id>', methods=['POST'])
+@admin_required
+def delete_proveedor(id):
+    proveedor = Proveedor.query.get_or_404(id)
+    
+    # Verificar si hay movimientos asociados al proveedor
+    movimientos_asociados = Movimiento.query.filter_by(cuitProveedor=proveedor.cuit).first()
+    
+    if movimientos_asociados:
+        flash('No se puede eliminar el proveedor porque tiene movimientos asociados', 'danger')
+        return redirect(url_for('admin.list_proveedores'))
+    
+    db.session.delete(proveedor)
+    db.session.commit()
+    flash('Proveedor eliminado correctamente', 'success')
+    return redirect(url_for('admin.list_proveedores'))

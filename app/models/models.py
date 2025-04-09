@@ -53,6 +53,21 @@ class Laboratorio(db.Model):
                      if m.idProducto == id_producto and m.tipoMovimiento.lower() in ['egreso', 'uso', 'transferencia'])
         return ingresos - egresos
 
+class Proveedor(db.Model):
+    __tablename__ = 'proveedor'
+    idProveedor = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    direccion = db.Column(db.String(200), nullable=True)
+    telefono = db.Column(db.String(50), nullable=True)
+    email = db.Column(db.String(120), nullable=True)
+    cuit = db.Column(db.String(13), unique=True, nullable=False)
+    
+    # Posibilidad de relación con movimientos
+    # movimientos = db.relationship('Movimiento', backref='proveedor', lazy=True)
+    
+    def __repr__(self):
+        return f'<Proveedor {self.nombre} ({self.cuit})>'
+
 class Producto(db.Model):
     __tablename__ = 'producto'
     idProducto = db.Column(db.String(10), primary_key=True)
