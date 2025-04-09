@@ -102,6 +102,7 @@ class Movimiento(db.Model):
     
     # New fields for the specialized movement types
     tipoDocumento = db.Column(db.String(20), nullable=True)  # 'factura' or 'remito' for 'compra' type
+    numeroDocumento = db.Column(db.String(50), nullable=True)  # Number of the invoice or receipt
     urlDocumento = db.Column(db.String(255), nullable=True)  # URL to the stored document in Google Drive
     laboratorioDestino = db.Column(db.String(10), nullable=True)  # For 'transferencia' type
     fechaFactura = db.Column(db.Date, nullable=True)  # Date of the invoice for 'compra' type
