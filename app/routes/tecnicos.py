@@ -67,19 +67,19 @@ class MovimientoTecnicoForm(FlaskForm):
     unidadMedida = StringField('Unidad de Medida', validators=[DataRequired(), Length(max=10)])
     idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
     
-    # Campos para movimientos tipo 'compra'
-    tipoDocumento = SelectField('Tipo de Documento', choices=[
+    # Campos para movimientos tipo 'compra'    tipoDocumento = SelectField('Tipo de Documento', choices=[
+    tipoDocumento = SelectField('Tipo de Documento', choices=[    
         ('factura', 'Factura'),
         ('remito', 'Remito')
     ], validators=[Optional()])
     numeroDocumento = StringField('Número de Documento', validators=[Optional(), Length(max=50)])
     fechaFactura = StringField('Fecha de Factura', validators=[Optional()])
-    cuitProveedor = StringField('CUIT del Proveedor', validators=[Optional(), Length(max=13)])
+    idProveedor = SelectField('Proveedor', validators=[Optional()], coerce=int)
     documento = FileField('Documento (PDF)', validators=[Optional()])
     
     # Campo para movimientos tipo 'transferencia'
     laboratorioDestino = SelectField('Laboratorio Destino', validators=[Optional()], coerce=str)
-
+    
     def __init__(self, *args, **kwargs):
         self.laboratorios = kwargs.pop('laboratorios', [])
         super(MovimientoTecnicoForm, self).__init__(*args, **kwargs)
@@ -96,6 +96,10 @@ class MovimientoTecnicoForm(FlaskForm):
             self.laboratorioDestino.choices = [(lab.idLaboratorio, lab.nombre) for lab in self.laboratorios]
         else:
             self.laboratorioDestino.choices = [('', 'No hay laboratorios disponibles')]
+            
+        # Populate provider choices
+        proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
+        self.idProveedor.choices = [(0, 'Nuevo proveedor...')] + [(p.idProveedor, f"{p.nombre} ({p.cuit})") for p in proveedores]
     
     def validate(self):
         if not super().validate():
@@ -284,9 +288,12 @@ def new_movimiento(lab_id):
     # Get all laboratories the user has access to for transfers
     user_laboratorios = current_user.laboratorios
     available_labs = [lab for lab in user_laboratorios if lab.idLaboratorio != lab_id]
-    
-    # Initialize form with available laboratories
+      # Initialize form with available laboratories
     form = MovimientoTecnicoForm(laboratorios=available_labs)
+    
+    # Obtener todos los proveedores y agregarlos al formulario
+    proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
+    form.idProveedor.choices = [(0, 'Nuevo proveedor...')] + [(p.idProveedor, f"{p.nombre} ({p.cuit})") for p in proveedores]
     
     # Pre-select product if provided in query param
     if request.args.get('producto'):
@@ -309,9 +316,9 @@ def new_movimiento(lab_id):
         url_documento = None
         lab_destino = None
         tipo_documento = None
-          # Process based on movement type
-        if tipo_movimiento == 'compra':
+          # Process based on movement type        if tipo_movimiento == 'compra':
             # For purchase movements, handle document upload
+        if tipo_movimiento == 'compra':
             tipo_documento = form.tipoDocumento.data
             
             # Process fecha_factura (converting string to date if provided)
@@ -323,8 +330,12 @@ def new_movimiento(lab_id):
                 except ValueError:
                     flash('El formato de la fecha de factura no es válido. Utilice el formato YYYY-MM-DD.', 'warning')
             
-            # Get CUIT proveedor
-            cuit_proveedor = form.cuitProveedor.data
+            # Check if a provider was selected or if we need to create a new one
+            id_proveedor = form.idProveedor.data
+            if id_proveedor == 0:
+                # Redirect to new provider form with return URL
+                return redirect(url_for('tecnicos.new_proveedor', 
+                    return_to=url_for('tecnicos.new_movimiento', lab_id=lab_id)))
             
             # Check if document was uploaded
             if form.documento.data:
@@ -373,8 +384,7 @@ def new_movimiento(lab_id):
                 return render_template('tecnicos/movimientos/form.html',
                                      title='Nuevo Movimiento',
                                      form=form,
-                                     laboratorio=laboratorio)
-          # Create the movement record
+                                     laboratorio=laboratorio)        # Create the movement record
         movimiento = Movimiento(
             idMovimiento=movement_id,
             tipoMovimiento=tipo_movimiento,
@@ -386,7 +396,7 @@ def new_movimiento(lab_id):
             urlDocumento=url_documento,
             laboratorioDestino=lab_destino,
             fechaFactura=fecha_factura if tipo_movimiento == 'compra' else None,
-            cuitProveedor=cuit_proveedor if tipo_movimiento == 'compra' else None,
+            idProveedor=form.idProveedor.data if tipo_movimiento == 'compra' and form.idProveedor.data != 0 else None,
             numeroDocumento=form.numeroDocumento.data if tipo_movimiento == 'compra' else None
         )
         
@@ -458,6 +468,7 @@ def list_proveedores():
 @tecnico_required
 def new_proveedor():
     form = ProveedorTecnicoForm()
+    return_to = request.args.get('return_to')
     
     if form.validate_on_submit():
         # Limpiar CUIT (remover guiones) antes de guardar
@@ -474,6 +485,10 @@ def new_proveedor():
         db.session.add(proveedor)
         db.session.commit()
         flash('Proveedor creado correctamente', 'success')
+        
+        # Si hay una URL de retorno, redirigir a ella
+        if return_to:
+            return redirect(return_to)
         return redirect(url_for('tecnicos.list_proveedores'))
     
     return render_template('tecnicos/proveedores/form.html', 
