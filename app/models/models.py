@@ -62,8 +62,8 @@ class Proveedor(db.Model):
     email = db.Column(db.String(120), nullable=True)
     cuit = db.Column(db.String(13), unique=True, nullable=False)
     
-    # Posibilidad de relación con movimientos
-    # movimientos = db.relationship('Movimiento', backref='proveedor', lazy=True)
+    # Relación con movimientos
+    movimientos = db.relationship('Movimiento', backref='proveedor', lazy=True)
     
     def __repr__(self):
         return f'<Proveedor {self.nombre} ({self.cuit})>'
@@ -99,15 +99,15 @@ class Movimiento(db.Model):
     tipoMovimiento = db.Column(db.String(20), nullable=False)  # 'ingreso', 'compra', 'uso', 'transferencia'
     cantidad = db.Column(db.Float, nullable=False)
     unidadMedida = db.Column(db.String(10), nullable=False)
-    
-    # New fields for the specialized movement types
+      # New fields for the specialized movement types
     tipoDocumento = db.Column(db.String(20), nullable=True)  # 'factura' or 'remito' for 'compra' type
     numeroDocumento = db.Column(db.String(50), nullable=True)  # Number of the invoice or receipt
     urlDocumento = db.Column(db.String(255), nullable=True)  # URL to the stored document in Google Drive
     laboratorioDestino = db.Column(db.String(10), nullable=True)  # For 'transferencia' type
     fechaFactura = db.Column(db.Date, nullable=True)  # Date of the invoice for 'compra' type
-    cuitProveedor = db.Column(db.String(13), nullable=True)  # CUIT of the supplier for 'compra' type
+    cuitProveedor = db.Column(db.String(13), nullable=True)  # Legacy field, kept for compatibility
     
     # Foreign keys
     idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False)
     idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False)
+    idProveedor = db.Column(db.Integer, db.ForeignKey('proveedor.idProveedor'), nullable=True)

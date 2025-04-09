@@ -104,18 +104,17 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            {{ form.cuitProveedor.label(class="form-label") }}
-                            {% if form.cuitProveedor.errors %}
-                                {{ form.cuitProveedor(class="form-control is-invalid") }}
+                    <div class="row">                        <div class="col-md-6 mb-3">
+                            {{ form.idProveedor.label(class="form-label") }}
+                            {% if form.idProveedor.errors %}
+                                {{ form.idProveedor(class="form-select is-invalid") }}
                                 <div class="invalid-feedback">
-                                    {% for error in form.cuitProveedor.errors %}
+                                    {% for error in form.idProveedor.errors %}
                                         {{ error }}
                                     {% endfor %}
                                 </div>
                             {% else %}
-                                {{ form.cuitProveedor(class="form-control", placeholder="XX-XXXXXXXX-X") }}
+                                {{ form.idProveedor(class="form-select") }}
                             {% endif %}
                         </div>
                         
