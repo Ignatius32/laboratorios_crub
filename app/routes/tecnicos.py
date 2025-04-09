@@ -72,13 +72,14 @@ class MovimientoTecnicoForm(FlaskForm):
         ('factura', 'Factura'),
         ('remito', 'Remito')
     ], validators=[Optional()])
+    numeroDocumento = StringField('Número de Documento', validators=[Optional(), Length(max=50)])
     fechaFactura = StringField('Fecha de Factura', validators=[Optional()])
     cuitProveedor = StringField('CUIT del Proveedor', validators=[Optional(), Length(max=13)])
     documento = FileField('Documento (PDF)', validators=[Optional()])
     
     # Campo para movimientos tipo 'transferencia'
-    laboratorioDestino = SelectField('Laboratorio Destino', coerce=str, validators=[Optional()])
-    
+    laboratorioDestino = SelectField('Laboratorio Destino', validators=[Optional()], coerce=str)
+
     def __init__(self, *args, **kwargs):
         self.laboratorios = kwargs.pop('laboratorios', [])
         super(MovimientoTecnicoForm, self).__init__(*args, **kwargs)
@@ -95,6 +96,20 @@ class MovimientoTecnicoForm(FlaskForm):
             self.laboratorioDestino.choices = [(lab.idLaboratorio, lab.nombre) for lab in self.laboratorios]
         else:
             self.laboratorioDestino.choices = [('', 'No hay laboratorios disponibles')]
+    
+    def validate(self):
+        if not super().validate():
+            return False
+            
+        if self.tipoMovimiento.data == 'compra':
+            if not self.tipoDocumento.data:
+                self.tipoDocumento.errors.append('Debe seleccionar el tipo de documento para una compra')
+                return False
+            if not self.numeroDocumento.data:
+                self.numeroDocumento.errors.append('Debe ingresar el número de documento para una compra')
+                return False
+                
+        return True
 
 class ProductoTecnicoForm(FlaskForm):
     idProducto = StringField('ID Producto', validators=[DataRequired(), Length(min=4, max=10)])
@@ -371,7 +386,8 @@ def new_movimiento(lab_id):
             urlDocumento=url_documento,
             laboratorioDestino=lab_destino,
             fechaFactura=fecha_factura if tipo_movimiento == 'compra' else None,
-            cuitProveedor=cuit_proveedor if tipo_movimiento == 'compra' else None
+            cuitProveedor=cuit_proveedor if tipo_movimiento == 'compra' else None,
+            numeroDocumento=form.numeroDocumento.data if tipo_movimiento == 'compra' else None
         )
         
         db.session.add(movimiento)

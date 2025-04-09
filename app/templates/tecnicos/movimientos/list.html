@@ -60,6 +60,9 @@
                                 {% if movimiento.tipoMovimiento == 'compra' %}
                                     {% if movimiento.tipoDocumento %}
                                         <span class="badge bg-info">{{ movimiento.tipoDocumento|capitalize }}</span>
+                                        {% if movimiento.numeroDocumento %}
+                                            <span class="badge bg-secondary">{{ movimiento.numeroDocumento }}</span>
+                                        {% endif %}
                                     {% endif %}
                                     {% if movimiento.urlDocumento %}
                                         <a href="{{ movimiento.urlDocumento }}" target="_blank" class="btn btn-sm btn-outline-primary">
