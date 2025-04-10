@@ -107,8 +107,7 @@
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-bordered table-hover" id="reporte-table" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
+                    <thead>                        <tr>
                             <th>Fecha</th>
                             <th>Producto</th>
                             <th>Stock Inicial - Cantidad</th>
@@ -120,6 +119,7 @@
                             <th>Stock Final - Unidad</th>
                             <th>Documento - Tipo</th>
                             <th>Documento - Número</th>
+                            <th>CUIT Proveedor</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -150,10 +150,16 @@
                                 {% else %}
                                     -
                                 {% endif %}
-                            </td>
-                            <td>
+                            </td>                            <td>
                                 {% if item.numero_documento %}
                                     {{ item.numero_documento }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.cuit_proveedor %}
+                                    {{ item.cuit_proveedor }}
                                 {% else %}
                                     -
                                 {% endif %}
