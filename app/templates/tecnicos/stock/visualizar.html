@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Panel de Técnico</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}">{{ laboratorio.nombre }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {% if es_global %}Stock Global{% else %}Stock Local{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 mb-2 text-gray-800">
+                {% if es_global %}Visualizador de Stock Global{% else %}Visualizador de Stock - {{ laboratorio.nombre }}{% endif %}
+            </h1>
+            <p class="mb-4">
+                {% if es_global %}
+                Consulta el stock global de productos en todos los laboratorios
+                {% else %}
+                Consulta el stock actual de productos en este laboratorio
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            {% if es_global %}
+            <a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Volver al Panel
+            </a>
+            {% else %}
+            <a href="{{ url_for('tecnicos.visualizar_stock_global', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary me-2">
+                <i class="fas fa-globe"></i> Ver Stock Global
+            </a>
+            <a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver al Panel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stock Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Stock Disponible</h6>
+        </div>
+        <div class="card-body">
+            <!-- Search and Filter -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar producto...">
+                        <button class="btn btn-primary" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="tipoFilter" class="form-select">
+                        <option value="">Todos los tipos</option>
+                        <option value="botiquin">Botiquín</option>
+                        <option value="droguero">Droguero</option>
+                        <option value="vidrio">Materiales de vidrio</option>
+                        <option value="seguridad">Elementos de seguridad</option>
+                        <option value="residuos">Residuos peligrosos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="stockFilter" class="form-select">
+                        <option value="all">Todos</option>
+                        <option value="inStock">Con stock</option>
+                        <option value="outOfStock">Sin stock</option>
+                    </select>
+                </div>
+            </div>            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="stockTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            {% if es_global %}
+                            <th class="text-center">Stock Global</th>
+                            <th class="text-center">Stock en {{ laboratorio.nombre }}</th>
+                            {% else %}
+                            <th class="text-center">Stock</th>
+                            {% endif %}
+                            <th class="text-center">Control Sedronar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for producto in productos %}
+                        <tr data-tipo="{{ producto.tipo }}" 
+                            {% if es_global %}
+                            data-stock="{{ producto.stock_global }}"
+                            class="{{ 'bg-light-danger' if producto.stock_global <= 0 else '' }}"
+                            {% else %}
+                            data-stock="{{ producto.stock }}"
+                            class="{{ 'bg-light-danger' if producto.stock <= 0 else '' }}"
+                            {% endif %}
+                        >
+                            <td>{{ producto.id }}</td>
+                            <td>{{ producto.nombre }}</td>
+                            <td>{{ producto.descripcion }}</td>
+                            <td>{{ producto.tipo }}</td>
+                            <td>{{ producto.estado_fisico }}</td>
+                              {% if es_global %}
+                            <!-- Stock Global -->
+                            <td class="text-center">
+                                {% if producto.stock_global > 0 %}
+                                <span class="badge bg-success">{{ producto.stock_global }}</span>
+                                <div class="mt-2 small">
+                                    <button class="btn btn-sm btn-outline-info" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#collapse-lab-{{ producto.id }}" 
+                                            aria-expanded="false">
+                                        Ver distribución
+                                    </button>
+                                    <div class="collapse mt-2" id="collapse-lab-{{ producto.id }}">
+                                        <div class="card card-body p-2">
+                                            <ul class="list-group list-group-flush">
+                                                {% for lab in producto.laboratorios_con_stock %}
+                                                <li class="list-group-item p-1">
+                                                    {{ lab.nombre }}: 
+                                                    <span class="badge bg-primary">{{ lab.stock }}</span>
+                                                </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% elif producto.stock_global == 0 %}
+                                <span class="badge bg-warning">Sin stock</span>
+                                {% else %}
+                                <span class="badge bg-danger">Error de stock</span>
+                                {% endif %}
+                            </td>
+                            <!-- Stock Local -->
+                            <td class="text-center">
+                                {% if producto.stock_local > 0 %}
+                                <span class="badge bg-success">{{ producto.stock_local }}</span>
+                                {% elif producto.stock_local == 0 %}
+                                <span class="badge bg-warning">Sin stock</span>
+                                {% else %}
+                                <span class="badge bg-danger">Error de stock</span>
+                                {% endif %}
+                            </td>
+                            {% else %}
+                            <td class="text-center">
+                                {% if producto.stock > 0 %}
+                                <span class="badge bg-success">{{ producto.stock }}</span>
+                                {% elif producto.stock == 0 %}
+                                <span class="badge bg-warning">Sin stock</span>
+                                {% else %}
+                                <span class="badge bg-danger">Error de stock</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                            
+                            <td class="text-center">
+                                {% if producto.control_sedronar %}
+                                <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Sí</span>
+                                {% else %}
+                                <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ 8 if es_global else 7 }}" class="text-center">
+                                {% if es_global %}
+                                No hay productos registrados en ningún laboratorio
+                                {% else %}
+                                No hay productos registrados en este laboratorio
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Búsqueda y filtros
+        const searchInput = document.getElementById('searchInput');
+        const tipoFilter = document.getElementById('tipoFilter');
+        const stockFilter = document.getElementById('stockFilter');
+        const table = document.getElementById('stockTable');
+        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+        
+        function filterTable() {
+            const searchText = searchInput.value.toLowerCase();
+            const tipoValue = tipoFilter.value.toLowerCase();
+            const stockValue = stockFilter.value;
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                
+                // Skip the "no products" row
+                if (row.cells.length === 1) continue;
+                
+                const productName = row.cells[1].textContent.toLowerCase();
+                const productTipo = row.getAttribute('data-tipo').toLowerCase();
+                const productStock = parseFloat(row.getAttribute('data-stock') || 0);
+                
+                let showBySearch = searchText === '' || productName.includes(searchText);
+                let showByTipo = tipoValue === '' || productTipo === tipoValue;
+                let showByStock = true;
+                
+                if (stockValue === 'inStock' && productStock <= 0) {
+                    showByStock = false;
+                } else if (stockValue === 'outOfStock' && productStock > 0) {
+                    showByStock = false;
+                }
+                
+                row.style.display = showBySearch && showByTipo && showByStock ? '' : 'none';
+            }
+        }
+        
+        searchInput.addEventListener('keyup', filterTable);
+        tipoFilter.addEventListener('change', filterTable);
+        stockFilter.addEventListener('change', filterTable);
+    });
+</script>
+{% endblock %}
