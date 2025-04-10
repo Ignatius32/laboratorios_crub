@@ -15,7 +15,7 @@
             <h6 class="m-0 font-weight-bold text-primary">Registrar Nuevo Movimiento</h6>
         </div>
         <div class="card-body">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 {{ form.hidden_tag() }}
                 
                 <div class="row">
@@ -23,15 +23,23 @@
                     <div class="col-md-6 mb-3">
                         {{ form.tipoMovimiento.label(class="form-label") }}
                         {% if form.tipoMovimiento.errors %}
-                            {{ form.tipoMovimiento(class="form-select is-invalid") }}
+                            {{ form.tipoMovimiento(class="form-select is-invalid", id="tipoMovimiento") }}
                             <div class="invalid-feedback">
                                 {% for error in form.tipoMovimiento.errors %}
                                     {{ error }}
                                 {% endfor %}
                             </div>
                         {% else %}
-                            {{ form.tipoMovimiento(class="form-select") }}
+                            {{ form.tipoMovimiento(class="form-select", id="tipoMovimiento") }}
                         {% endif %}
+                        <small class="form-text text-muted mt-1">
+                            <ul class="ps-3 mb-0">
+                                <li><strong>Ingreso:</strong> Para registrar ingresos regulares</li>
+                                <li><strong>Compra:</strong> Para registrar compras con factura o remito</li>
+                                <li><strong>Uso:</strong> Para registrar consumo de productos</li>
+                                <li><strong>Transferencia:</strong> Para transferir productos entre laboratorios</li>
+                            </ul>
+                        </small>
                     </div>
                     
                     <!-- Laboratorio -->
@@ -64,7 +72,7 @@
                         {{ form.idProducto(class="form-select", id="product-select") }}
                     {% endif %}
                 </div>
-                
+
                 <div class="row">
                     <!-- Cantidad -->
                     <div class="col-md-6 mb-3">
@@ -96,6 +104,103 @@
                         {% endif %}
                     </div>
                 </div>
+
+                <!-- Campos específicos para Compra -->
+                <div id="compraFields" class="border p-3 mb-3 rounded" style="display: none;">
+                    <h6 class="mb-3">Datos de Compra</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.tipoDocumento.label(class="form-label") }}
+                            {% if form.tipoDocumento.errors %}
+                                {{ form.tipoDocumento(class="form-select is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.tipoDocumento.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.tipoDocumento(class="form-select") }}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.numeroDocumento.label(class="form-label") }}
+                            {% if form.numeroDocumento.errors %}
+                                {{ form.numeroDocumento(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.numeroDocumento.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.numeroDocumento(class="form-control") }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.fechaFactura.label(class="form-label") }}
+                            {% if form.fechaFactura.errors %}
+                                {{ form.fechaFactura(class="form-control is-invalid", type="date") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.fechaFactura.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.fechaFactura(class="form-control", type="date") }}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.idProveedor.label(class="form-label") }}
+                            {% if form.idProveedor.errors %}
+                                {{ form.idProveedor(class="form-select is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.idProveedor.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.idProveedor(class="form-select") }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.documento.label(class="form-label") }}
+                        {% if form.documento.errors %}
+                            {{ form.documento(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.documento.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.documento(class="form-control") }}
+                        {% endif %}
+                        <small class="form-text text-muted">Sólo se aceptan archivos PDF</small>
+                    </div>
+                </div>
+
+                <!-- Campos específicos para Transferencia -->
+                <div id="transferenciaFields" class="border p-3 mb-3 rounded" style="display: none;">
+                    <h6 class="mb-3">Datos de Transferencia</h6>
+                    <div class="mb-3">
+                        {{ form.laboratorioDestino.label(class="form-label") }}
+                        {% if form.laboratorioDestino.errors %}
+                            {{ form.laboratorioDestino(class="form-select is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.laboratorioDestino.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.laboratorioDestino(class="form-select") }}
+                        {% endif %}
+                    </div>
+                </div>
                 
                 <div class="mt-4">
                     <button type="submit" class="btn btn-primary">
@@ -114,6 +219,11 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
+    // Elements
+    const tipoMovimiento = document.getElementById('tipoMovimiento');
+    const compraFields = document.getElementById('compraFields');
+    const transferenciaFields = document.getElementById('transferenciaFields');
+
     // Store the initial product options to restore when needed
     var allProducts = [];
     
@@ -172,6 +282,28 @@ $(document).ready(function() {
     if ($('#lab-select').val()) {
         $('#lab-select').trigger('change');
     }
+
+    // Función para mostrar/ocultar campos según el tipo de movimiento
+    function updateFields() {
+        const selectedType = tipoMovimiento.value;
+        
+        // Ocultar todos los campos específicos primero
+        compraFields.style.display = 'none';
+        transferenciaFields.style.display = 'none';
+        
+        // Mostrar campos específicos según el tipo seleccionado
+        if (selectedType === 'compra') {
+            compraFields.style.display = 'block';
+        } else if (selectedType === 'transferencia') {
+            transferenciaFields.style.display = 'block';
+        }
+    }
+    
+    // Ejecutar al cargar la página
+    updateFields();
+    
+    // Añadir listener para cuando cambie el tipo de movimiento
+    tipoMovimiento.addEventListener('change', updateFields);
 });
 </script>
 {% endblock %}

@@ -285,11 +285,10 @@ def list_movimientos(lab_id):
 def new_movimiento(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     
-    # Get all laboratories the user has access to for transfers
-    user_laboratorios = current_user.laboratorios
-    available_labs = [lab for lab in user_laboratorios if lab.idLaboratorio != lab_id]
-      # Initialize form with available laboratories
-    form = MovimientoTecnicoForm(laboratorios=available_labs)
+    # Get all laboratories except the current one for transfers
+    all_laboratorios = Laboratorio.query.filter(Laboratorio.idLaboratorio != lab_id).all()
+    # Initialize form with all available laboratories
+    form = MovimientoTecnicoForm(laboratorios=all_laboratorios)
     
     # Obtener todos los proveedores y agregarlos al formulario
     proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
