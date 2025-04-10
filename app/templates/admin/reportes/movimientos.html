@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Reporte de Movimientos</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros de Reporte</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <div class="row">
+                    <!-- Fecha Inicial -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.fecha_inicial.label(class="form-label") }}
+                        {% if form.fecha_inicial.errors %}
+                            {{ form.fecha_inicial(class="form-control is-invalid", type="date") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.fecha_inicial.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.fecha_inicial(class="form-control", type="date") }}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Fecha Final -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.fecha_final.label(class="form-label") }}
+                        {% if form.fecha_final.errors %}
+                            {{ form.fecha_final(class="form-control is-invalid", type="date") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.fecha_final.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.fecha_final(class="form-control", type="date") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- Tipo de Producto -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.tipo_producto.label(class="form-label") }}
+                        {% if form.tipo_producto.errors %}
+                            {{ form.tipo_producto(class="form-select is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.tipo_producto.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.tipo_producto(class="form-select") }}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Laboratorio -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.laboratorio.label(class="form-label") }}
+                        {% if form.laboratorio.errors %}
+                            {{ form.laboratorio(class="form-select is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.laboratorio.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.laboratorio(class="form-select") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Generar Reporte
+                    </button>
+                    
+                    {% if reporte_data %}
+                    <a href="{{ url_for('admin.exportar_reporte_excel') }}" class="btn btn-success ms-2">
+                        <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if reporte_data %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Resultados del Reporte</h6>
+            <a href="{{ url_for('admin.exportar_reporte_excel') }}" class="btn btn-sm btn-success">
+                <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="reporte-table" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Producto</th>
+                            <th>Stock Inicial - Cantidad</th>
+                            <th>Stock Inicial - Unidad</th>
+                            <th>Movimiento - Tipo</th>
+                            <th>Movimiento - Cantidad</th>
+                            <th>Movimiento - Unidad</th>
+                            <th>Stock Final - Cantidad</th>
+                            <th>Stock Final - Unidad</th>
+                            <th>Documento - Tipo</th>
+                            <th>Documento - Número</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in reporte_data %}
+                        <tr>
+                            <td>{{ item.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ item.producto_nombre }}</td>
+                            <td>{{ item.stock_inicial_cantidad }}</td>
+                            <td>{{ item.stock_inicial_unidad }}</td>
+                            <td>
+                                {% if item.tipo_movimiento == 'ingreso' %}
+                                    <span class="badge bg-success">Ingreso</span>
+                                {% elif item.tipo_movimiento == 'compra' %}
+                                    <span class="badge bg-primary">Compra</span>
+                                {% elif item.tipo_movimiento == 'uso' %}
+                                    <span class="badge bg-danger">Uso</span>
+                                {% elif item.tipo_movimiento == 'transferencia' %}
+                                    <span class="badge bg-warning">Transferencia</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.cantidad }}</td>
+                            <td>{{ item.unidad_medida }}</td>
+                            <td>{{ item.stock_final_cantidad }}</td>
+                            <td>{{ item.stock_final_unidad }}</td>
+                            <td>
+                                {% if item.tipo_documento %}
+                                    {{ item.tipo_documento|capitalize }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.numero_documento %}
+                                    {{ item.numero_documento }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#reporte-table').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
+            },
+            dom: 'Bfrtip',
+            buttons: [
+                'copy', 'excel', 'pdf'
+            ]
+        });
+    });
+</script>
+{% endblock %}

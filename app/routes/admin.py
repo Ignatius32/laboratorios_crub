@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app, session
 from flask_login import login_required, current_user
 from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor
 from werkzeug.security import generate_password_hash
@@ -140,6 +140,25 @@ class MovimientoForm(FlaskForm):
 
 class ExcelUploadForm(FlaskForm):
     archivo = FileField('Archivo Excel', validators=[DataRequired()])
+
+class ReporteForm(FlaskForm):
+    fecha_inicial = StringField('Fecha Inicial', validators=[DataRequired()])
+    fecha_final = StringField('Fecha Final', validators=[DataRequired()])
+    tipo_producto = SelectField('Tipo de Producto', choices=[
+        ('', 'Todos'), 
+        ('botiquin', 'Botiquín'), 
+        ('droguero', 'Droguero'), 
+        ('vidrio', 'Materiales de vidrio'), 
+        ('seguridad', 'Elementos de seguridad'),
+        ('residuos', 'Residuos peligrosos')
+    ], validators=[Optional()])
+    laboratorio = SelectField('Laboratorio', validators=[Optional()], coerce=str)
+    
+    def __init__(self, *args, **kwargs):
+        super(ReporteForm, self).__init__(*args, **kwargs)
+        # Populate lab choices
+        laboratorios = Laboratorio.query.all()
+        self.laboratorio.choices = [('', 'Todos')] + [(lab.idLaboratorio, lab.nombre) for lab in laboratorios]
 
 # Dashboard
 @admin.route('/')
@@ -863,3 +882,211 @@ def delete_proveedor(id):
     db.session.commit()
     flash('Proveedor eliminado correctamente', 'success')
     return redirect(url_for('admin.list_proveedores'))
+
+# Reportes
+@admin.route('/reportes/movimientos', methods=['GET', 'POST'])
+@admin_required
+def reporte_movimientos():
+    from datetime import datetime
+    from sqlalchemy import and_, or_
+    
+    form = ReporteForm()
+    reporte_data = []
+    
+    if form.validate_on_submit():
+        try:
+            # Convertir fechas
+            fecha_inicial = datetime.strptime(form.fecha_inicial.data, '%Y-%m-%d')
+            fecha_final = datetime.strptime(form.fecha_final.data, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            
+            # Filtrar por tipo de producto si se selecciona uno
+            productos_query = Producto.query
+            if form.tipo_producto.data:
+                productos_query = productos_query.filter_by(tipoProducto=form.tipo_producto.data)
+            productos = productos_query.all()
+            
+            # Construir consulta base para movimientos
+            movimientos_query = Movimiento.query.filter(
+                and_(
+                    Movimiento.timestamp >= fecha_inicial,
+                    Movimiento.timestamp <= fecha_final
+                )
+            )
+            
+            # Filtrar por laboratorio si se selecciona uno
+            if form.laboratorio.data:
+                movimientos_query = movimientos_query.filter_by(idLaboratorio=form.laboratorio.data)
+            
+            # Para cada producto, obtener sus movimientos y calcular stocks
+            for producto in productos:
+                # Obtener el stock inicial (justo antes de fecha_inicial)
+                ingresos_antes = db.session.query(db.func.sum(Movimiento.cantidad)).filter(
+                    and_(
+                        Movimiento.idProducto == producto.idProducto,
+                        Movimiento.tipoMovimiento.in_(['ingreso', 'compra']),
+                        Movimiento.timestamp < fecha_inicial
+                    )
+                ).scalar() or 0
+                
+                egresos_antes = db.session.query(db.func.sum(Movimiento.cantidad)).filter(
+                    and_(
+                        Movimiento.idProducto == producto.idProducto,
+                        Movimiento.tipoMovimiento.in_(['uso', 'transferencia']),
+                        Movimiento.timestamp < fecha_inicial
+                    )
+                ).scalar() or 0
+                
+                stock_inicial = ingresos_antes - egresos_antes
+                
+                # Filtrar movimientos de este producto en el período seleccionado
+                movimientos_producto = movimientos_query.filter_by(idProducto=producto.idProducto).order_by(Movimiento.timestamp).all()
+                
+                # Si no hay movimientos para este producto en el período, no lo incluimos en el reporte
+                if not movimientos_producto:
+                    continue
+                
+                # Para cada movimiento del producto, calcular stock antes y después
+                stock_actual = stock_inicial
+                for movimiento in movimientos_producto:
+                    # Determinar efecto en stock
+                    if movimiento.tipoMovimiento in ['ingreso', 'compra']:
+                        stock_despues = stock_actual + movimiento.cantidad
+                    else:  # uso o transferencia
+                        stock_despues = stock_actual - movimiento.cantidad
+                    
+                    # Agregar a los datos del reporte
+                    reporte_data.append({
+                        'fecha': movimiento.timestamp,
+                        'producto_id': producto.idProducto,
+                        'producto_nombre': producto.nombre,
+                        'stock_inicial_cantidad': stock_actual,
+                        'stock_inicial_unidad': movimiento.unidadMedida,
+                        'tipo_movimiento': movimiento.tipoMovimiento,
+                        'cantidad': movimiento.cantidad,
+                        'unidad_medida': movimiento.unidadMedida,
+                        'stock_final_cantidad': stock_despues,
+                        'stock_final_unidad': movimiento.unidadMedida,
+                        'tipo_documento': movimiento.tipoDocumento,
+                        'numero_documento': movimiento.numeroDocumento
+                    })
+                    
+                    # Actualizar stock para el siguiente movimiento
+                    stock_actual = stock_despues
+            
+            # Ordenar por fecha
+            reporte_data.sort(key=lambda x: x['fecha'])
+            
+            # Guardar en sesión para exportar a Excel
+            session['reporte_data'] = [
+                {k: (v.strftime('%d/%m/%Y %H:%M:%S') if k == 'fecha' else v) 
+                 for k, v in item.items()}
+                for item in reporte_data
+            ]
+            
+            flash('Reporte generado correctamente', 'success')
+            
+        except ValueError:
+            flash('Error en el formato de fechas. Use el formato YYYY-MM-DD', 'danger')
+        except Exception as e:
+            flash(f'Error al generar el reporte: {str(e)}', 'danger')
+    
+    return render_template('admin/reportes/movimientos.html', 
+                          title='Reporte de Movimientos',
+                          form=form,
+                          reporte_data=reporte_data)
+
+@admin.route('/reportes/movimientos/excel')
+@admin_required
+def exportar_reporte_excel():
+    import pandas as pd
+    from datetime import datetime
+    from io import BytesIO
+    from flask import send_file
+    
+    # Recuperar datos de la sesión
+    reporte_data = session.get('reporte_data', [])
+    
+    if not reporte_data:
+        flash('No hay datos para exportar', 'warning')
+        return redirect(url_for('admin.reporte_movimientos'))
+    
+    # Crear DataFrame con pandas
+    df = pd.DataFrame(reporte_data)
+    
+    # Reordenar columnas según el formato solicitado
+    columnas_ordenadas = [
+        'fecha',
+        'producto_nombre',
+        'stock_inicial_cantidad',
+        'stock_inicial_unidad',
+        'tipo_movimiento',
+        'cantidad',
+        'unidad_medida',
+        'stock_final_cantidad',
+        'stock_final_unidad',
+        'tipo_documento',
+        'numero_documento'
+    ]
+    
+    # Verificar que todas las columnas existan en el DataFrame
+    columnas_existentes = [col for col in columnas_ordenadas if col in df.columns]
+    df = df[columnas_existentes]
+    
+    # Renombrar las columnas para el archivo Excel
+    columnas_excel = {
+        'fecha': 'Fecha',
+        'producto_nombre': 'Producto',
+        'stock_inicial_cantidad': 'Stock Inicial - Cantidad',
+        'stock_inicial_unidad': 'Stock Inicial - Unidad de medida',
+        'tipo_movimiento': 'Movimiento - Tipo',
+        'cantidad': 'Movimiento - Cantidad',
+        'unidad_medida': 'Movimiento - Unidad de Medida',
+        'stock_final_cantidad': 'Stock Final - Cantidad',
+        'stock_final_unidad': 'Stock Final - Unidad de medida',
+        'tipo_documento': 'Documento para operación - Tipo',
+        'numero_documento': 'Documento para operación - Número'
+    }
+    df = df.rename(columns=columnas_excel)
+    
+    # Crear un archivo Excel en memoria
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='Reporte de Movimientos', index=False)
+        
+        # Formatear la hoja para que sea más legible
+        workbook = writer.book
+        worksheet = writer.sheets['Reporte de Movimientos']
+        
+        # Formato para los encabezados
+        header_format = workbook.add_format({
+            'bold': True,
+            'text_wrap': True,
+            'valign': 'top',
+            'fg_color': '#D7E4BC',
+            'border': 1
+        })
+        
+        # Aplicar formato a los encabezados
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(0, col_num, value, header_format)
+            # Ajustar ancho de columna basado en el contenido
+            max_len = max(
+                df[value].astype(str).map(len).max(),
+                len(str(value))
+            ) + 2
+            worksheet.set_column(col_num, col_num, max_len)
+    
+    # Preparar el archivo para descarga
+    output.seek(0)
+    
+    # Generar nombre de archivo con fecha y hora
+    fecha_actual = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"reporte_movimientos_{fecha_actual}.xlsx"
+    
+    # Enviar archivo al cliente
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
