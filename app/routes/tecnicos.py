@@ -427,30 +427,98 @@ def new_movimiento(lab_id):
                            form=form,
                            laboratorio=laboratorio)
 
-# View product details
-@tecnicos.route('/panel/<string:lab_id>/productos/<string:id>')
+# View product details for technicians
+@tecnicos.route('/panel/<string:lab_id>/productos/view/<string:id>')
 @login_required
 @tecnico_required
 @lab_access_required
 def view_producto(lab_id, id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     producto = Producto.query.get_or_404(id)
-    
-    # Calcular el stock de este producto en este laboratorio específico
     stock_en_lab = producto.stock_en_laboratorio(lab_id)
-    
-    # Obtener los movimientos de este producto en este laboratorio
-    movimientos = Movimiento.query.filter_by(
-        idProducto=id, 
-        idLaboratorio=lab_id
-    ).order_by(Movimiento.timestamp.desc()).all()
-    
     return render_template('tecnicos/productos/view.html',
-                           title=f'Producto: {producto.nombre}',
-                           producto=producto,
-                           laboratorio=laboratorio,
-                           stock_en_lab=stock_en_lab,
-                           movimientos=movimientos)
+                          title=f'Detalle de Producto - {producto.nombre}',
+                          laboratorio=laboratorio,
+                          producto=producto,
+                          stock_en_lab=stock_en_lab)
+
+# Stock visualization for technicians - GLOBAL STOCK
+@tecnicos.route('/panel/<string:lab_id>/stock/global')
+@login_required
+@tecnico_required
+@lab_access_required
+def visualizar_stock_global(lab_id):
+    laboratorio = Laboratorio.query.get_or_404(lab_id)
+    
+    # Get all laboratories
+    todos_laboratorios = Laboratorio.query.all()
+    
+    # Obtener todos los productos con su stock global
+    productos = Producto.query.all()
+    productos_info = []
+    for producto in productos:
+        # Para cada producto, calculamos su stock global y el stock en este laboratorio
+        stock_global = producto.stock_total  # Accedido como propiedad, sin paréntesis
+        stock_en_lab = producto.stock_en_laboratorio(lab_id)
+        
+        # Obtener laboratorios donde hay stock de este producto
+        laboratorios_con_stock = []
+        for lab in todos_laboratorios:
+            stock_en_este_lab = producto.stock_en_laboratorio(lab.idLaboratorio)
+            if stock_en_este_lab > 0:
+                laboratorios_con_stock.append({
+                    'nombre': lab.nombre,
+                    'id': lab.idLaboratorio,
+                    'stock': stock_en_este_lab
+                })
+        
+        productos_info.append({
+            'id': producto.idProducto,
+            'nombre': producto.nombre,
+            'descripcion': producto.descripcion,
+            'tipo': producto.tipoProducto,
+            'estado_fisico': producto.estadoFisico,
+            'stock_global': stock_global,
+            'stock_local': stock_en_lab,
+            'control_sedronar': producto.controlSedronar,
+            'laboratorios_con_stock': laboratorios_con_stock
+        })
+    
+    return render_template('tecnicos/stock/visualizar.html',
+                          title='Stock Global',
+                          laboratorio=laboratorio,
+                          productos=productos_info,
+                          es_global=True)
+
+# Stock visualization for technicians - LOCAL STOCK
+@tecnicos.route('/panel/<string:lab_id>/stock/local')
+@login_required
+@tecnico_required
+@lab_access_required
+def visualizar_stock(lab_id):
+    laboratorio = Laboratorio.query.get_or_404(lab_id)
+    
+    # Obtener todos los productos
+    productos = Producto.query.all()
+    productos_info = []
+    
+    for producto in productos:
+        stock_en_lab = producto.stock_en_laboratorio(lab_id)
+        productos_info.append({
+            'id': producto.idProducto,
+            'nombre': producto.nombre,
+            'descripcion': producto.descripcion,
+            'tipo': producto.tipoProducto,
+            'estado_fisico': producto.estadoFisico,
+            'stock': stock_en_lab,
+            'control_sedronar': producto.controlSedronar
+        })
+    
+    return render_template('tecnicos/stock/visualizar.html',
+                          title=f'Stock - {laboratorio.nombre}',
+                          laboratorio=laboratorio,
+                          productos=productos_info,
+                          es_global=False)
 
 # Proveedores management for technicians
 @tecnicos.route('/proveedores')

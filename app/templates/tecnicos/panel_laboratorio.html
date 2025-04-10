@@ -55,8 +55,7 @@
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">Acciones Rápidas</h6>
                 </div>
-                <div class="card-body">
-                    <div class="row">
+                <div class="card-body">                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary w-100">
                                 <i class="fas fa-vial me-2"></i> Gestionar Productos
@@ -65,6 +64,16 @@
                         <div class="col-md-6 mb-3">
                             <a href="{{ url_for('tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-success w-100">
                                 <i class="fas fa-exchange-alt me-2"></i> Gestionar Movimientos
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('tecnicos.visualizar_stock', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-info w-100">
+                                <i class="fas fa-clipboard-list me-2"></i> Visualizar Stock Local
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('tecnicos.visualizar_stock_global', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary w-100">
+                                <i class="fas fa-globe me-2"></i> Visualizar Stock Global
                             </a>
                         </div>
                         <div class="col-md-6 mb-3">
