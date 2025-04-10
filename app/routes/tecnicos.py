@@ -100,9 +100,8 @@ class MovimientoTecnicoForm(FlaskForm):
         # Populate provider choices
         proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
         self.idProveedor.choices = [(0, 'Nuevo proveedor...')] + [(p.idProveedor, f"{p.nombre} ({p.cuit})") for p in proveedores]
-    
-    def validate(self):
-        if not super().validate():
+    def validate(self, **kwargs):
+        if not super().validate(**kwargs):
             return False
             
         if self.tipoMovimiento.data == 'compra':

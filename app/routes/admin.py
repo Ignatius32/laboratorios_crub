@@ -953,6 +953,12 @@ def reporte_movimientos():
                         stock_despues = stock_actual + movimiento.cantidad
                     else:  # uso o transferencia
                         stock_despues = stock_actual - movimiento.cantidad
+                      # Obtener CUIT del proveedor si es un movimiento de compra
+                    cuit_proveedor = None
+                    if movimiento.tipoMovimiento == 'compra' and movimiento.idProveedor:
+                        proveedor = Proveedor.query.get(movimiento.idProveedor)
+                        if proveedor:
+                            cuit_proveedor = proveedor.cuit
                     
                     # Agregar a los datos del reporte
                     reporte_data.append({
@@ -967,7 +973,8 @@ def reporte_movimientos():
                         'stock_final_cantidad': stock_despues,
                         'stock_final_unidad': movimiento.unidadMedida,
                         'tipo_documento': movimiento.tipoDocumento,
-                        'numero_documento': movimiento.numeroDocumento
+                        'numero_documento': movimiento.numeroDocumento,
+                        'cuit_proveedor': cuit_proveedor
                     })
                     
                     # Actualizar stock para el siguiente movimiento
@@ -1012,8 +1019,7 @@ def exportar_reporte_excel():
     
     # Crear DataFrame con pandas
     df = pd.DataFrame(reporte_data)
-    
-    # Reordenar columnas según el formato solicitado
+      # Reordenar columnas según el formato solicitado
     columnas_ordenadas = [
         'fecha',
         'producto_nombre',
@@ -1025,14 +1031,14 @@ def exportar_reporte_excel():
         'stock_final_cantidad',
         'stock_final_unidad',
         'tipo_documento',
-        'numero_documento'
+        'numero_documento',
+        'cuit_proveedor'
     ]
     
     # Verificar que todas las columnas existan en el DataFrame
     columnas_existentes = [col for col in columnas_ordenadas if col in df.columns]
     df = df[columnas_existentes]
-    
-    # Renombrar las columnas para el archivo Excel
+      # Renombrar las columnas para el archivo Excel
     columnas_excel = {
         'fecha': 'Fecha',
         'producto_nombre': 'Producto',
@@ -1044,7 +1050,8 @@ def exportar_reporte_excel():
         'stock_final_cantidad': 'Stock Final - Cantidad',
         'stock_final_unidad': 'Stock Final - Unidad de medida',
         'tipo_documento': 'Documento para operación - Tipo',
-        'numero_documento': 'Documento para operación - Número'
+        'numero_documento': 'Documento para operación - Número',
+        'cuit_proveedor': 'CUIT Proveedor'
     }
     df = df.rename(columns=columnas_excel)
     
