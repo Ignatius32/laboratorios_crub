@@ -12,16 +12,46 @@
                 <i class="fas fa-plus-circle me-2"></i>Nuevo Producto
             </a>
         </div>
-    </div>
-
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
+    </div>    <div class="card shadow mb-4">        <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Lista de Productos Globales</h6>
+            <form method="get" action="{{ url_for('admin.list_productos') }}" class="d-flex align-items-center flex-wrap">
+                <div class="d-flex align-items-center me-3 mb-2">
+                    <label for="laboratorio" class="me-2">Laboratorio:</label>
+                    <select name="laboratorio" id="laboratorio" class="form-select form-select-sm" style="width: 180px;">
+                        <option value="">Todos los laboratorios</option>
+                        {% for lab in laboratorios %}
+                        <option value="{{ lab.idLaboratorio }}" {% if selected_lab == lab.idLaboratorio %}selected{% endif %}>
+                            {{ lab.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="d-flex align-items-center me-3 mb-2">
+                    <label for="tipoProducto" class="me-2">Tipo:</label>
+                    <select name="tipoProducto" id="tipoProducto" class="form-select form-select-sm" style="width: 180px;">
+                        <option value="">Todos los tipos</option>
+                        {% for tipo_id, tipo_nombre in tipos_productos %}
+                        <option value="{{ tipo_id }}" {% if selected_tipo == tipo_id %}selected{% endif %}>
+                            {{ tipo_nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-2">
+                    <button type="submit" class="btn btn-sm btn-primary me-2">Filtrar</button>
+                    {% if selected_lab or selected_tipo %}
+                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times"></i> Limpiar
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="productos-table" width="100%" cellspacing="0">
-                    <thead>
+                <table class="table table-bordered table-hover" id="productos-table" width="100%" cellspacing="0">                    <thead>
                         <tr>
                             <th>ID</th>
                             <th>Nombre</th>
@@ -31,88 +61,85 @@
                             <th>Stock Total</th>
                             <th>Acciones</th>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for producto in productos %}
+                    </thead><tbody>                        {% for item in productos_con_stock %}
                         <tr>
-                            <td>{{ producto.idProducto }}</td>
-                            <td>{{ producto.nombre }}</td>
+                            <td>{{ item.producto.idProducto }}</td>
+                            <td>{{ item.producto.nombre }}</td>
                             <td>
-                                {% if producto.tipoProducto == 'botiquin' %}
+                                {% if item.producto.tipoProducto == 'botiquin' %}
                                     <span class="badge bg-primary">Botiquín</span>
-                                {% elif producto.tipoProducto == 'droguero' %}
+                                {% elif item.producto.tipoProducto == 'droguero' %}
                                     <span class="badge bg-warning">Droguero</span>
-                                {% elif producto.tipoProducto == 'vidrio' %}
+                                {% elif item.producto.tipoProducto == 'vidrio' %}
                                     <span class="badge bg-info">Materiales de vidrio</span>
-                                {% elif producto.tipoProducto == 'seguridad' %}
+                                {% elif item.producto.tipoProducto == 'seguridad' %}
                                     <span class="badge bg-success">Elementos de seguridad</span>
-                                {% elif producto.tipoProducto == 'residuos' %}
+                                {% elif item.producto.tipoProducto == 'residuos' %}
                                     <span class="badge bg-danger">Residuos peligrosos</span>
                                 {% else %}
                                     <span class="badge bg-secondary">Otro</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if producto.estadoFisico == 'solido' %}
+                                {% if item.producto.estadoFisico == 'solido' %}
                                     <span class="badge bg-secondary">Sólido</span>
-                                {% elif producto.estadoFisico == 'liquido' %}
+                                {% elif item.producto.estadoFisico == 'liquido' %}
                                     <span class="badge bg-info">Líquido</span>
                                 {% else %}
                                     <span class="badge bg-warning">Gaseoso</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if producto.controlSedronar %}
+                                {% if item.producto.controlSedronar %}
                                     <span class="badge bg-danger">Sí</span>
                                 {% else %}
                                     <span class="badge bg-success">No</span>
                                 {% endif %}
-                            </td>
-                            <td>{{ producto.stock_total }}</td>
+                            </td>                            <td>{{ item.stock_total }}</td>
                             <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('admin.edit_producto', id=producto.idProducto) }}" class="btn btn-sm btn-warning">
+                                <div class="btn-group" role="group">                                    <a href="{{ url_for('admin.edit_producto', id=item.producto.idProducto) }}" class="btn btn-sm btn-warning">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ producto.idProducto }}">
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.producto.idProducto }}">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
-
-                        <!-- Delete Modal for each product -->
-                        <div class="modal fade" id="deleteModal{{ producto.idProducto }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ producto.idProducto }}" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="deleteModalLabel{{ producto.idProducto }}">Confirmar Eliminación</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        ¿Estás seguro de que deseas eliminar el producto <strong>{{ producto.nombre }}</strong>?
-                                        <p class="text-danger mt-2">Esta acción no se puede deshacer.</p>
-                                        <p>Nota: No se podrán eliminar productos con movimientos asociados.</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                        <form action="{{ url_for('admin.delete_producto', id=producto.idProducto) }}" method="POST">
-                                            <button type="submit" class="btn btn-danger">Eliminar</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                         {% else %}
                         <tr>
                             <td colspan="7" class="text-center">No hay productos registrados</td>
                         </tr>
-                        {% endfor %}
-                    </tbody>
+                        {% endfor %}                    </tbody>
                 </table>
             </div>
         </div>
+    </div>    
+    <!-- Modales de eliminación para cada producto -->
+    {% for item in productos_con_stock %}
+    <!-- Delete Modal for each product -->
+    <div class="modal fade" id="deleteModal{{ item.producto.idProducto }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ item.producto.idProducto }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel{{ item.producto.idProducto }}">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    ¿Estás seguro de que deseas eliminar el producto <strong>{{ item.producto.nombre }}</strong>?
+                    <p class="text-danger mt-2">Esta acción no se puede deshacer.</p>
+                    <p>Nota: No se podrán eliminar productos con movimientos asociados.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form action="{{ url_for('admin.delete_producto', id=item.producto.idProducto) }}" method="POST">
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
+    {% endfor %}
 </div>
 {% endblock %}
 
