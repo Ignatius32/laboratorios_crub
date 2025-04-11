@@ -9,18 +9,17 @@
             </div>
             <div class="card-body p-4">
                 <form method="POST" action="{{ url_for('auth.login') }}">
-                    {{ form.hidden_tag() }}
-                    <div class="mb-3">
-                        {{ form.email.label(class="form-label") }}
-                        {% if form.email.errors %}
-                            {{ form.email(class="form-control is-invalid") }}
+                    {{ form.hidden_tag() }}                    <div class="mb-3">
+                        {{ form.idUsuario.label(class="form-label") }}
+                        {% if form.idUsuario.errors %}
+                            {{ form.idUsuario(class="form-control is-invalid") }}
                             <div class="invalid-feedback">
-                                {% for error in form.email.errors %}
+                                {% for error in form.idUsuario.errors %}
                                     {{ error }}
                                 {% endfor %}
                             </div>
                         {% else %}
-                            {{ form.email(class="form-control", placeholder="correo@crub.edu.ar") }}
+                            {{ form.idUsuario(class="form-control", placeholder="Ingrese su ID de usuario") }}
                         {% endif %}
                     </div>
                     <div class="mb-3">
@@ -35,13 +34,15 @@
                         {% else %}
                             {{ form.password(class="form-control") }}
                         {% endif %}
-                    </div>
-                    <div class="mb-3 form-check">
+                    </div>                    <div class="mb-3 form-check">
                         {{ form.remember_me(class="form-check-input") }}
                         {{ form.remember_me.label(class="form-check-label") }}
                     </div>
-                    <div class="d-grid">
+                    <div class="d-grid mb-3">
                         {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                    <div class="text-center">
+                        <a href="{{ url_for('auth.forgot_password') }}" class="text-decoration-none">¿Olvidaste tu contraseña?</a>
                     </div>
                 </form>
             </div>

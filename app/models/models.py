@@ -20,6 +20,8 @@ class Usuario(UserMixin, db.Model):
     telefono = db.Column(db.String(20), nullable=True)
     password_hash = db.Column(db.String(256), nullable=False)
     rol = db.Column(db.String(20), nullable=False, default='tecnico')  # 'admin' or 'tecnico'
+    password_reset_token = db.Column(db.String(100), nullable=True)
+    password_reset_expiration = db.Column(db.DateTime, nullable=True)
     
     # Relationship with laboratories - many-to-many
     laboratorios = db.relationship('Laboratorio', secondary=user_laboratorio, 
@@ -27,12 +29,41 @@ class Usuario(UserMixin, db.Model):
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+        # Clear any reset tokens after password set
+        self.password_reset_token = None
+        self.password_reset_expiration = None
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
     def get_id(self):
         return self.idUsuario
+        
+    def generate_reset_token(self):
+        """Generate a unique token for password reset"""
+        import secrets
+        import datetime
+        
+        # Generate a secure token
+        token = secrets.token_urlsafe(32)
+        self.password_reset_token = token
+        
+        # Set expiration to 24 hours from now
+        self.password_reset_expiration = datetime.datetime.now() + datetime.timedelta(hours=24)
+        
+        return token
+        
+    def is_reset_token_valid(self, token):
+        """Check if the reset token is valid"""
+        import datetime
+        
+        if not self.password_reset_token or self.password_reset_token != token:
+            return False
+            
+        if not self.password_reset_expiration or self.password_reset_expiration < datetime.datetime.now():
+            return False
+            
+        return True
 
 class Laboratorio(db.Model):
     __tablename__ = 'laboratorio'

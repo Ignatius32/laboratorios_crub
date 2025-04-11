@@ -6,6 +6,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField, FileField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional, Regexp
 from app.integrations.google_drive import drive_integration
+from app.utils.email_service import EmailService
 import pandas as pd
 import io
 
@@ -57,7 +58,7 @@ class UsuarioForm(FlaskForm):
     apellido = StringField('Apellido', validators=[DataRequired(), Length(max=100)])
     email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
     telefono = StringField('Teléfono', validators=[Optional(), Length(max=20)])
-    password = PasswordField('Contraseña', validators=[Optional(), Length(min=6)])
+    password = PasswordField('Contraseña (Solo para administradores)', validators=[Optional(), Length(min=6)])
     rol = SelectField('Rol', choices=[('tecnico', 'Técnico'), ('admin', 'Administrador')])
     labs_asignados = SelectMultipleField('Laboratorios Asignados', coerce=str)
 
@@ -197,7 +198,6 @@ def new_usuario():
         if Usuario.query.filter_by(email=form.email.data).first():
             flash('El email ya está registrado', 'danger')
             return render_template('admin/usuarios/form.html', title='Nuevo Usuario', form=form)
-        
         usuario = Usuario(
             idUsuario=form.idUsuario.data,
             nombre=form.nombre.data,
@@ -207,10 +207,12 @@ def new_usuario():
             rol=form.rol.data
         )
         
-        # Set password
-        if form.password.data:
+        # Set default password initially
+        if form.rol.data == 'admin' and form.password.data:
+            # For admin users, use provided password if available
             usuario.set_password(form.password.data)
         else:
+            # Set a temporary password for technicians or if no password provided for admin
             usuario.set_password('password123')  # Default password
         
         # Assign labs
@@ -220,9 +222,30 @@ def new_usuario():
             if lab:
                 usuario.laboratorios.append(lab)
         
+        # Save the user to get an ID
         db.session.add(usuario)
         db.session.commit()
-        flash('Usuario creado correctamente', 'success')
+        
+        # If it's a technician, generate a reset token and send an email
+        if usuario.rol == 'tecnico':
+            try:
+                # Generate reset token
+                token = usuario.generate_reset_token()
+                db.session.commit()
+                
+                # Send email with password setup link
+                email_sent = EmailService.send_password_reset_email(usuario, token, is_new_user=True)
+                
+                if email_sent:
+                    flash(f'Usuario creado correctamente. Se ha enviado un email a {usuario.email} para establecer la contraseña.', 'success')
+                else:
+                    flash('Usuario creado correctamente, pero hubo un problema al enviar el email. El usuario puede restablecer su contraseña desde la página de inicio de sesión.', 'warning')
+                    current_app.logger.error(f"Failed to send password setup email to {usuario.email}")
+            except Exception as e:
+                current_app.logger.error(f"Error sending password setup email: {str(e)}")
+                flash('Usuario creado correctamente, pero hubo un problema al enviar el email de configuración.', 'warning')
+        else:
+            flash('Usuario administrador creado correctamente', 'success')
         return redirect(url_for('admin.list_usuarios'))
     
     return render_template('admin/usuarios/form.html', title='Nuevo Usuario', form=form)
