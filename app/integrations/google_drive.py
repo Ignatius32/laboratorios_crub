@@ -119,14 +119,14 @@ class GoogleDriveIntegration:
                 else:
                     current_app.logger.error(f"Drive API Error: {result.get('error')}")
                     return False
-            else:
+            else:                
                 current_app.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
                 return False
                 
         except Exception as e:
             current_app.logger.error(f"Exception in Google Drive folder deletion: {str(e)}")
             return False
-
+            
     def upload_movimiento_documento(self, lab_id, movimiento_id, file_data, file_name, file_type):
         """
         Uploads a document for a movement to Google Drive
@@ -192,6 +192,67 @@ class GoogleDriveIntegration:
         except Exception as e:
             current_app.logger.error(f"Exception in Google Drive document upload: {str(e)}")
             return None
+            
+    def send_email(self, to, subject, html_body, sender_name=None, reply_to=None):
+        """
+        Sends an email using the Google Apps Script
+        
+        Args:
+            to (str): Recipient email address
+            subject (str): Email subject
+            html_body (str): HTML content of the email
+            sender_name (str, optional): Name of the sender
+            reply_to (str, optional): Reply-to email address
+            
+        Returns:
+            bool: True if email was sent successfully, False otherwise
+        """
+        if not self.script_url:
+            current_app.logger.error("Google Script URL not configured")
+            return False
+            
+        try:
+            # Prepare the request data
+            data = {
+                'action': 'sendEmail',
+                'token': str(self.secure_token),
+                'to': to,
+                'subject': subject,
+                'htmlBody': html_body
+            }
+            
+            # Add optional parameters if provided
+            if sender_name:
+                data['senderName'] = sender_name
+            if reply_to:
+                data['replyTo'] = reply_to
+            
+            # Log the request for debugging
+            current_app.logger.info(f"Sending email request to Google Script: {to}, subject: {subject}")
+            
+            # Send request to Google Apps Script
+            response = requests.post(
+                self.script_url,
+                json=data,
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            # Check response
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    current_app.logger.info(f"Email sent successfully to {to}")
+                    return True
+                else:
+                    current_app.logger.error(f"Google Script Error: {result.get('error')}")
+                    return False
+            else:
+                current_app.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            current_app.logger.error(f"Exception in email sending: {str(e)}")
+            return False
 
 # Create a singleton instance
 drive_integration = GoogleDriveIntegration()

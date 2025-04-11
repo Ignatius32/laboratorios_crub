@@ -21,14 +21,15 @@ function doPost(e) {
     if (requestData.token !== secureToken) {
       console.error("Token validation failed. Received: " + requestData.token + ", Expected: " + secureToken);
       return createErrorResponse("Invalid security token");
-    }
-      // Handle different actions
+    }      // Handle different actions
     if (requestData.action === "createLabFolders") {
       return handleCreateLabFolders(requestData);
     } else if (requestData.action === "deleteLabFolders") {
       return handleDeleteLabFolders(requestData);
     } else if (requestData.action === "uploadMovimientoDocumento") {
       return handleUploadMovimientoDocumento(requestData);
+    } else if (requestData.action === "sendEmail") {
+      return handleSendEmail(requestData);
     } else {
       return createErrorResponse("Unknown action");
     }
@@ -246,6 +247,39 @@ function handleUploadMovimientoDocumento(data) {
   } catch (error) {
     console.error("Error uploading document: " + error);
     return createErrorResponse("Error uploading document: " + error.toString());
+  }
+}
+
+/**
+ * Handles sending emails through Gmail
+ */
+function handleSendEmail(data) {
+  // Validate required fields
+  if (!data.to || !data.subject || !data.htmlBody) {
+    return createErrorResponse("Missing required email fields: to, subject, and htmlBody");
+  }
+  
+  try {
+    // Send the email using GmailApp
+    GmailApp.sendEmail(
+      data.to,
+      data.subject,
+      "", // Plain text body (empty because we're using HTML)
+      {
+        htmlBody: data.htmlBody,
+        name: data.senderName || "Sistema de Gestión de Laboratorios CRUB",
+        replyTo: data.replyTo || "no-reply@crub.edu.ar"
+      }
+    );
+    
+    // Return success
+    return createSuccessResponse({
+      message: "Email sent successfully to " + data.to
+    });
+    
+  } catch (error) {
+    console.error("Error sending email: " + error);
+    return createErrorResponse("Error sending email: " + error.toString());
   }
 }
 
