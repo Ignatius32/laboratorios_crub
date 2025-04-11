@@ -11,8 +11,10 @@
             <a href="{{ url_for('admin.new_producto') }}" class="btn btn-primary">
                 <i class="fas fa-plus-circle me-2"></i>Nuevo Producto
             </a>
-        </div>
-    </div>    <div class="card shadow mb-4">        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        </div>    </div>
+    
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Lista de Productos Globales</h6>
             <form method="get" action="{{ url_for('admin.list_productos') }}" class="d-flex align-items-center flex-wrap">
                 <div class="d-flex align-items-center me-3 mb-2">
@@ -49,9 +51,9 @@
                 </div>
             </form>
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="productos-table" width="100%" cellspacing="0">                    <thead>
+        <div class="card-body">            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="productos-table" width="100%" cellspacing="0">
+                    <thead>
                         <tr>
                             <th>ID</th>
                             <th>Nombre</th>
@@ -61,7 +63,9 @@
                             <th>Stock Total</th>
                             <th>Acciones</th>
                         </tr>
-                    </thead><tbody>                        {% for item in productos_con_stock %}
+                    </thead>
+                    <tbody>
+                        {% for item in productos_con_stock %}
                         <tr>
                             <td>{{ item.producto.idProducto }}</td>
                             <td>{{ item.producto.nombre }}</td>
