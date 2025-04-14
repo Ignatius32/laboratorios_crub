@@ -777,8 +777,7 @@ def new_movimiento():
             urlDocumento=url_documento,
             fechaFactura=fecha_factura,
             idProveedor=form.idProveedor.data if tipo_movimiento == 'compra' and form.idProveedor.data != 0 else None,
-            laboratorioDestino=lab_destino
-        )
+            laboratorioDestino=lab_destino        )
         
         db.session.add(movimiento)
         
