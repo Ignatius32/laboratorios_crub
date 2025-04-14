@@ -142,3 +142,13 @@ class Movimiento(db.Model):
     idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False)
     idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False)
     idProveedor = db.Column(db.Integer, db.ForeignKey('proveedor.idProveedor'), nullable=True)
+
+class Stock(db.Model):
+    __tablename__ = 'stock'
+    idStock = db.Column(db.Integer, primary_key=True)
+    idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False)
+    idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False)
+    cantidad = db.Column(db.Float, nullable=False)
+    
+    producto = db.relationship('Producto', backref='stocks')
+    laboratorio = db.relationship('Laboratorio', backref='stocks')

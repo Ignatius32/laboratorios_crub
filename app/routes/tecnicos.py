@@ -394,10 +394,8 @@ def new_movimiento(lab_id):
             urlDocumento=url_documento,
             laboratorioDestino=lab_destino,
             fechaFactura=fecha_factura if tipo_movimiento == 'compra' else None,
-            idProveedor=form.idProveedor.data if tipo_movimiento == 'compra' and form.idProveedor.data != 0 else None,
-            numeroDocumento=form.numeroDocumento.data if tipo_movimiento == 'compra' else None
+            idProveedor=form.idProveedor.data if tipo_movimiento == 'compra' and form.idProveedor.data != 0 else None,            numeroDocumento=form.numeroDocumento.data if tipo_movimiento == 'compra' else None
         )
-        
         db.session.add(movimiento)
         
         # If it's a transfer, create an ingress movement for the destination laboratory
@@ -417,7 +415,20 @@ def new_movimiento(lab_id):
             )
             db.session.add(movimiento_dest)
         
+        # Commit para guardar los movimientos
         db.session.commit()
+        
+        # Actualizar stock
+        from app.utils.stock_service import actualizar_stock_por_movimiento
+        actualizar_stock_por_movimiento(movimiento)
+        
+        # Para transferencias, actualizar el stock en el destino con el movimiento creado
+        if tipo_movimiento == 'transferencia' and lab_destino and 'movimiento_dest' in locals():
+            actualizar_stock_por_movimiento(movimiento_dest)
+        
+        # Guardar los cambios en el stock
+        db.session.commit()
+        
         flash('Movimiento registrado correctamente', 'success')
         return redirect(url_for('tecnicos.list_movimientos', lab_id=lab_id))
     
