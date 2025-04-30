@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros/pagination.html' import render_pagination %}
 
 {% block content %}
 <div class="container-fluid">
@@ -102,35 +103,40 @@
             </div>
         </div>
     </div>
+    
+    <!-- Paginación -->
+    {% if pagination %}
+    {{ render_pagination(pagination, 'tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     $(document).ready(function() {
-        const dataTable = $('#productos-table').DataTable({
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
-            }
-        });
-
-        // Función para filtrar productos con stock
+        // Función para filtrar productos con stock solo en la página actual
         $('#mostrarTodos').change(function() {
-            if (!this.checked) {
-                // Filtrar productos con stock > 0
-                $.fn.dataTable.ext.search.push(
-                    function(settings, data, dataIndex) {
-                        const row = $('#productos-table tbody tr:eq(' + dataIndex + ')');
-                        const stock = parseFloat(row.attr('data-stock') || 0);
-                        return stock > 0;
-                    }
-                );
+            // Obtener el checkbox
+            const mostrarSoloConStock = !this.checked;
+            
+            // Redirigir a la misma página con el parámetro de filtro
+            const url = new URL(window.location.href);
+            
+            if (mostrarSoloConStock) {
+                url.searchParams.set('con_stock', 'true');
             } else {
-                // Mostrar todos los productos
-                $.fn.dataTable.ext.search.pop();
+                url.searchParams.delete('con_stock');
             }
-            dataTable.draw();
+            
+            // Reiniciar a la página 1 cuando cambiamos el filtro
+            url.searchParams.set('page', '1');
+            
+            window.location.href = url.toString();
         });
+        
+        // Establecer el estado del checkbox según la URL actual
+        const urlParams = new URLSearchParams(window.location.search);
+        $('#mostrarTodos').prop('checked', !urlParams.has('con_stock'));
     });
 </script>
 {% endblock %}

@@ -427,6 +427,10 @@ def list_productos():
     lab_id = request.args.get('laboratorio', None)
     tipo_producto = request.args.get('tipoProducto', None)
     
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
     # Obtener todos los laboratorios para el menú desplegable
     laboratorios = Laboratorio.query.all()
     
@@ -439,16 +443,22 @@ def list_productos():
         ('residuos', 'Residuos peligrosos')
     ]
     
-    # Obtener todos los productos
+    # Crear la query base
+    productos_query = Producto.query
+    
     # Aplicar filtro por tipo de producto si se especifica
     if tipo_producto:
-        productos = Producto.query.filter_by(tipoProducto=tipo_producto).all()
-    else:
-        productos = Producto.query.all()
+        productos_query = productos_query.filter_by(tipoProducto=tipo_producto)
+    
+    # Obtener conteo total antes de paginar
+    total_productos = productos_query.count()
+    
+    # Aplicar paginación
+    productos_paginados = productos_query.paginate(page=page, per_page=per_page, error_out=False)
     
     # Preparar datos de productos con stock
     productos_con_stock = []
-    for producto in productos:
+    for producto in productos_paginados.items:
         if lab_id:
             # Si hay un laboratorio seleccionado, mostrar el stock de ese laboratorio
             stock = producto.stock_en_laboratorio(lab_id)
@@ -471,7 +481,9 @@ def list_productos():
                          laboratorios=laboratorios,
                          tipos_productos=tipos_productos,
                          selected_lab=lab_id,
-                         selected_tipo=tipo_producto)
+                         selected_tipo=tipo_producto,
+                         pagination=productos_paginados,
+                         total_productos=total_productos)
 
 @admin.route('/productos/new', methods=['GET', 'POST'])
 @admin_required

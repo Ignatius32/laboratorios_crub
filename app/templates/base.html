@@ -51,7 +51,7 @@
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                 <li><a class="dropdown-item" href="#">Mi Perfil</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Cerrar Sesión</a></li>
+                                <li><a class="dropdown-item confirm-action" href="{{ url_for('auth.logout') }}" data-message="¿Está seguro que desea cerrar sesión?">Cerrar Sesión</a></li>
                             </ul>
                         </li>
                     {% else %}
@@ -110,6 +110,7 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/confirm-action.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

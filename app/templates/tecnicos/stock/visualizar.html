@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros/pagination.html' import render_pagination %}
 
 {% block content %}
 <div class="container-fluid">
@@ -185,6 +186,11 @@
             </div>
         </div>
     </div>
+    
+    <!-- Paginación -->
+    {% if pagination %}
+    {{ render_pagination(pagination, 'tecnicos.visualizar_stock' if not es_global else 'tecnicos.visualizar_stock_global', lab_id=laboratorio.idLaboratorio) }}
+    {% endif %}
 </div>
 
 <script>
@@ -193,41 +199,68 @@
         const searchInput = document.getElementById('searchInput');
         const tipoFilter = document.getElementById('tipoFilter');
         const stockFilter = document.getElementById('stockFilter');
-        const table = document.getElementById('stockTable');
-        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
         
-        function filterTable() {
-            const searchText = searchInput.value.toLowerCase();
-            const tipoValue = tipoFilter.value.toLowerCase();
-            const stockValue = stockFilter.value;
+        // Aplicar filtros
+        function aplicarFiltros() {
+            const url = new URL(window.location.href);
             
-            for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                
-                // Skip the "no products" row
-                if (row.cells.length === 1) continue;
-                
-                const productName = row.cells[1].textContent.toLowerCase();
-                const productTipo = row.getAttribute('data-tipo').toLowerCase();
-                const productStock = parseFloat(row.getAttribute('data-stock') || 0);
-                
-                let showBySearch = searchText === '' || productName.includes(searchText);
-                let showByTipo = tipoValue === '' || productTipo === tipoValue;
-                let showByStock = true;
-                
-                if (stockValue === 'inStock' && productStock <= 0) {
-                    showByStock = false;
-                } else if (stockValue === 'outOfStock' && productStock > 0) {
-                    showByStock = false;
-                }
-                
-                row.style.display = showBySearch && showByTipo && showByStock ? '' : 'none';
+            // Agregar búsqueda si existe
+            const searchText = searchInput.value.trim();
+            if (searchText) {
+                url.searchParams.set('search', searchText);
+            } else {
+                url.searchParams.delete('search');
             }
+            
+            // Agregar filtro por tipo
+            const tipoValue = tipoFilter.value;
+            if (tipoValue) {
+                url.searchParams.set('tipo', tipoValue);
+            } else {
+                url.searchParams.delete('tipo');
+            }
+            
+            // Agregar filtro por stock
+            const stockValue = stockFilter.value;
+            if (stockValue !== 'all') {
+                url.searchParams.set('stock', stockValue);
+            } else {
+                url.searchParams.delete('stock');
+            }
+            
+            // Reiniciar a la página 1 cuando cambiamos los filtros
+            url.searchParams.set('page', '1');
+            
+            // Redirigir con los filtros aplicados
+            window.location.href = url.toString();
         }
         
-        searchInput.addEventListener('keyup', filterTable);
-        tipoFilter.addEventListener('change', filterTable);
-        stockFilter.addEventListener('change', filterTable);
+        // Escuchar eventos de los controles de filtro
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                aplicarFiltros();
+            }
+        });
+        
+        // Botón de búsqueda
+        const searchButton = searchInput.nextElementSibling;
+        searchButton.addEventListener('click', aplicarFiltros);
+        
+        // Controles de select
+        tipoFilter.addEventListener('change', aplicarFiltros);
+        stockFilter.addEventListener('change', aplicarFiltros);
+        
+        // Inicializar valores desde la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('search')) {
+            searchInput.value = urlParams.get('search');
+        }
+        if (urlParams.has('tipo')) {
+            tipoFilter.value = urlParams.get('tipo');
+        }
+        if (urlParams.has('stock')) {
+            stockFilter.value = urlParams.get('stock');
+        }
     });
 </script>
 {% endblock %}

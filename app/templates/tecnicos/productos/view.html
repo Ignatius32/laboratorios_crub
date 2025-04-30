@@ -182,12 +182,17 @@
                         {% for movimiento in movimientos %}
                         <tr>
                             <td>{{ movimiento.idMovimiento }}</td>
-                            <td>{{ movimiento.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                            <td>
+                            <td>{{ movimiento.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>                            <td>
                                 {% if movimiento.tipoMovimiento == 'ingreso' %}
                                     <span class="badge bg-success">Ingreso</span>
+                                {% elif movimiento.tipoMovimiento == 'compra' %}
+                                    <span class="badge bg-primary">Compra</span>
+                                {% elif movimiento.tipoMovimiento == 'uso' %}
+                                    <span class="badge bg-danger">Uso</span>
+                                {% elif movimiento.tipoMovimiento == 'transferencia' %}
+                                    <span class="badge bg-warning">Transferencia</span>
                                 {% else %}
-                                    <span class="badge bg-danger">Egreso</span>
+                                    <span class="badge bg-secondary">{{ movimiento.tipoMovimiento }}</span>
                                 {% endif %}
                             </td>
                             <td>{{ movimiento.cantidad }}</td>
@@ -211,7 +216,7 @@
     $(document).ready(function() {
         $('#movimientos-table').DataTable({
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
+                url: '{{ url_for("static", filename="js/Spanish.json") }}'
             },
             order: [[1, 'desc']]  // Order by date, most recent first
         });

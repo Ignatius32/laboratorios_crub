@@ -108,3 +108,65 @@ footer {
     display: flex;
     align-items: center;
 }
+
+/* Custom styling for DataTables pagination buttons */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 0.3em 0.8em;
+    margin: 0 0.2em;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    background-color: #f8f9fa;
+    color: #495057 !important;
+    cursor: pointer;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+    color: #212529 !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* Estilos para botones de acciones destructivas */
+.btn-cancel {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+    color: white;
+}
+
+/* Estilo para botones de eliminación */
+.btn-delete {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+    color: white;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
