@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros/pagination.html' import render_pagination %}
 
 {% block content %}
 <div class="container-fluid">
@@ -114,14 +115,21 @@
                         <tr>
                             <td colspan="7" class="text-center">No hay productos registrados</td>
                         </tr>
-                        {% endfor %}                    </tbody>
-                </table>
+                        {% endfor %}                    </tbody>                </table>
             </div>
         </div>
-    </div>    
+    </div>
+    
+    <!-- Paginación -->
+    {% if pagination %}
+    {{ render_pagination(pagination, 'admin.list_productos', 
+                        laboratorio=selected_lab, 
+                        tipoProducto=selected_tipo) }}
+    {% endif %}
+    
     <!-- Modales de eliminación para cada producto -->
     {% for item in productos_con_stock %}
-    <!-- Delete Modal for each product -->
+    <!-- Modal de eliminación para cada producto -->
     <div class="modal fade" id="deleteModal{{ item.producto.idProducto }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ item.producto.idProducto }}" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -137,7 +145,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <form action="{{ url_for('admin.delete_producto', id=item.producto.idProducto) }}" method="POST">
-                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                        <button type="submit" class="btn btn-delete">Eliminar</button>
                     </form>
                 </div>
             </div>
@@ -149,12 +157,27 @@
 
 {% block scripts %}
 <script>
-    $(document).ready(function() {
-        $('#productos-table').DataTable({
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
+    // Al submitear el formulario, mantener los parámetros de paginación
+    document.querySelector('form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const url = new URL(window.location.href);
+        const formData = new FormData(this);
+        
+        // Obtener los parámetros del formulario
+        for (const [key, value] of formData.entries()) {
+            if (value) {
+                url.searchParams.set(key, value);
+            } else {
+                url.searchParams.delete(key);
             }
-        });
+        }
+        
+        // Reiniciar a la página 1 cuando cambian los filtros
+        url.searchParams.set('page', '1');
+        
+        // Redirigir con los filtros aplicados
+        window.location.href = url.toString();
     });
 </script>
 {% endblock %}

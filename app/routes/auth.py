@@ -13,7 +13,7 @@ from wtforms import StringField, PasswordField, BooleanField, SubmitField
 from wtforms.validators import DataRequired, Email, ValidationError, EqualTo, Length
 
 class LoginForm(FlaskForm):
-    idUsuario = StringField('ID Usuario', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Contraseña', validators=[DataRequired()])
     remember_me = BooleanField('Recordarme')
     submit = SubmitField('Iniciar sesión')
@@ -39,7 +39,11 @@ def login():
         if current_user.rol == 'admin':
             return redirect(url_for('admin.dashboard'))
         else:
-            return redirect(url_for('tecnicos.dashboard'))
+            # Verificar si el técnico tiene laboratorios asignados y redirigir al primero
+            if current_user.laboratorios:
+                return redirect(url_for('tecnicos.panel_laboratorio', lab_id=current_user.laboratorios[0].idLaboratorio))
+            else:
+                return redirect(url_for('tecnicos.dashboard'))
     
     form = LoginForm()
     if form.validate_on_submit():
@@ -48,7 +52,7 @@ def login():
         admin_username = current_app.config.get('ADMIN_USERNAME')
         admin_password = current_app.config.get('ADMIN_PASSWORD')
         
-        if form.idUsuario.data == admin_username and form.password.data == admin_password:
+        if form.email.data == admin_username and form.password.data == admin_password:
             # Find admin user or create if not exists
             admin_user = Usuario.query.filter_by(rol='admin').first()
             if admin_user:
@@ -60,9 +64,9 @@ def login():
             return redirect(url_for('admin.dashboard'))
         else:
             # Try to authenticate as regular user
-            user = Usuario.query.filter_by(idUsuario=form.idUsuario.data).first()
+            user = Usuario.query.filter_by(email=form.email.data).first()
             if user is None or not user.check_password(form.password.data):
-                flash('ID Usuario o contraseña incorrectos', 'danger')
+                flash('Email o contraseña incorrectos', 'danger')
                 return redirect(url_for('auth.login'))
             
             login_user(user, remember=form.remember_me.data)
@@ -72,7 +76,13 @@ def login():
                 if user.rol == 'admin':
                     next_page = url_for('admin.dashboard')
                 else:
-                    next_page = url_for('tecnicos.dashboard')
+                    # Redirigir a técnicos a su panel de laboratorio específico si tiene asignado
+                    if user.laboratorios:
+                        # Redirigir al panel del primer laboratorio asignado
+                        next_page = url_for('tecnicos.panel_laboratorio', lab_id=user.laboratorios[0].idLaboratorio)
+                    else:
+                        # Alternativa si el técnico no tiene laboratorios asignados
+                        next_page = url_for('tecnicos.dashboard')
             return redirect(next_page)
     
     return render_template('auth/login.html', title='Iniciar sesión', form=form)

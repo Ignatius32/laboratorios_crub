@@ -4,6 +4,7 @@ from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Pr
 from flask_wtf import FlaskForm
 from wtforms import SelectField, FloatField, StringField, TextAreaField, BooleanField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length, URL, Optional, Email, Regexp, ValidationError
+from app.utils.pagination import ManualPagination
 
 tecnicos = Blueprint('tecnicos', __name__)
 
@@ -175,22 +176,65 @@ def panel_laboratorio(lab_id):
 def list_productos(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     
-    # Obtenemos todos los productos
-    productos = Producto.query.all()
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
     
-    # Para cada producto, calculamos su stock en este laboratorio específico
-    productos_con_stock = []
-    for producto in productos:
-        stock_en_lab = producto.stock_en_laboratorio(lab_id)
-        productos_con_stock.append({
-            'producto': producto,
-            'stock': stock_en_lab
-        })
+    # Filtro para mostrar solo productos con stock
+    solo_con_stock = request.args.get('con_stock', False, type=lambda v: v.lower() == 'true')
     
-    return render_template('tecnicos/productos/list.html',
-                          title=f'Productos - {laboratorio.nombre}',
-                          laboratorio=laboratorio,
-                          productos_con_stock=productos_con_stock)
+    # Crear la query base
+    productos_query = Producto.query
+    
+    # Si queremos sólo productos con stock, necesitamos obtenerlos todos para filtrar
+    if solo_con_stock:
+        todos_productos = productos_query.all()
+        # Filtrar manualmente los que tienen stock en este laboratorio
+        productos_con_stock_positivo = []
+        for producto in todos_productos:
+            stock_en_lab = producto.stock_en_laboratorio(lab_id)
+            if stock_en_lab > 0:
+                productos_con_stock_positivo.append({
+                    'producto': producto,
+                    'stock': stock_en_lab
+                })
+        
+        # Paginación manual para productos filtrados
+        total_productos = len(productos_con_stock_positivo)
+        inicio = (page - 1) * per_page
+        fin = min(inicio + per_page, total_productos)
+        productos_paginados = productos_con_stock_positivo[inicio:fin]
+          # Crear un objeto de paginación manual
+        pagination = ManualPagination(productos_paginados, page, per_page, total_productos)
+        
+        return render_template('tecnicos/productos/list.html',
+                              title=f'Productos - {laboratorio.nombre}',
+                              laboratorio=laboratorio,
+                              productos_con_stock=productos_paginados,
+                              pagination=pagination,
+                              total_productos=total_productos)
+    else:
+        # Obtener conteo total antes de paginar
+        total_productos = productos_query.count()
+        
+        # Aplicar paginación a la consulta original
+        productos_paginados = productos_query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # Para cada producto en la página actual, calculamos su stock
+        productos_con_stock = []
+        for producto in productos_paginados.items:
+            stock_en_lab = producto.stock_en_laboratorio(lab_id)
+            productos_con_stock.append({
+                'producto': producto,
+                'stock': stock_en_lab
+            })
+        
+        return render_template('tecnicos/productos/list.html',
+                              title=f'Productos - {laboratorio.nombre}',
+                              laboratorio=laboratorio,
+                              productos_con_stock=productos_con_stock,
+                              pagination=productos_paginados,
+                              total_productos=total_productos)
 
 @tecnicos.route('/panel/<string:lab_id>/productos/new', methods=['GET', 'POST'])
 @login_required
@@ -446,11 +490,19 @@ def view_producto(lab_id, id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     producto = Producto.query.get_or_404(id)
     stock_en_lab = producto.stock_en_laboratorio(lab_id)
+    
+    # Obtener los movimientos de este producto en este laboratorio
+    movimientos = Movimiento.query.filter_by(
+        idProducto=id,
+        idLaboratorio=lab_id
+    ).order_by(Movimiento.timestamp.desc()).all()
+    
     return render_template('tecnicos/productos/view.html',
                           title=f'Detalle de Producto - {producto.nombre}',
                           laboratorio=laboratorio,
                           producto=producto,
-                          stock_en_lab=stock_en_lab)
+                          stock_en_lab=stock_en_lab,
+                          movimientos=movimientos)
 
 # Stock visualization for technicians - GLOBAL STOCK
 @tecnicos.route('/panel/<string:lab_id>/stock/global')
@@ -460,16 +512,44 @@ def view_producto(lab_id, id):
 def visualizar_stock_global(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Parámetros de filtro
+    search_query = request.args.get('search', '')
+    tipo_filtro = request.args.get('tipo', '')
+    stock_filtro = request.args.get('stock', 'all')
+    
     # Get all laboratories
     todos_laboratorios = Laboratorio.query.all()
     
-    # Obtener todos los productos con su stock global
-    productos = Producto.query.all()
-    productos_info = []
-    for producto in productos:
+    # Crear la query base
+    productos_query = Producto.query
+    
+    # Aplicar filtro por tipo de producto
+    if tipo_filtro:
+        productos_query = productos_query.filter_by(tipoProducto=tipo_filtro)
+    
+    # Aplicar filtro por búsqueda de nombre
+    if search_query:
+        productos_query = productos_query.filter(Producto.nombre.ilike(f'%{search_query}%'))
+    
+    # Obtenemos todos los productos para el filtro de stock
+    todos_productos = productos_query.all()
+    
+    # Preparamos la lista de productos con stock
+    productos_con_stock = []
+    for producto in todos_productos:
         # Para cada producto, calculamos su stock global y el stock en este laboratorio
-        stock_global = producto.stock_total  # Accedido como propiedad, sin paréntesis
+        stock_global = producto.stock_total
         stock_en_lab = producto.stock_en_laboratorio(lab_id)
+        
+        # Aplicar filtro por stock
+        if stock_filtro == 'inStock' and stock_global <= 0:
+            continue
+        elif stock_filtro == 'outOfStock' and stock_global > 0:
+            continue
         
         # Obtener laboratorios donde hay stock de este producto
         laboratorios_con_stock = []
@@ -482,7 +562,7 @@ def visualizar_stock_global(lab_id):
                     'stock': stock_en_este_lab
                 })
         
-        productos_info.append({
+        productos_con_stock.append({
             'id': producto.idProducto,
             'nombre': producto.nombre,
             'descripcion': producto.descripcion,
@@ -493,11 +573,21 @@ def visualizar_stock_global(lab_id):
             'control_sedronar': producto.controlSedronar,
             'laboratorios_con_stock': laboratorios_con_stock
         })
+      # Paginación manual para productos filtrados
+    total_productos = len(productos_con_stock)
+    inicio = (page - 1) * per_page
+    fin = min(inicio + per_page, total_productos)
+    productos_paginados = productos_con_stock[inicio:fin]
+    
+    # Crear un objeto de paginación manual
+    pagination = ManualPagination(productos_paginados, page, per_page, total_productos)
     
     return render_template('tecnicos/stock/visualizar.html',
                           title='Stock Global',
                           laboratorio=laboratorio,
-                          productos=productos_info,
+                          productos=productos_paginados,
+                          pagination=pagination,
+                          total_productos=total_productos,
                           es_global=True)
 
 # Stock visualization for technicians - LOCAL STOCK
@@ -508,13 +598,41 @@ def visualizar_stock_global(lab_id):
 def visualizar_stock(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     
-    # Obtener todos los productos
-    productos = Producto.query.all()
-    productos_info = []
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
     
-    for producto in productos:
+    # Parámetros de filtro
+    search_query = request.args.get('search', '')
+    tipo_filtro = request.args.get('tipo', '')
+    stock_filtro = request.args.get('stock', 'all')
+    
+    # Crear la query base
+    productos_query = Producto.query
+    
+    # Aplicar filtro por tipo de producto
+    if tipo_filtro:
+        productos_query = productos_query.filter_by(tipoProducto=tipo_filtro)
+    
+    # Aplicar filtro por búsqueda de nombre
+    if search_query:
+        productos_query = productos_query.filter(Producto.nombre.ilike(f'%{search_query}%'))
+    
+    # Obtenemos todos los productos para el filtro de stock
+    todos_productos = productos_query.all()
+    
+    # Preparamos la lista de productos con stock
+    productos_con_stock = []
+    for producto in todos_productos:
         stock_en_lab = producto.stock_en_laboratorio(lab_id)
-        productos_info.append({
+        
+        # Aplicar filtro por stock
+        if stock_filtro == 'inStock' and stock_en_lab <= 0:
+            continue
+        elif stock_filtro == 'outOfStock' and stock_en_lab > 0:
+            continue
+        
+        productos_con_stock.append({
             'id': producto.idProducto,
             'nombre': producto.nombre,
             'descripcion': producto.descripcion,
@@ -523,11 +641,21 @@ def visualizar_stock(lab_id):
             'stock': stock_en_lab,
             'control_sedronar': producto.controlSedronar
         })
+      # Paginación manual para productos filtrados
+    total_productos = len(productos_con_stock)
+    inicio = (page - 1) * per_page
+    fin = min(inicio + per_page, total_productos)
+    productos_paginados = productos_con_stock[inicio:fin]
+    
+    # Crear un objeto de paginación manual
+    pagination = ManualPagination(productos_paginados, page, per_page, total_productos)
     
     return render_template('tecnicos/stock/visualizar.html',
                           title=f'Stock - {laboratorio.nombre}',
                           laboratorio=laboratorio,
-                          productos=productos_info,
+                          productos=productos_paginados,
+                          pagination=pagination,
+                          total_productos=total_productos,
                           es_global=False)
 
 # Proveedores management for technicians

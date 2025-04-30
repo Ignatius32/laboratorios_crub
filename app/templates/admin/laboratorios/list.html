@@ -39,7 +39,7 @@
                                     <a href="{{ url_for('admin.edit_laboratorio', id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-warning">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ laboratorio.idLaboratorio }}">
+                                    <button type="button" class="btn btn-sm btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ laboratorio.idLaboratorio }}">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -65,7 +65,7 @@
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                                 <form action="{{ url_for('admin.delete_laboratorio', id=laboratorio.idLaboratorio) }}" method="POST">
-                                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                                    <button type="submit" class="btn btn-delete">Eliminar</button>
                                 </form>
                             </div>
                         </div>

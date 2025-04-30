@@ -81,7 +81,7 @@
                     </div>
                 </div>
                 
-                <div class="mt-4">
+                <div class="mt-4 text-end">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-search me-2"></i>Generar Reporte
                     </button>
@@ -180,7 +180,7 @@
     $(document).ready(function() {
         $('#reporte-table').DataTable({
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
+                url: '{{ url_for("static", filename="js/Spanish.json") }}'
             },
             dom: 'Bfrtip',
             buttons: [

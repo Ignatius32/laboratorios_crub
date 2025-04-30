@@ -54,11 +54,11 @@
                     <strong>Productos Globales:</strong> Todos los productos importados serán globales y estarán disponibles para todos los laboratorios.
                 </div>
                 
-                <div class="mt-4">
+                <div class="mt-4 text-end">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-file-import me-2"></i>Importar Productos
                     </button>
-                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-secondary">
+                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-cancel confirm-action" data-message="¿Está seguro que desea cancelar? Se perderán los cambios no guardados.">
                         <i class="fas fa-times me-2"></i>Cancelar
                     </a>
                 </div>

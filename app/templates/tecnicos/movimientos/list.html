@@ -108,7 +108,7 @@
     $(document).ready(function() {
         $('#movimientos-table').DataTable({
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
+                url: '{{ url_for("static", filename="js/Spanish.json") }}'
             },
             order: [[1, 'desc']]  // Order by date, most recent first
         });
