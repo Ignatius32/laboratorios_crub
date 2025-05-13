@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 from app.models.models import db, Usuario
 from config import Config
 import os
@@ -9,6 +10,9 @@ login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Por favor, inicie sesión para acceder a esta página.'
 login_manager.login_message_category = 'info'
+
+# Initialize CSRF protection
+csrf = CSRFProtect()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -21,6 +25,7 @@ def create_app(config_class=Config):
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
+    csrf.init_app(app)
     migrate = Migrate(app, db)
     
     # Register blueprints

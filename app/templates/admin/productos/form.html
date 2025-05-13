@@ -10,12 +10,12 @@
         </ol>
     </nav>
 
-    <div class="card shadow mb-4">
+    <div class="card mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">{{ 'Editar Producto' if producto else 'Nuevo Producto' }}</h6>
         </div>
         <div class="card-body">
-            <form method="POST">
+            <form method="POST" class="admin-form">
                 {{ form.hidden_tag() }}
                 
                 <div class="row">
@@ -131,12 +131,15 @@
                         </div>
                     {% endif %}
                 </div>
-                
-                <div class="mt-4 text-end">
+                  <div class="mt-4 text-end">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-2"></i>Guardar
                     </button>
-                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-cancel confirm-action" data-message="¿Está seguro que desea cancelar? Los cambios no guardados se perderán.">
+                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-secondary confirm-action"
+                       data-message="¿Está seguro que desea cancelar?" 
+                       data-warning="Los cambios no guardados se perderán."
+                       data-btn-text="Sí, Cancelar"
+                       data-btn-class="btn-cancel">
                         <i class="fas fa-times me-2"></i>Cancelar
                     </a>
                 </div>

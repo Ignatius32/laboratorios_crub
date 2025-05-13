@@ -1,20 +1,28 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="px-4 py-5 my-5 text-center">
-    <h1 class="display-5 fw-bold text-primary">Gestión de Laboratorios CRUB</h1>
-    <div class="col-lg-6 mx-auto">
-        <p class="lead mb-4">
-            Sistema de gestión para los laboratorios del Centro Regional Universitario Bariloche.
-            Administra inventarios, productos químicos, movimientos de stock y usuarios técnicos.
-        </p>
-        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-            <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg px-4 gap-3">
-                <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
-            </a>
-            <a href="{{ url_for('main.about') }}" class="btn btn-outline-secondary btn-lg px-4">
-                <i class="fas fa-info-circle me-2"></i>Más Información
-            </a>
+<div class="hero-section">
+    <div class="container">
+        <div class="row align-items-center py-5">
+            <div class="col-lg-6 fade-in">
+                <h1 class="display-4 fw-bold">Gestión de Laboratorios CRUB</h1>
+                <p class="lead my-4 text-secondary">
+                    Sistema de gestión para los laboratorios del Centro Regional Universitario Bariloche.
+                    Administra inventarios, productos químicos, movimientos de stock y usuarios técnicos.
+                </p>
+                <div class="d-grid gap-3 d-md-flex mt-4">
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg px-4 py-2">
+                        <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+                    </a>
+                    <a href="{{ url_for('main.about') }}" class="btn btn-outline-secondary btn-lg px-4 py-2">
+                        <i class="fas fa-info-circle me-2"></i>Más Información
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center d-none d-lg-block fade-in">
+                <img src="{{ url_for('static', filename='img/logo-portada.jpg') }}" alt="Logo CRUB" 
+                     class="img-fluid rounded shadow-lg" style="max-height: 400px;">
+            </div>
         </div>
     </div>
 </div>
@@ -24,7 +32,7 @@
         <div class="col-md-4 mb-4">
             <div class="card h-100">
                 <div class="card-body text-center">
-                    <i class="fas fa-flask fa-3x text-primary mb-3"></i>
+                    <i class="fas fa-building fa-3x text-primary mb-3"></i>
                     <h5 class="card-title">Gestión de Laboratorios</h5>
                     <p class="card-text">Administra todos los laboratorios del Centro Regional Universitario Bariloche.</p>
                 </div>

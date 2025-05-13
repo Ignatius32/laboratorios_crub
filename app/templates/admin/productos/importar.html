@@ -10,10 +10,17 @@
         </ol>
     </nav>
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Importar Productos desde Excel</h6>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="page-title">Importación de Productos</h1>
+            <p class="page-subtitle">Sube un archivo Excel para importar múltiples productos al sistema</p>
         </div>
+        <a href="{{ url_for('admin.list_productos') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Volver a Productos
+        </a>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-body">
             <div class="alert alert-info">
                 <h5 class="alert-heading">Instrucciones</h5>

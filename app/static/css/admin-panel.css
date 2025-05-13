@@ -1,0 +1,213 @@
+/* Admin Panel Specific Styles - Minimalista */
+
+/* Dashboard Stats */
+.admin-dashboard-stats {
+    transition: var(--transition);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background-color: #fff;
+    padding: 0.8rem;
+}
+
+.admin-dashboard-stats .text-xs {
+    font-size: 0.7rem;
+}
+
+.admin-dashboard-stats:hover {
+    border-color: var(--color-primary);
+    background-color: #FAFAFA;
+}
+
+.admin-dashboard-stats .h3 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--color-dark);
+    margin-bottom: 0;
+}
+
+.admin-dashboard-stats i {
+    font-size: 1.5rem;
+    color: var(--color-primary);
+}
+
+/* Gestión cards - simplificados */
+.admin-panel-card {
+    transition: var(--transition);
+    height: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background-color: #fff;
+}
+
+.admin-panel-card:hover {
+    border-color: var(--color-primary);
+    background-color: #FAFAFA;
+}
+
+.admin-panel-card .card-body {
+    padding: 0.7rem 1rem 0.7rem; /* Reducir padding para mayor simplicidad */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.admin-panel-card i {
+    font-size: 1.75rem; /* Reducir ligeramente el ícono */
+    margin-bottom: 0.5rem; /* Reducir margen para mayor compacidad */
+    color: var(--color-primary);
+}
+
+.admin-panel-card .card-title {
+    font-weight: 600;
+    margin-bottom: 0.3rem; /* Reducir aún más el margen */
+    font-size: 1rem; /* Texto más pequeño */
+    color: var(--color-dark);
+}
+
+.admin-panel-card .card-text {
+    color: var(--color-muted);
+    margin-bottom: 0.5rem; /* Reducir margen para mayor compacidad */
+    font-size: 0.85rem; /* Texto más pequeño */
+    flex-grow: 1; /* Hace que este elemento ocupe el espacio disponible */
+}
+
+/* Asegurar que los botones queden alineados */
+.admin-panel-card .btn {
+    margin-top: auto; /* Empuja el botón hacia abajo */
+    width: 100%; /* Hace que todos los botones tengan el mismo ancho */
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    font-size: 0.85rem;
+}
+
+/* DataTables enhancements - minimalista */
+.dataTables_filter {
+    margin-bottom: 1rem;
+}
+
+.dataTables_filter input {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius) !important;
+    padding: 0.5rem 0.75rem !important;
+    width: 280px !important;
+    font-size: 0.95rem !important;
+}
+
+.dataTables_filter input:focus {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 0.15rem rgba(96, 125, 139, 0.15) !important;
+}
+
+/* Table Cell Spacing - más compacto */
+table.dataTable th,
+table.dataTable td {
+    padding: 0.85rem !important;
+    font-size: 0.95rem !important;
+}
+
+/* Action buttons in tables - más sutiles */
+.table-action-buttons {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: flex-end;
+}
+
+.table-action-buttons .btn {
+    padding: 0.25rem 0.45rem;
+    font-size: 0.85rem;
+    border-radius: 4px;
+}
+
+.table-action-buttons .btn-outline-primary {
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    background-color: transparent;
+}
+
+.table-action-buttons .btn-outline-primary:hover {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+/* Form sections - simplificado */
+.form-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-dark);
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* Form elements enhancements */
+.admin-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.admin-form .form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.admin-form .form-select,
+.admin-form .form-control {
+    border-radius: var(--radius);
+    border: 1px solid #e2e8f0;
+    padding: 0.625rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.admin-form .form-select:focus,
+.admin-form .form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.25rem rgba(61, 90, 241, 0.15);
+}
+
+/* Filter sections in list pages */
+.list-filters {
+    background-color: var(--color-light-gray);
+    padding: 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 1.5rem;
+}
+
+/* Profile cards */
+.profile-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1.5rem;
+}
+
+.profile-card img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 1rem;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem 0;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: var(--color-gray);
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--color-dark);
+}
+
+.empty-state p {
+    color: var(--color-gray);
+    max-width: 400px;
+    margin: 0 auto 1.5rem;
+}

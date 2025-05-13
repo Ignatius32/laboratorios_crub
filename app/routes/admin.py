@@ -181,8 +181,25 @@ def dashboard():
 @admin.route('/usuarios')
 @admin_required
 def list_usuarios():
-    usuarios = Usuario.query.all()
-    return render_template('admin/usuarios/list.html', title='Gestión de Usuarios', usuarios=usuarios)
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Crear la query base
+    query = Usuario.query
+    
+    # Obtener conteo total antes de paginar
+    total_usuarios = query.count()
+    
+    # Aplicar paginación
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    usuarios = pagination.items
+    
+    return render_template('admin/usuarios/list.html', 
+                           title='Gestión de Usuarios', 
+                           usuarios=usuarios,
+                           pagination=pagination,
+                           total_usuarios=total_usuarios)
 
 @admin.route('/usuarios/new', methods=['GET', 'POST'])
 @admin_required
@@ -310,8 +327,25 @@ def delete_usuario(id):
 @admin.route('/laboratorios')
 @admin_required
 def list_laboratorios():
-    laboratorios = Laboratorio.query.all()
-    return render_template('admin/laboratorios/list.html', title='Gestión de Laboratorios', laboratorios=laboratorios)
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Crear la query base
+    query = Laboratorio.query
+    
+    # Obtener conteo total antes de paginar
+    total_laboratorios = query.count()
+    
+    # Aplicar paginación
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    laboratorios = pagination.items
+    
+    return render_template('admin/laboratorios/list.html', 
+                           title='Gestión de Laboratorios', 
+                           laboratorios=laboratorios,
+                           pagination=pagination,
+                           total_laboratorios=total_laboratorios)
 
 @admin.route('/laboratorios/new', methods=['GET', 'POST'])
 @admin_required
@@ -695,8 +729,25 @@ def importar_productos():
 @admin.route('/movimientos')
 @admin_required
 def list_movimientos():
-    movimientos = Movimiento.query.all()
-    return render_template('admin/movimientos/list.html', title='Gestión de Movimientos', movimientos=movimientos)
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Crear la query base ordenada por fecha (más recientes primero)
+    query = Movimiento.query.order_by(Movimiento.timestamp.desc())
+    
+    # Obtener conteo total antes de paginar
+    total_movimientos = query.count()
+    
+    # Aplicar paginación
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    movimientos = pagination.items
+    
+    return render_template('admin/movimientos/list.html', 
+                         title='Gestión de Movimientos', 
+                         movimientos=movimientos,
+                         pagination=pagination,
+                         total_movimientos=total_movimientos)
 
 @admin.route('/movimientos/new', methods=['GET', 'POST'])
 @admin_required
@@ -841,10 +892,25 @@ def delete_movimiento(id):
 @admin.route('/proveedores')
 @admin_required
 def list_proveedores():
-    proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Crear la query base ordenada por nombre
+    query = Proveedor.query.order_by(Proveedor.nombre)
+    
+    # Obtener conteo total antes de paginar
+    total_proveedores = query.count()
+    
+    # Aplicar paginación
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    proveedores = pagination.items
+    
     return render_template('admin/proveedores/list.html', 
                            title='Gestión de Proveedores', 
-                           proveedores=proveedores)
+                           proveedores=proveedores,
+                           pagination=pagination,
+                           total_proveedores=total_proveedores)
 
 @admin.route('/proveedores/new', methods=['GET', 'POST'])
 @admin_required
@@ -923,9 +989,15 @@ def delete_proveedor(id):
 def reporte_movimientos():
     from datetime import datetime
     from sqlalchemy import and_, or_
+    from app.utils.pagination import ManualPagination
+    
+    # Obtener página actual desde parámetros GET
+    page = request.args.get('page', 1, type=int)
+    per_page = 15  # Cantidad de elementos por página
     
     form = ReporteForm()
     reporte_data = []
+    pagination = None
     
     if form.validate_on_submit():
         try:
@@ -1016,15 +1088,32 @@ def reporte_movimientos():
             
             # Ordenar por fecha
             reporte_data.sort(key=lambda x: x['fecha'])
-            
-            # Guardar en sesión para exportar a Excel
-            session['reporte_data'] = [
+              # Guardar todos los datos en sesión para exportar a Excel
+            session['reporte_data_completo'] = [
                 {k: (v.strftime('%d/%m/%Y %H:%M:%S') if k == 'fecha' else v) 
                  for k, v in item.items()}
                 for item in reporte_data
             ]
             
-            flash('Reporte generado correctamente', 'success')
+            # Implementar paginación manual
+            total_items = len(reporte_data)
+            start_idx = (page - 1) * per_page
+            end_idx = min(start_idx + per_page, total_items)
+            
+            # Extraer solo los elementos para la página actual
+            items_pagina = reporte_data[start_idx:end_idx] if total_items > 0 else []
+            
+            # Crear objeto de paginación
+            pagination = ManualPagination(items_pagina, page, per_page, total_items)
+            
+            # Guardar los datos paginados para mostrar
+            reporte_data = items_pagina
+            
+            # Verificar si hay datos en el reporte y mostrar el mensaje adecuado
+            if total_items > 0:
+                flash('Reporte generado correctamente', 'success')
+            else:
+                flash('No hay movimientos en el rango de fechas seleccionado', 'warning')
             
         except ValueError:
             flash('Error en el formato de fechas. Use el formato YYYY-MM-DD', 'danger')
@@ -1034,7 +1123,8 @@ def reporte_movimientos():
     return render_template('admin/reportes/movimientos.html', 
                           title='Reporte de Movimientos',
                           form=form,
-                          reporte_data=reporte_data)
+                          reporte_data=reporte_data,
+                          pagination=pagination)
 
 @admin.route('/reportes/movimientos/excel')
 @admin_required
@@ -1043,9 +1133,8 @@ def exportar_reporte_excel():
     from datetime import datetime
     from io import BytesIO
     from flask import send_file
-    
-    # Recuperar datos de la sesión
-    reporte_data = session.get('reporte_data', [])
+      # Recuperar datos completos de la sesión
+    reporte_data = session.get('reporte_data_completo', [])
     
     if not reporte_data:
         flash('No hay datos para exportar', 'warning')

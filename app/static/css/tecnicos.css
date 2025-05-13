@@ -1,0 +1,208 @@
+/* Estilos específicos para la sección de técnicos - Minimalista */
+
+.lab-header {
+    background-color: #fff;
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.lab-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-dark);
+    margin-bottom: 0.25rem;
+}
+
+.lab-subtitle {
+    color: var(--color-muted);
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+/* Stock indicators */
+.stock-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.stock-normal {
+    background-color: #E8F5E9;
+    color: #2E7D32;
+}
+
+.stock-warning {
+    background-color: #FFF8E1;
+    color: #F57F17;
+}
+
+.stock-danger {
+    background-color: #FFEBEE;
+    color: #C62828;
+}
+
+/* Product item styling - más minimalista */
+.product-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: var(--radius);
+    background-color: #fff;
+    transition: var(--transition);
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--color-border);
+}
+
+.product-item:hover {
+    border-color: var(--color-primary);
+    background-color: #FAFAFA;
+}
+
+.product-item .product-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background-color: var(--color-light);
+    color: var(--color-primary);
+    margin-right: 1rem;
+}
+
+.product-item .product-details {
+    flex-grow: 1;
+}
+
+.product-item .product-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--color-dark);
+    font-size: 0.95rem;
+}
+
+.product-item .product-meta {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+}
+
+.product-item .product-meta > span {
+    margin-right: 1.25rem;
+    display: flex;
+    align-items: center;
+}
+
+.product-item .product-meta i {
+    margin-right: 0.25rem;
+}
+
+/* Movimientos - más minimalistas */
+.movement-type-entrada {
+    background-color: #E8F5E9;
+    color: #2E7D32;
+    padding: 0.35rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.movement-type-salida {
+    background-color: #FFEBEE;
+    color: #C62828;
+    padding: 0.35rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Stats cards for técnicos - simplificados */
+.stats-card {
+    background-color: #fff;
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    border: 1px solid var(--color-border);
+    height: 100%;
+    transition: var(--transition);
+}
+
+.stats-card:hover {
+    border-color: var(--color-primary);
+    background-color: #FAFAFA;
+}
+
+.stats-card .stats-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    background-color: var(--color-light);
+    color: var(--color-primary);
+}
+
+.stats-card .stats-number {
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    color: var(--color-dark);
+}
+
+.stats-card .stats-title {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+/* Movimientos timeline - simplificado */
+.timeline {
+    position: relative;
+    margin: 0 0 30px 0;
+    padding-left: 1rem;
+}
+
+.timeline:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    background-color: var(--color-border);
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 25px;
+    padding-bottom: 1.25rem;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-item:before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+}
+
+.timeline-date {
+    font-size: 0.875rem;
+    color: var(--color-muted);
+    margin-bottom: 0.25rem;
+}

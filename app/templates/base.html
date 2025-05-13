@@ -3,74 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% if title %}{{ title }} | {% endif %}Gestión de Laboratorios CRUB{% endblock %}</title>    <!-- Bootstrap 5 CSS -->
+    <title>{% block title %}{% if title %}{{ title }} | {% endif %}Gestión de Laboratorios CRUB{% endblock %}</title>    <!-- Preconect to necessary domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">    <!-- Variables CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <!-- Helper CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
+    <!-- DataTables Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/datatables-custom.css') }}">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% if 'admin' in request.path %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin-panel.css') }}">
+    {% endif %}
+    {% if 'tecnicos' in request.path %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tecnicos.css') }}">
+    {% endif %}
     {% block styles %}{% endblock %}
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<body>    <!-- Navigation - simplificada -->    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="CRUB Logo" height="60" class="me-2">
-                Laboratorios CRUB
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">                <img src="{{ url_for('static', filename='img/logo5.png') }}" alt="CRUB Logo" height="40" class="me-2">
+                <span class="fw-medium separator-symbol">|&nbsp</span>
+                <span class="fw-medium">Laboratorios CRUB</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
+            </button>            <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
+                    {% if not current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('main.index') %}active{% endif %}" href="{{ url_for('main.index') }}">Inicio</a>
+                        </li>
+                    {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.index') }}">Inicio</a>
+                        <a class="nav-link {% if 'about' in request.path %}active{% endif %}" href="{{ url_for('main.about') }}">Acerca de</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.about') }}">Acerca de</a>
-                    </li>
-                    {% if current_user.is_authenticated %}
-                        {% if current_user.rol == 'admin' %}
+                    {% if current_user.is_authenticated %}{% if current_user.rol == 'admin' %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('admin.dashboard') }}">Panel Admin</a>
+                                <a class="nav-link {% if 'admin' in request.path %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">
+                                    Panel Admin
+                                </a>
                             </li>
                         {% else %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('tecnicos.dashboard') }}">Panel Técnico</a>
+                                <a class="nav-link {% if 'tecnicos' in request.path %}active{% endif %}" href="{{ url_for('tecnicos.dashboard') }}">
+                                    Panel Técnico
+                                </a>
                             </li>
-                        {% endif %}
-                        <li class="nav-item dropdown">
+                        {% endif %}                        <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
                                data-bs-toggle="dropdown" aria-expanded="false">
-                                {{ current_user.nombre }}
+                                <i class="fas fa-user me-1"></i> {{ current_user.nombre }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                <li><a class="dropdown-item" href="#">Mi Perfil</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">                                <li>
+                                    <div class="dropdown-item-text">
+                                        <div class="fw-medium">{{ current_user.nombre }} {{ current_user.apellido }}</div>
+                                        <div class="text-muted small">{{ current_user.email }}</div>
+                                    </div>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item confirm-action" href="{{ url_for('auth.logout') }}" data-message="¿Está seguro que desea cerrar sesión?">Cerrar Sesión</a></li>
-                            </ul>
-                        </li>
-                    {% else %}
+                                <li><a class="dropdown-item confirm-action" href="{{ url_for('auth.logout') }}" data-message="¿Está seguro que desea cerrar sesión?">
+                                    <i class="fas fa-sign-out-alt me-2 opacity-75"></i>Cerrar Sesión
+                                </a></li>
+                            </ul>                        </li>                    {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('auth.login') }}">Iniciar Sesión</a>
+                            <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{{ url_for('auth.login') }}">Iniciar Sesión</a>
                         </li>
                     {% endif %}
                 </ul>
             </div>
         </div>
-    </nav>
-
-    <!-- Flash Messages -->
+    </nav>    <!-- Flash Messages - simplificados -->
     <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show border-0 shadow-sm" role="alert" style="border-radius: 6px;">
+                        <div class="d-flex">
+                            {% if category == 'success' %}
+                                <i class="fas fa-check-circle me-2 mt-1"></i>
+                            {% elif category == 'danger' or category == 'error' %}
+                                <i class="fas fa-exclamation-circle me-2 mt-1"></i>
+                            {% elif category == 'warning' %}
+                                <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
+                            {% elif category == 'info' %}
+                                <i class="fas fa-info-circle me-2 mt-1"></i>
+                            {% endif %}
+                            <div>{{ message }}</div>
+                        </div>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
@@ -81,22 +111,21 @@
     <!-- Main Content -->
     <main class="container my-4">
         {% block content %}{% endblock %}
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-dark text-white py-4 mt-5">
+    </main>    <!-- Footer - simplificado -->
+    <footer class="py-4 mt-5 border-top">
         <div class="container">
-            <div class="row">
+            <div class="row align-items-center">
                 <div class="col-md-6">
-                    <h5>Centro Regional Universitario Bariloche</h5>
-                    <p>Universidad Nacional del Comahue</p>
+                    <img src="{{ url_for('static', filename='img/logo-web.png') }}" alt="CRUB Logo" height="70" class="me-2">
+                    <!-- <div class="fw-medium">Centro Regional Universitario Bariloche</div>
+                    <div class="text-muted small">Universidad Nacional del Comahue</div> -->
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <p>&copy; {{ now.year }} - Todos los derechos reservados</p>
+                    <p class="text-muted small mb-0">&copy; {{ now.year }} - Todos los derechos reservados</p>
                 </div>
             </div>
         </div>
-    </footer>    <!-- jQuery -->
+    </footer><!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>

@@ -108,6 +108,8 @@ class Producto(db.Model):
     estadoFisico = db.Column(db.String(20), nullable=False)
     controlSedronar = db.Column(db.Boolean, default=False)
     urlFichaSeguridad = db.Column(db.String(200), nullable=True)
+    stockMinimo = db.Column(db.Float, nullable=True, default=0)
+    marca = db.Column(db.String(100), nullable=True)
     
     # Relationships
     movimientos = db.relationship('Movimiento', backref='producto', lazy=True)      # Calcular el stock total en todos los laboratorios

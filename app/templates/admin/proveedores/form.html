@@ -60,12 +60,15 @@
                         {% endfor %}
                     </div>
                 </div>
-                
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                  <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> Guardar
                     </button>
-                    <a href="{{ url_for('admin.list_proveedores') }}" class="btn btn-cancel confirm-action" data-message="¿Está seguro que desea cancelar? Los cambios no guardados se perderán.">
+                    <a href="{{ url_for('admin.list_proveedores') }}" class="btn btn-secondary confirm-action" 
+                       data-message="¿Está seguro que desea cancelar?" 
+                       data-warning="Los cambios no guardados se perderán."
+                       data-btn-text="Sí, Cancelar"
+                       data-btn-class="btn-cancel">
                         <i class="fas fa-times me-2"></i>Cancelar
                     </a>
                 </div>

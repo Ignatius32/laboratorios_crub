@@ -9,53 +9,76 @@
         </ol>
     </nav>
 
-    <div class="row mb-4">
+    <div class="row mb-4 align-items-center">
         <div class="col-md-8">
-            <h1 class="h3 mb-2 text-gray-800">{{ laboratorio.nombre }}</h1>
-            <p class="mb-4">Gestión del laboratorio con ID: {{ laboratorio.idLaboratorio }}</p>
+            <h1 class="page-title">{{ laboratorio.nombre }}</h1>
+            <p class="page-subtitle">Gestión y administración de productos, inventario y movimientos del laboratorio</p>
         </div>
         <div class="col-md-4 text-md-end">
-            <a href="{{ url_for('tecnicos.dashboard') }}" class="btn btn-secondary">
+            <a href="{{ url_for('tecnicos.dashboard') }}" class="btn btn-outline-primary">
                 <i class="fas fa-arrow-left me-2"></i> Volver al Panel
             </a>
         </div>
     </div>
 
     <div class="row">
-        <div class="col-lg-4">
-            <!-- Laboratory Info Card -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Información del Laboratorio</h6>
-                </div>
+        <div class="col-lg-4">            <!-- Laboratory Info Card -->
+            <div class="card mb-4">
                 <div class="card-body">
-                    <div class="mb-3">
-                        <h5>{{ laboratorio.nombre }}</h5>
-                        <p class="text-muted">ID: {{ laboratorio.idLaboratorio }}</p>
+                    <div class="text-center mb-3"><i class="fas fa-building fa-3x" style="color: var(--color-primary);"></i>
+                        
+                        <h4 class="mb-0">{{ laboratorio.nombre }}</h4>
+                        <p class="text-muted small mb-3">ID: {{ laboratorio.idLaboratorio }}</p>
                     </div>
-                    <div class="mb-3">
-                        <strong><i class="fas fa-map-marker-alt text-primary me-2"></i> Dirección:</strong>
-                        <p>{{ laboratorio.direccion }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <strong><i class="fas fa-phone text-primary me-2"></i> Teléfono:</strong>
-                        <p>{{ laboratorio.telefono }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <strong><i class="fas fa-envelope text-primary me-2"></i> Email:</strong>
-                        <p>{{ laboratorio.email }}</p>
-                    </div>
+                    <hr>
+                    <ul class="list-unstyled">
+                        <li class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-light p-2 me-3">
+                                    <i class="fas fa-map-marker-alt text-primary"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted small">Dirección</div>
+                                    <div>{{ laboratorio.direccion }}</div>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-light p-2 me-3">
+                                    <i class="fas fa-phone text-primary"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted small">Teléfono</div>
+                                    <div>{{ laboratorio.telefono }}</div>
+                                </div>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-light p-2 me-3">
+                                    <i class="fas fa-envelope text-primary"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted small">Email</div>
+                                    <div>{{ laboratorio.email }}</div>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
         
         <div class="col-lg-8">
             <!-- Quick Actions -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Acciones Rápidas</h6>
+            <div class="card mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold">Gestión del Laboratorio</h6>
+                    <span class="badge bg-primary">Acciones</span>
                 </div>
-                <div class="card-body">                    <div class="row">
+                <div class="card-body">
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary w-100">
                                 <i class="fas fa-vial me-2"></i> Gestionar Productos
@@ -87,45 +110,73 @@
                             </a>
                         </div>
                     </div>
-                </div>
-            </div>
+                </div>            </div>
 
             <!-- Latest Products -->
-            <div class="card shadow mb-4">
+            <div class="card mb-4">
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Productos Recientes</h6>
-                    <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-primary">
-                        Ver Todos
+                    <h6 class="m-0 font-weight-bold">Productos Recientes</h6>
+                    <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-outline-primary">
+                        Ver Todos <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
+                        <table class="table table-hover admin-table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th width="10%">ID</th>
                                     <th>Nombre</th>
-                                    <th>Tipo</th>
-                                    <th>Stock en Laboratorio</th>
-                                    <th>Acciones</th>
+                                    <th width="15%">Tipo</th>
+                                    <th width="15%">Stock</th>
+                                    <th width="15%">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {% for item in productos_con_stock[:5] %}
+                            <tbody>                                {% for item in productos_con_stock[:5] %}
                                 <tr>
                                     <td>{{ item.producto.idProducto }}</td>
-                                    <td>{{ item.producto.nombre }}</td>
-                                    <td>{{ item.producto.tipoProducto }}</td>
-                                    <td>{{ item.stock }}</td>
                                     <td>
-                                        <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}" class="btn btn-sm btn-info">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
+                                        <div class="d-flex align-items-center">
+                                            <div class="ms-2">
+                                                <div class="fw-bold">{{ item.producto.nombre }}</div>
+                                                <div class="text-muted small">{{ item.producto.marca }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ item.producto.tipoProducto }}</span>
+                                    </td>                                    <td>
+                                        {% if item.stock <= 0 %}
+                                            <span class="badge bg-danger">Sin stock</span>
+                                        {% elif item.producto.stockMinimo is not none and item.stock <= item.producto.stockMinimo %}
+                                            <span class="badge bg-warning text-dark">{{ item.stock }} (Bajo)</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ item.stock }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="table-action-buttons">
+                                            <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio, producto_id=item.producto.idProducto) }}" class="btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Nuevo movimiento">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="5" class="text-center">No hay productos con stock en este laboratorio</td>
+                                    <td colspan="5">
+                                        <div class="empty-state py-4">
+                                            <i class="fas fa-box-open"></i>
+                                            <h5 class="mt-3">No hay productos con stock</h5>
+                                            <p class="text-muted mb-3">No se encontraron productos con stock en este laboratorio</p>
+                                            <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-plus-circle me-1"></i> Agregar Producto
+                                            </a>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
