@@ -1,16 +1,20 @@
 {% extends "base.html" %}
+{% from 'macros/pagination.html' import render_pagination %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 text-gray-800">Gestión de Laboratorios</h1>
+        <div>
+            <h1 class="page-title">Gestión de Laboratorios</h1>
+            <p class="page-subtitle">Administra los laboratorios del Centro Regional Universitario Bariloche.</p>
+        </div>
         <a href="{{ url_for('admin.new_laboratorio') }}" class="btn btn-primary">
             <i class="fas fa-plus-circle me-2"></i>Nuevo Laboratorio
         </a>
     </div>
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
+    <div class="card mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Lista de Laboratorios</h6>
         </div>
         <div class="card-body">
@@ -77,31 +81,41 @@
                         </tr>
                         {% endfor %}
                     </tbody>
-                </table>
-            </div>
+                </table>            </div>
         </div>
     </div>
+
+    <!-- Paginación -->
+    {% if pagination %}
+    {{ render_pagination(pagination, 'admin.list_laboratorios', item_name='laboratorios') }}
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>    $(document).ready(function() {
-        $('#laboratorios-table').DataTable({
-            language: {
-                search: "Buscar:",
-                lengthMenu: "Mostrar _MENU_ registros por página",
-                zeroRecords: "No se encontraron registros",
-                info: "Mostrando página _PAGE_ de _PAGES_",
-                infoEmpty: "No hay registros disponibles",
-                infoFiltered: "(filtrado de _MAX_ registros totales)",
-                paginate: {
-                    first: "Primero",
-                    last: "Último",
-                    next: "Siguiente",
-                    previous: "Anterior"
+<script>
+    // Script para mantener los parámetros de paginación si se agregan filtros futuros
+    document.addEventListener('DOMContentLoaded', function() {
+        const formEl = document.querySelector('form');
+        if (formEl) {
+            formEl.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const url = new URL(window.location.href);
+                const formData = new FormData(this);
+                
+                for (const [key, value] of formData.entries()) {
+                    if (value) {
+                        url.searchParams.set(key, value);
+                    } else {
+                        url.searchParams.delete(key);
+                    }
                 }
-            }
-        });
+                
+                url.searchParams.set('page', '1');
+                window.location.href = url.toString();
+            });
+        }
     });
 </script>
 {% endblock %}

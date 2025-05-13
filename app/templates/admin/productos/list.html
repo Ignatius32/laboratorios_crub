@@ -4,7 +4,10 @@
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 text-gray-800">Gestión de Productos</h1>
+        <div>
+            <h1 class="page-title">Gestión de Productos</h1>
+            <p class="page-subtitle">Administra el catálogo de productos disponibles en el sistema.</p>
+        </div>
         <div class="btn-group" role="group">
             <a href="{{ url_for('admin.importar_productos') }}" class="btn btn-success me-2">
                 <i class="fas fa-file-excel me-2"></i>Importar Excel
@@ -12,9 +15,10 @@
             <a href="{{ url_for('admin.new_producto') }}" class="btn btn-primary">
                 <i class="fas fa-plus-circle me-2"></i>Nuevo Producto
             </a>
-        </div>    </div>
+        </div>
+    </div>
     
-    <div class="card shadow mb-4">
+    <div class="card mb-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Lista de Productos Globales</h6>
             <form method="get" action="{{ url_for('admin.list_productos') }}" class="d-flex align-items-center flex-wrap">
@@ -105,7 +109,7 @@
                                 <div class="btn-group" role="group">                                    <a href="{{ url_for('admin.edit_producto', id=item.producto.idProducto) }}" class="btn btn-sm btn-warning">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.producto.idProducto }}">
+                                    <button type="button" class="btn btn-sm btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.producto.idProducto }}">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -120,11 +124,11 @@
         </div>
     </div>
     
-    <!-- Paginación -->
-    {% if pagination %}
+    <!-- Paginación -->    {% if pagination %}
     {{ render_pagination(pagination, 'admin.list_productos', 
                         laboratorio=selected_lab, 
-                        tipoProducto=selected_tipo) }}
+                        tipoProducto=selected_tipo,
+                        item_name='productos') }}
     {% endif %}
     
     <!-- Modales de eliminación para cada producto -->

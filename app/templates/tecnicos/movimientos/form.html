@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
+<div class="container-fluid">    <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Panel de Técnico</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}">{{ laboratorio.nombre }}</a></li>
@@ -11,12 +10,23 @@
         </ol>
     </nav>
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Registrar Nuevo Movimiento - {{ laboratorio.nombre }}</h6>
+    <div class="lab-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="lab-title">Registrar Nuevo Movimiento</h1>
+                <p class="lab-subtitle">{{ laboratorio.nombre }}</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="{{ url_for('tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Volver a Movimientos
+                </a>
+            </div>
         </div>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-body">
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" class="admin-form">
                 {{ form.hidden_tag() }}
                 
                 <div class="row">
@@ -103,19 +113,27 @@
                                 {{ form.fechaFactura(class="form-control", type="date") }}
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="row">                        <div class="col-md-6 mb-3">
+                    </div>                    <div class="row">                        <div class="col-md-6 mb-3">
                             {{ form.idProveedor.label(class="form-label") }}
-                            {% if form.idProveedor.errors %}
-                                {{ form.idProveedor(class="form-select is-invalid") }}
-                                <div class="invalid-feedback">
-                                    {% for error in form.idProveedor.errors %}
-                                        {{ error }}
-                                    {% endfor %}
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    {% if form.idProveedor.errors %}
+                                        {{ form.idProveedor(class="form-select is-invalid") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.idProveedor.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ form.idProveedor(class="form-select") }}
+                                    {% endif %}
                                 </div>
-                            {% else %}
-                                {{ form.idProveedor(class="form-select") }}
-                            {% endif %}
+                                <div class="ms-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnNuevoProveedor">
+                                        <i class="fas fa-plus me-1"></i>Nuevo
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="col-md-6 mb-3">
@@ -184,12 +202,15 @@
                         {% endif %}
                     </div>
                 </div>
-                
-                <div class="mt-4 text-end">
+                  <div class="mt-4 text-end">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-2"></i>Guardar
                     </button>
-                    <a href="{{ url_for('tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-cancel confirm-action" data-message="¿Está seguro que desea cancelar? Los cambios no guardados se perderán.">
+                    <a href="{{ url_for('tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-secondary confirm-action"
+                       data-message="¿Está seguro que desea cancelar?" 
+                       data-warning="Los cambios no guardados se perderán."
+                       data-btn-text="Sí, Cancelar"
+                       data-btn-class="btn-cancel">
                         <i class="fas fa-times me-2"></i>Cancelar
                     </a>
                 </div>
@@ -200,6 +221,9 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Sweetalert2 para mostrar alertas más agradables -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Script para gestionar el formulario de movimientos -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const tipoMovimiento = document.getElementById('tipoMovimiento');
@@ -229,4 +253,56 @@
         tipoMovimiento.addEventListener('change', updateFields);
     });
 </script>
+<!-- Script que maneja la creación de proveedores desde el modal -->
+<script src="{{ url_for('static', filename='js/proveedores-modal.js') }}"></script>
+<!-- Modal para crear un nuevo proveedor -->
+<div class="modal fade" id="nuevoProveedorModal" tabindex="-1" aria-labelledby="nuevoProveedorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="nuevoProveedorForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="nuevoProveedorModalLabel">Agregar Nuevo Proveedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>                <div class="modal-body">
+                    <!-- Input oculto para el token CSRF -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        <div class="invalid-feedback" id="errorNombre"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cuit" class="form-label">CUIT <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="cuit" name="cuit" placeholder="XX-XXXXXXXX-X" required>
+                        <div class="invalid-feedback" id="errorCuit"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="direccion" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="direccion" name="direccion">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="telefono" class="form-label">Teléfono</label>
+                        <input type="text" class="form-control" id="telefono" name="telefono">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                        <div class="invalid-feedback" id="errorEmail"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="guardarProveedor">
+                        <i class="fas fa-save me-1"></i>Guardar Proveedor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

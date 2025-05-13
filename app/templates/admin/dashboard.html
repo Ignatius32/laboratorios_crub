@@ -2,130 +2,172 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="mt-4 mb-4">Panel de Administración</h1>
+    <h1 class="page-title">Panel de Administración</h1>
+    <p class="page-subtitle">Bienvenido(a), {{ current_user.nombre }} {{ current_user.apellido }}. Gestiona todos los aspectos del sistema desde este panel.</p>
     
-    <div class="row">
+    <div class="row fade-in">
         <!-- Stats Cards -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Usuarios</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ usuarios_count }}</div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card admin-dashboard-stats">
+                <div class="card-body py-1">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Usuarios</div>
+                            <div class="h3 mb-0 font-weight-bold">{{ usuarios_count }}</div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        <div>
+                            <i class="fas fa-users fa-lg"></i>
                         </div>
                     </div>
+                    <!-- <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Laboratorios</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ laboratorios_count }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-flask fa-2x text-gray-300"></i>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card admin-dashboard-stats">
+                <div class="card-body py-1">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Laboratorios</div>
+                            <div class="h3 mb-0 font-weight-bold">{{ laboratorios_count }}</div>
+                        </div>                        <div>
+                            <i class="fas fa-building fa-lg"></i>
                         </div>
                     </div>
+                    <!-- <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
+                </div>
+            </div>        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card admin-dashboard-stats">
+                <div class="card-body py-1">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Productos</div>
+                            <div class="h3 mb-0 font-weight-bold">{{ productos_count }}</div>
+                        </div>
+                        <div>
+                            <i class="fas fa-vial fa-lg"></i>
+                        </div>
+                    </div>
+                    <!-- <a href="{{ url_for('admin.list_productos') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Productos</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ productos_count }}</div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card admin-dashboard-stats">
+                <div class="card-body py-1">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Movimientos</div>
+                            <div class="h3 mb-0 font-weight-bold">{{ movimientos_count }}</div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-vial fa-2x text-gray-300"></i>
+                        <div>
+                            <i class="fas fa-exchange-alt fa-lg"></i>
                         </div>
                     </div>
+                    <!-- <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
                 </div>
             </div>
         </div>
+    </div>    <h2 class="page-title mt-4 mb-3">Gestión del Sistema</h2>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
+    <div class="row fade-in">
+        <!-- Cards de Acceso -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card admin-panel-card text-center">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Movimientos</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ movimientos_count }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-exchange-alt fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
+                    <i class="fas fa-users"></i>
+                    <h5 class="card-title">Usuarios</h5>
+                    <p class="card-text">Administra y configura cuentas y permisos de usuarios.</p>
+                    <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-primary">
+                        Gestionar Usuarios
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card admin-panel-card text-center">                <div class="card-body">
+                    <i class="fas fa-building"></i>
+                    <h5 class="card-title">Laboratorios</h5>
+                    <p class="card-text">Administra información y configuración de laboratorios.</p>
+                    <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-primary">
+                        Gestionar Laboratorios
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card admin-panel-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-vial"></i>
+                    <h5 class="card-title">Productos</h5>
+                    <p class="card-text">Administra el inventario y catálogo de productos.</p>
+                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-primary">
+                        Gestionar Productos
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card admin-panel-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-exchange-alt"></i>
+                    <h5 class="card-title">Movimientos</h5>
+                    <p class="card-text">Administra los movimientos de entrada y salida de productos.</p>
+                    <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-primary">
+                        Gestionar Movimientos
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card admin-panel-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-truck"></i>
+                    <h5 class="card-title">Proveedores</h5>
+                    <p class="card-text">Administra el registro de proveedores y contactos.</p>
+                    <a href="{{ url_for('admin.list_proveedores') }}" class="btn btn-primary">
+                        Gestionar Proveedores
+                    </a>
+                </div>
+            </div>
+        </div>                            <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card admin-panel-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-table"></i>
+                    <h5 class="card-title">Reportes</h5>
+                    <p class="card-text">Genera reportes y análisis de datos del sistema.</p>
+                    <a href="{{ url_for('admin.reporte_movimientos') }}" class="btn btn-primary">
+                        Generar Reportes
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Quick Access Links -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Acceso Rápido</h6>
-                </div>
+    <!-- Información del Sistema -->
+    <div class="row fade-in mt-3">
+        <div class="col-12">
+            <div class="card">
                 <div class="card-body">
-                    <div class="row">                        <div class="col-lg-6 mb-3">
-                            <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-primary w-100">
-                                <i class="fas fa-users me-2"></i> Gestionar Usuarios
-                            </a>
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <h5>Acerca del Sistema</h5>
+                            <p>El Sistema de Gestión de Laboratorios del CRUB es una herramienta para facilitar la administración de inventarios, productos y movimientos en los laboratorios de la institución.</p>
                         </div>
-                        <div class="col-lg-6 mb-3">
-                            <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-success w-100">
-                                <i class="fas fa-flask me-2"></i> Gestionar Laboratorios
-                            </a>
-                        </div>
-                        <div class="col-lg-6 mb-3">
-                            <a href="{{ url_for('admin.list_productos') }}" class="btn btn-info w-100">
-                                <i class="fas fa-vial me-2"></i> Gestionar Productos
-                            </a>
-                        </div>
-                        <div class="col-lg-6 mb-3">
-                            <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-warning w-100">
-                                <i class="fas fa-exchange-alt me-2"></i> Gestionar Movimientos
-                            </a>
-                        </div>                        
-                        <div class="col-lg-6 mb-3">
-                            <a href="{{ url_for('admin.list_proveedores') }}" class="btn btn-secondary w-100">
-                                <i class="fas fa-truck me-2"></i> Gestionar Proveedores
-                            </a>
-                        </div>
-                        <div class="col-lg-6 mb-3">
-                            <a href="{{ url_for('admin.reporte_movimientos') }}" class="btn btn-danger w-100">
-                                <i class="fas fa-file-excel me-2"></i> Reporte de Movimientos
-                            </a>
+                        <div class="col-lg-6">
+                            <h5>Centro Regional Universitario Bariloche</h5>
+                            <p>Universidad Nacional del Comahue<br>Quintral 1250, San Carlos de Bariloche<br>Río Negro, Argentina</p>
+                            <p class="text-muted small">Versión del sistema: 1.0.0</p>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- System Info -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Información del Sistema</h6>
-                </div>
-                <div class="card-body">
-                    <p><strong>Bienvenido(a), {{ current_user.nombre }} {{ current_user.apellido }}!</strong></p>
-                    <p>Este es el panel de administración del Sistema de Gestión de Laboratorios del Centro Regional Universitario Bariloche.</p>
-                    <p>Desde aquí puedes administrar todos los aspectos del sistema, incluyendo usuarios, laboratorios, productos y movimientos.</p>
-                    <hr>
-                    <p class="mb-0"><small class="text-muted">Versión del sistema: 1.0.0</small></p>
                 </div>
             </div>
         </div>

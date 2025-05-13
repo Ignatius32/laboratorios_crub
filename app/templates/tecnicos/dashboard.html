@@ -2,22 +2,58 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="mt-4 mb-4">Panel de Técnico</h1>
+    <h1 class="page-title">Panel de Técnico</h1>
+    <p class="page-subtitle">Bienvenido(a), {{ current_user.nombre }} {{ current_user.apellido }}. Gestiona los laboratorios asignados a tu cargo.</p>
     
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Bienvenido(a), {{ current_user.nombre }} {{ current_user.apellido }}</h5>
-                </div>
+        <div class="col-md-8">
+            <div class="card">
                 <div class="card-body">
-                    <p>Este es tu panel de control como técnico de laboratorio. Aquí puedes ver y gestionar los laboratorios que tienes asignados.</p>
-                    <p>Para cada laboratorio podrás:</p>
-                    <ul>
-                        <li>Ver y gestionar el inventario de productos</li>
-                        <li>Registrar movimientos de entrada y salida</li>
-                        <li>Consultar la información detallada de cada producto</li>
-                    </ul>
+                    <h5 class="card-title mb-3">Información General</h5>
+                    <p>Este es tu panel de control como técnico de laboratorio. Desde aquí puedes:</p>
+                    <div class="row mt-4">
+                        <div class="col-md-4 mb-3 text-center">
+                            <div class="p-3 rounded" style="background-color: var(--color-primary-light);">
+                                <i class="fas fa-flask fa-2x mb-2" style="color: var(--color-primary);"></i>
+                                <h6>Gestionar Inventario</h6>
+                                <p class="small text-muted mb-0">Control completo del stock</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3 text-center">
+                            <div class="p-3 rounded" style="background-color: var(--color-success-light);">
+                                <i class="fas fa-exchange-alt fa-2x mb-2" style="color: var(--color-success);"></i>
+                                <h6>Registrar Movimientos</h6>
+                                <p class="small text-muted mb-0">Entradas y salidas</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3 text-center">
+                            <div class="p-3 rounded" style="background-color: var(--color-info-light);">
+                                <i class="fas fa-search fa-2x mb-2" style="color: var(--color-info);"></i>
+                                <h6>Consultar Productos</h6>
+                                <p class="small text-muted mb-0">Información detallada</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Mi Cuenta</h5>
+                    <div class="text-center mb-3">
+                        <div class="avatar mb-3">
+                            <i class="fas fa-user-circle fa-5x" style="color: var(--color-primary);"></i>
+                        </div>
+                        <h5>{{ current_user.nombre }} {{ current_user.apellido }}</h5>
+                        <p class="text-muted">{{ current_user.email }}</p>
+                    </div>
+                    <hr>
+                    <!-- <div class="d-grid"> -->
+                        <!-- <a href="#" class="btn btn-outline-primary"> -->
+                            <!-- <i class="fas fa-cog me-2"></i>Configurar perfil -->
+                        <!-- </a> -->
+                    <!-- </div> -->
                 </div>
             </div>
         </div>

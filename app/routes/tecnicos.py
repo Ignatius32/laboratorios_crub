@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor
+from app import csrf
 from flask_wtf import FlaskForm
 from wtforms import SelectField, FloatField, StringField, TextAreaField, BooleanField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length, URL, Optional, Email, Regexp, ValidationError
@@ -315,11 +316,27 @@ def edit_producto(lab_id, id):
 @lab_access_required
 def list_movimientos(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
-    movimientos = Movimiento.query.filter_by(idLaboratorio=lab_id).all()
+    
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Crear la query base ordenada por fecha (más recientes primero)
+    query = Movimiento.query.filter_by(idLaboratorio=lab_id).order_by(Movimiento.timestamp.desc())
+    
+    # Obtener conteo total antes de paginar
+    total_movimientos = query.count()
+    
+    # Aplicar paginación
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    movimientos = pagination.items
+    
     return render_template('tecnicos/movimientos/list.html',
                            title=f'Movimientos - {laboratorio.nombre}',
                            laboratorio=laboratorio,
-                           movimientos=movimientos)
+                           movimientos=movimientos,
+                           pagination=pagination,
+                           total_movimientos=total_movimientos)
 
 @tecnicos.route('/panel/<string:lab_id>/movimientos/new', methods=['GET', 'POST'])
 @login_required
@@ -663,10 +680,25 @@ def visualizar_stock(lab_id):
 @login_required
 @tecnico_required
 def list_proveedores():
-    proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Crear la query base ordenada por nombre
+    query = Proveedor.query.order_by(Proveedor.nombre)
+    
+    # Obtener conteo total antes de paginar
+    total_proveedores = query.count()
+    
+    # Aplicar paginación
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    proveedores = pagination.items
+    
     return render_template('tecnicos/proveedores/list.html', 
                           title='Lista de Proveedores',
-                          proveedores=proveedores)
+                          proveedores=proveedores,
+                          pagination=pagination,
+                          total_proveedores=total_proveedores)
 
 @tecnicos.route('/proveedores/new', methods=['GET', 'POST'])
 @login_required
@@ -690,10 +722,14 @@ def new_proveedor():
         db.session.add(proveedor)
         db.session.commit()
         flash('Proveedor creado correctamente', 'success')
-        
-        # Si hay una URL de retorno, redirigir a ella
+          # Si hay una URL de retorno, añadir el ID del proveedor recién creado como parámetro
         if return_to:
-            return redirect(return_to)
+            # Agregar el ID del proveedor recién creado a la URL de retorno
+            if '?' in return_to:
+                return_url = f"{return_to}&nuevo_proveedor_id={proveedor.idProveedor}"
+            else:
+                return_url = f"{return_to}?nuevo_proveedor_id={proveedor.idProveedor}"
+            return redirect(return_url)
         return redirect(url_for('tecnicos.list_proveedores'))
     
     return render_template('tecnicos/proveedores/form.html', 
@@ -713,3 +749,49 @@ def view_proveedor(id):
                           title=f'Proveedor: {proveedor.nombre}',
                           proveedor=proveedor,
                           movimientos=movimientos)
+
+# API endpoint to create a new provider (for modal)
+@tecnicos.route('/api/nuevo_proveedor', methods=['POST'])
+@csrf.exempt  # Exempt this route from CSRF protection as we handle it manually
+@login_required
+@tecnico_required
+def api_nuevo_proveedor():
+    # Access form data
+    nombre = request.form.get('nombre')
+    cuit = request.form.get('cuit')
+    direccion = request.form.get('direccion', '')
+    telefono = request.form.get('telefono', '')
+    email = request.form.get('email', '')
+    
+    # Validar datos
+    if not nombre or not cuit:
+        return jsonify(success=False, error="Nombre y CUIT son obligatorios")
+    
+    # Limpiar CUIT (remover guiones) antes de verificar duplicados
+    cleaned_cuit = ''.join(filter(str.isdigit, cuit))
+    
+    # Verificar si ya existe el proveedor
+    if Proveedor.query.filter_by(cuit=cleaned_cuit).first():
+        return jsonify(success=False, error="Ya existe un proveedor con ese CUIT")
+    
+    try:
+        proveedor = Proveedor(
+            nombre=nombre,
+            direccion=direccion,
+            telefono=telefono,
+            email=email,
+            cuit=cleaned_cuit
+        )
+        
+        db.session.add(proveedor)
+        db.session.commit()
+        
+        return jsonify(
+            success=True, 
+            idProveedor=proveedor.idProveedor, 
+            nombre=proveedor.nombre, 
+            cuit=proveedor.cuit
+        )
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, error=f"Error al guardar: {str(e)}")

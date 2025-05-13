@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros/pagination.html' import render_pagination %}
 
 {% block content %}
 <div class="container-fluid">
@@ -96,22 +97,41 @@
                         </tr>
                         {% endfor %}
                     </tbody>
-                </table>
-            </div>
+                </table>            </div>
         </div>
     </div>
+    
+    <!-- Paginación -->
+    {% if pagination %}
+    {{ render_pagination(pagination, 'tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio, item_name='movimientos') }}
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    $(document).ready(function() {
-        $('#movimientos-table').DataTable({
-            language: {
-                url: '{{ url_for("static", filename="js/Spanish.json") }}'
-            },
-            order: [[1, 'desc']]  // Order by date, most recent first
-        });
+    // Script para mantener los parámetros de paginación si se agregan filtros futuros
+    document.addEventListener('DOMContentLoaded', function() {
+        const formEl = document.querySelector('form');
+        if (formEl) {
+            formEl.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const url = new URL(window.location.href);
+                const formData = new FormData(this);
+                
+                for (const [key, value] of formData.entries()) {
+                    if (value) {
+                        url.searchParams.set(key, value);
+                    } else {
+                        url.searchParams.delete(key);
+                    }
+                }
+                
+                url.searchParams.set('page', '1');
+                window.location.href = url.toString();
+            });
+        }
     });
 </script>
 {% endblock %}

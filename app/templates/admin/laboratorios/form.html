@@ -101,12 +101,15 @@
                         {% endif %}
                     </div>
                 </div>
-                
-                <div class="mt-4 text-end">
+                  <div class="mt-4 text-end">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-2"></i>Guardar
                     </button>
-                    <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-cancel confirm-action" data-message="¿Está seguro que desea cancelar? Los cambios no guardados se perderán.">
+                    <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-secondary confirm-action" 
+                       data-message="¿Está seguro que desea cancelar?" 
+                       data-warning="Los cambios no guardados se perderán."
+                       data-btn-text="Sí, Cancelar"
+                       data-btn-class="btn-cancel">
                         <i class="fas fa-times me-2"></i>Cancelar
                     </a>
                 </div>

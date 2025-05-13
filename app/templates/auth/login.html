@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white text-center">
-                <h4 class="mb-0">Iniciar Sesión</h4>
-            </div>
-            <div class="card-body p-4">
+<div class="row justify-content-center my-5">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Logo CRUB" style="height: 80px;" class="mb-3">
+                    <h3 class="mb-1">Bienvenido</h3>
+                    <p class="text-muted">Ingresa tus datos para acceder al sistema</p>
+                </div>
                 <form method="POST" action="{{ url_for('auth.login') }}">
                     {{ form.hidden_tag() }}                    <div class="mb-3">
                         {{ form.email.label(class="form-label") }}
@@ -17,12 +19,11 @@
                                 {% for error in form.email.errors %}
                                     {{ error }}
                                 {% endfor %}
-                            </div>
-                        {% else %}
+                            </div>                        {% else %}
                             {{ form.email(class="form-control", placeholder="Ingrese su dirección de email") }}
                         {% endif %}
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-4">
                         {{ form.password.label(class="form-label") }}
                         {% if form.password.errors %}
                             {{ form.password(class="form-control is-invalid") }}
@@ -32,23 +33,23 @@
                                 {% endfor %}
                             </div>
                         {% else %}
-                            {{ form.password(class="form-control") }}
+                            {{ form.password(class="form-control", placeholder="Ingrese su contraseña") }}
                         {% endif %}
+                        <div class="text-end mt-2">
+                            <a href="{{ url_for('auth.forgot_password') }}" class="text-decoration-none text-primary small">¿Olvidaste tu contraseña?</a>
+                        </div>
                     </div>                    
-                    <div class="mb-3 form-check">
+                    <div class="mb-4">
                         {{ form.remember_me(class="form-check-input") }}
                         {{ form.remember_me.label(class="form-check-label") }}
                     </div>
-                    <div class="d-grid mb-3">
-                        {{ form.submit(class="btn btn-primary") }}
-                    </div>
-                    <div class="text-center">
-                        <a href="{{ url_for('auth.forgot_password') }}" class="text-decoration-none">¿Olvidaste tu contraseña?</a>
+                    <div class="d-grid mb-4">
+                        {{ form.submit(class="btn btn-primary py-2") }}
                     </div>
                 </form>
-            </div>
-            <div class="card-footer text-center text-muted">
-                <small>Sistema de Gestión de Laboratorios CRUB</small>
+                <div class="text-center mt-2">
+                    <p class="text-muted small">Sistema de Gestión de Laboratorios<br>Centro Regional Universitario Bariloche</p>
+                </div>
             </div>
         </div>
     </div>
