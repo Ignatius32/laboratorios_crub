@@ -1,0 +1,240 @@
+/* 
+ * Estilos comunes compartidos entre admin-panel.css y tecnicos.css
+ * Sistema de Gestión de Laboratorios CRUB - Diseño Minimalista
+ */
+
+/* ===== VARIABLES COMUNES ===== */
+:root {
+    --color-primary: #5A6C7D;
+    --color-secondary: #8B9CA8;
+    --color-dark: #2C3E50;
+    --color-muted: #6C757D;
+    --color-border: #E2E6EA;
+    --color-light-bg: #F8F9FA;
+    --radius: 6px;
+    --transition: all 0.3s ease;
+    --shadow-light: 0 1px 3px rgba(0,0,0,0.1);
+    --shadow-hover: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* ===== TARJETAS COMUNES ===== */
+.simple-card {
+    transition: var(--transition);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background-color: #fff;
+    box-shadow: var(--shadow-light);
+}
+
+.simple-card:hover {
+    border-color: var(--color-primary);
+    background-color: #FAFAFA;
+    box-shadow: var(--shadow-hover);
+}
+
+.simple-panel {
+    background-color: #fff;
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-light);
+}
+
+/* ===== BOTONES COMUNES ===== */
+.btn-primary {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    transition: var(--transition);
+}
+
+.btn-primary:hover {
+    background-color: #4A5A6B;
+    border-color: #4A5A6B;
+}
+
+.btn-outline-primary {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* ===== FORMULARIOS COMUNES ===== */
+.form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem rgba(90, 108, 125, 0.25);
+}
+
+.form-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem rgba(90, 108, 125, 0.25);
+}
+
+.form-group.focused .form-label {
+    color: var(--color-primary);
+    transform: translateY(-2px);
+    transition: var(--transition);
+}
+
+/* ===== INDICADORES DE ESTADO COMUNES ===== */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--radius);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-success {
+    background-color: #E8F5E9;
+    color: #2E7D32;
+}
+
+.status-warning {
+    background-color: #FFF8E1;
+    color: #F57F17;
+}
+
+.status-danger {
+    background-color: #FFEBEE;
+    color: #C62828;
+}
+
+.status-info {
+    background-color: #E3F2FD;
+    color: #1976D2;
+}
+
+/* ===== TABLAS COMUNES ===== */
+.table-responsive {
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: var(--color-light-bg);
+    border-bottom: 2px solid var(--color-border);
+    font-weight: 600;
+    color: var(--color-dark);
+    padding: 0.75rem;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(90, 108, 125, 0.05);
+}
+
+/* ===== BADGES COMUNES ===== */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.badge-primary {
+    background-color: var(--color-primary);
+}
+
+.badge-secondary {
+    background-color: var(--color-secondary);
+}
+
+/* ===== MODALES COMUNES ===== */
+.modal-header {
+    background-color: var(--color-light-bg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modal-title {
+    color: var(--color-dark);
+    font-weight: 600;
+}
+
+.modal-footer {
+    border-top: 1px solid var(--color-border);
+    background-color: var(--color-light-bg);
+}
+
+/* ===== ANIMACIONES COMUNES ===== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.6s ease-in-out forwards;
+}
+
+/* ===== UTILIDADES COMUNES ===== */
+.text-primary {
+    color: var(--color-primary) !important;
+}
+
+.text-muted {
+    color: var(--color-muted) !important;
+}
+
+.border-primary {
+    border-color: var(--color-primary) !important;
+}
+
+.bg-light-custom {
+    background-color: var(--color-light-bg) !important;
+}
+
+/* ===== RESPONSIVE COMUNES ===== */
+@media (max-width: 768px) {
+    .simple-panel {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .simple-card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* ===== ACCESIBILIDAD ===== */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* ===== INDICADORES DE STOCK COMUNES ===== */
+.stock-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--radius);
+}
+
+.stock-normal {
+    background-color: #E8F5E9;
+    color: #2E7D32;
+}
+
+.stock-warning {
+    background-color: #FFF8E1;
+    color: #F57F17;
+}
+
+.stock-danger {
+    background-color: #FFEBEE;
+    color: #C62828;
+}

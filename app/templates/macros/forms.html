@@ -1,0 +1,184 @@
+{# 
+   Macros para formularios reutilizables
+   Sistema de Gestión de Laboratorios CRUB
+#}
+
+{# Macro para campo de texto básico #}
+{% macro input_field(name, label, value='', type='text', required=false, placeholder='', help_text='', class='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">
+        {{ label }}
+        {% if required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    <input 
+        type="{{ type }}" 
+        class="form-control {{ class }}" 
+        id="{{ name }}" 
+        name="{{ name }}" 
+        value="{{ value }}"
+        {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+        {% if required %}required{% endif %}
+    >
+    {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Macro para campo select #}
+{% macro select_field(name, label, options, selected='', required=false, help_text='', class='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">
+        {{ label }}
+        {% if required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    <select class="form-select {{ class }}" id="{{ name }}" name="{{ name }}" {% if required %}required{% endif %}>
+        <option value="">Seleccionar...</option>
+        {% for option in options %}
+            {% if option is mapping %}
+                <option value="{{ option.value }}" {% if option.value == selected %}selected{% endif %}>
+                    {{ option.text }}
+                </option>
+            {% else %}
+                <option value="{{ option }}" {% if option == selected %}selected{% endif %}>
+                    {{ option }}
+                </option>
+            {% endif %}
+        {% endfor %}
+    </select>
+    {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Macro para campo textarea #}
+{% macro textarea_field(name, label, value='', rows=3, required=false, placeholder='', help_text='', class='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">
+        {{ label }}
+        {% if required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    <textarea 
+        class="form-control {{ class }}" 
+        id="{{ name }}" 
+        name="{{ name }}" 
+        rows="{{ rows }}"
+        {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+        {% if required %}required{% endif %}
+    >{{ value }}</textarea>
+    {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Macro para checkbox #}
+{% macro checkbox_field(name, label, checked=false, help_text='', class='') %}
+<div class="mb-3 form-check">
+    <input 
+        type="checkbox" 
+        class="form-check-input {{ class }}" 
+        id="{{ name }}" 
+        name="{{ name }}"
+        {% if checked %}checked{% endif %}
+    >
+    <label class="form-check-label" for="{{ name }}">
+        {{ label }}
+    </label>
+    {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Macro para botones de formulario #}
+{% macro form_buttons(submit_text='Guardar', cancel_url='', show_cancel=true, submit_class='btn-primary') %}
+<div class="d-flex justify-content-end gap-2">
+    {% if show_cancel and cancel_url %}
+        <a href="{{ cancel_url }}" class="btn btn-outline-secondary">
+            <i class="fas fa-times"></i> Cancelar
+        </a>
+    {% endif %}
+    <button type="submit" class="btn {{ submit_class }}">
+        <i class="fas fa-save"></i> {{ submit_text }}
+    </button>
+</div>
+{% endmacro %}
+
+{# Macro para grupo de campos inline #}
+{% macro inline_fields(fields) %}
+<div class="row">
+    {% for field in fields %}
+        <div class="col-md-{{ field.col_size or 6 }}">
+            {{ field.content | safe }}
+        </div>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{# Macro para campo de archivo #}
+{% macro file_field(name, label, accept='', required=false, help_text='', class='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">
+        {{ label }}
+        {% if required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    <input 
+        type="file" 
+        class="form-control {{ class }}" 
+        id="{{ name }}" 
+        name="{{ name }}"
+        {% if accept %}accept="{{ accept }}"{% endif %}
+        {% if required %}required{% endif %}
+    >
+    {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Macro para campo de fecha #}
+{% macro date_field(name, label, value='', required=false, help_text='', class='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">
+        {{ label }}
+        {% if required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    <input 
+        type="date" 
+        class="form-control {{ class }}" 
+        id="{{ name }}" 
+        name="{{ name }}" 
+        value="{{ value }}"
+        {% if required %}required{% endif %}
+    >
+    {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Macro para campo numérico #}
+{% macro number_field(name, label, value='', min='', max='', step='', required=false, help_text='', class='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">
+        {{ label }}
+        {% if required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    <input 
+        type="number" 
+        class="form-control {{ class }}" 
+        id="{{ name }}" 
+        name="{{ name }}" 
+        value="{{ value }}"
+        {% if min %}min="{{ min }}"{% endif %}
+        {% if max %}max="{{ max }}"{% endif %}
+        {% if step %}step="{{ step }}"{% endif %}
+        {% if required %}required{% endif %}
+    >
+    {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}

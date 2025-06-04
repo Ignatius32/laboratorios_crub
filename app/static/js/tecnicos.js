@@ -90,15 +90,8 @@ $(document).ready(function() {
     });
 });
 
-/**
- * Función para confirmar eliminación
- */
-function confirmarEliminacion(mensaje, url) {
-    if (confirm(mensaje)) {
-        window.location = url;
-    }
-    return false;
-}
+// Las funciones de confirmación ahora están en common.js
+// confirmarEliminacion() está disponible globalmente como confirmarEliminacion()
 
 /**
  * Función para actualizar el stock disponible al seleccionar un producto

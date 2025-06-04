@@ -3,6 +3,8 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from app.models.models import db, Usuario
+from app.utils.logging_config import setup_logging
+from app.utils.request_logging import setup_request_logging
 from config import Config
 import os
 
@@ -22,6 +24,12 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
     
+    # Initialize logging first
+    setup_logging(app)
+    
+    # Initialize request logging middleware
+    setup_request_logging(app)
+    
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
@@ -38,8 +46,7 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(tecnicos_bp, url_prefix='/tecnicos')
     app.register_blueprint(main_bp)
-    
-    # Initialize database and create admin user
+      # Initialize database and create admin user
     with app.app_context():
         db.create_all()
         # Check if admin user exists
@@ -55,5 +62,8 @@ def create_app(config_class=Config):
             admin.set_password(app.config['ADMIN_PASSWORD'])
             db.session.add(admin)
             db.session.commit()
+            app.logger.info("Usuario administrador creado: ADMIN001")
+        
+        app.logger.info("Aplicación CRUB inicializada correctamente")
     
     return app

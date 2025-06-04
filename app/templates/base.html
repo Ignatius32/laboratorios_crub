@@ -18,6 +18,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
     <!-- Helper CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
+    <!-- Common CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <!-- DataTables Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/datatables-custom.css') }}">
     <!-- Custom CSS -->
@@ -32,7 +34,8 @@
 </head>
 <body>    <!-- Navigation - simplificada -->    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">                <img src="{{ url_for('static', filename='img/logo5.png') }}" alt="CRUB Logo" height="40" class="me-2">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">                
+                <img src="{{ url_for('static', filename='img/logo5.png') }}" alt="CRUB Logo" height="40" class="me-2">
                 <span class="fw-medium separator-symbol">|&nbsp</span>
                 <span class="fw-medium">Laboratorios CRUB</span>
             </a>
@@ -136,8 +139,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
-    <!-- Custom JS -->
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/confirm-action.js') }}"></script>
     {% block scripts %}{% endblock %}

@@ -76,13 +76,10 @@ class Laboratorio(db.Model):
     movimiento_folder_id = db.Column(db.String(100), nullable=True)
     
     # Relationships
-    movimientos = db.relationship('Movimiento', backref='laboratorio', lazy=True)    # Método para obtener el stock de un producto específico en este laboratorio
+    movimientos = db.relationship('Movimiento', backref='laboratorio', lazy=True)    # Método para obtener el stock de un producto específico en este laboratorio (en tiempo real)
     def get_stock_producto(self, id_producto):
-        ingresos = sum(m.cantidad for m in self.movimientos 
-                      if m.idProducto == id_producto and m.tipoMovimiento.lower() in ['ingreso', 'compra'])
-        egresos = sum(m.cantidad for m in self.movimientos 
-                     if m.idProducto == id_producto and m.tipoMovimiento.lower() in ['egreso', 'uso', 'transferencia'])
-        return ingresos - egresos
+        from app.utils.stock_service import get_stock_for_product_in_lab
+        return get_stock_for_product_in_lab(id_producto, self.idLaboratorio)
 
 class Proveedor(db.Model):
     __tablename__ = 'proveedor'
@@ -112,23 +109,22 @@ class Producto(db.Model):
     marca = db.Column(db.String(100), nullable=True)
     
     # Relationships
-    movimientos = db.relationship('Movimiento', backref='producto', lazy=True)      # Calcular el stock total en todos los laboratorios
+    movimientos = db.relationship('Movimiento', backref='producto', lazy=True)    # Calcular el stock total en todos los laboratorios (en tiempo real)
     @property
     def stock_total(self):
-        ingresos = sum(m.cantidad for m in self.movimientos if m.tipoMovimiento.lower() in ['ingreso', 'compra'])
-        egresos = sum(m.cantidad for m in self.movimientos if m.tipoMovimiento.lower() in ['egreso', 'uso', 'transferencia'])
-        return ingresos - egresos      # Calcular el stock por laboratorio
+        from app.utils.stock_service import get_global_stock_map
+        stock_map = get_global_stock_map([self.idProducto])
+        return stock_map.get(self.idProducto, 0)
+    
+    # Calcular el stock por laboratorio (en tiempo real)
     def stock_en_laboratorio(self, lab_id):
-        ingresos = sum(m.cantidad for m in self.movimientos 
-                       if m.tipoMovimiento.lower() in ['ingreso', 'compra'] and m.idLaboratorio == lab_id)
-        egresos = sum(m.cantidad for m in self.movimientos 
-                      if m.tipoMovimiento.lower() in ['egreso', 'uso', 'transferencia'] and m.idLaboratorio == lab_id)
-        return ingresos - egresos
+        from app.utils.stock_service import get_stock_for_product_in_lab
+        return get_stock_for_product_in_lab(self.idProducto, lab_id)
 
 class Movimiento(db.Model):
     __tablename__ = 'movimiento'
     idMovimiento = db.Column(db.String(10), primary_key=True)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
     tipoMovimiento = db.Column(db.String(20), nullable=False)  # 'ingreso', 'compra', 'uso', 'transferencia'
     cantidad = db.Column(db.Float, nullable=False)
     unidadMedida = db.Column(db.String(10), nullable=False)
@@ -138,19 +134,32 @@ class Movimiento(db.Model):
     urlDocumento = db.Column(db.String(255), nullable=True)  # URL to the stored document in Google Drive
     laboratorioDestino = db.Column(db.String(10), nullable=True)  # For 'transferencia' type
     fechaFactura = db.Column(db.Date, nullable=True)  # Date of the invoice for 'compra' type
-    cuitProveedor = db.Column(db.String(13), nullable=True)  # Legacy field, kept for compatibility
-    
-    # Foreign keys
-    idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False)
-    idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False)
-    idProveedor = db.Column(db.Integer, db.ForeignKey('proveedor.idProveedor'), nullable=True)
+    cuitProveedor = db.Column(db.String(13), nullable=True)  # Legacy field, kept for compatibility    # Foreign keys with indexes for better performance
+    idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False, index=True)
+    idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False, index=True)
+    idProveedor = db.Column(db.Integer, db.ForeignKey('proveedor.idProveedor'), nullable=True, index=True)
+
+    # Composite indexes for common queries
+    __table_args__ = (
+        db.Index('idx_movimiento_lab_producto', 'idLaboratorio', 'idProducto'),
+        db.Index('idx_movimiento_lab_timestamp', 'idLaboratorio', 'timestamp'),
+        db.Index('idx_movimiento_producto_timestamp', 'idProducto', 'timestamp'),
+        db.Index('idx_movimiento_tipo_timestamp', 'tipoMovimiento', 'timestamp'),
+    )
 
 class Stock(db.Model):
     __tablename__ = 'stock'
     idStock = db.Column(db.Integer, primary_key=True)
-    idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False)
-    idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False)
+    idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False, index=True)
+    idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False, index=True)
     cantidad = db.Column(db.Float, nullable=False)
     
     producto = db.relationship('Producto', backref='stocks')
     laboratorio = db.relationship('Laboratorio', backref='stocks')
+    
+    # Composite index for common queries
+    __table_args__ = (
+        db.Index('idx_stock_lab_producto', 'idLaboratorio', 'idProducto'),
+        # Unique constraint to prevent duplicate stock entries
+        db.UniqueConstraint('idProducto', 'idLaboratorio', name='unique_producto_laboratorio'),
+    )

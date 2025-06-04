@@ -3,6 +3,12 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.urls import url_parse
 from app.models.models import Usuario, db
 from app.utils.email_service import EmailService
+from app.utils.logging_decorators import (
+    log_authentication_event, 
+    log_security_event,
+    audit_user_action
+)
+from app.utils.logging_config import get_security_logger, get_audit_logger
 from werkzeug.security import generate_password_hash
 
 auth = Blueprint('auth', __name__, url_prefix='/auth')
@@ -34,16 +40,18 @@ class SetPasswordForm(FlaskForm):
     submit = SubmitField('Guardar contraseña')
 
 @auth.route('/login', methods=['GET', 'POST'])
+@log_security_event("login_attempt", risk_level="medium")
 def login():
+    security_logger = get_security_logger()
+    
     if current_user.is_authenticated:
+        security_logger.info("Usuario ya autenticado intentó acceder a login", 
+                           user_id=current_user.idUsuario)
         if current_user.rol == 'admin':
             return redirect(url_for('admin.dashboard'))
         else:
-            # Verificar si el técnico tiene laboratorios asignados y redirigir al primero
-            if current_user.laboratorios:
-                return redirect(url_for('tecnicos.panel_laboratorio', lab_id=current_user.laboratorios[0].idLaboratorio))
-            else:
-                return redirect(url_for('tecnicos.dashboard'))
+            # Redirigir técnicos siempre al Panel de Técnico
+            return redirect(url_for('tecnicos.dashboard'))
     
     form = LoginForm()
     if form.validate_on_submit():
@@ -57,46 +65,67 @@ def login():
             admin_user = Usuario.query.filter_by(rol='admin').first()
             if admin_user:
                 login_user(admin_user, remember=form.remember_me.data)
+                security_logger.info("Login exitoso de administrador", 
+                                   user_id=admin_user.idUsuario,
+                                   email=form.email.data,
+                                   login_type="admin_env_credentials")
             else:
+                security_logger.error("Intento de login admin sin usuario en BD", 
+                                    email=form.email.data)
                 flash('Error: No se encontró un usuario administrador en la base de datos', 'danger')
                 return redirect(url_for('auth.login'))
                 
             return redirect(url_for('admin.dashboard'))
-        else:
+        else:            
             # Try to authenticate as regular user
             user = Usuario.query.filter_by(email=form.email.data).first()
             if user is None or not user.check_password(form.password.data):
+                security_logger.warning("Intento de login fallido", 
+                                       email=form.email.data,
+                                       reason="invalid_credentials",
+                                       user_exists=user is not None)
                 flash('Email o contraseña incorrectos', 'danger')
                 return redirect(url_for('auth.login'))
             
             login_user(user, remember=form.remember_me.data)
+            security_logger.info("Login exitoso de usuario regular", 
+                               user_id=user.idUsuario,
+                               email=user.email,
+                               role=user.rol,
+                               login_type="regular_user")
             
             next_page = request.args.get('next')
             if not next_page or url_parse(next_page).netloc != '':
                 if user.rol == 'admin':
                     next_page = url_for('admin.dashboard')
                 else:
-                    # Redirigir a técnicos a su panel de laboratorio específico si tiene asignado
-                    if user.laboratorios:
-                        # Redirigir al panel del primer laboratorio asignado
-                        next_page = url_for('tecnicos.panel_laboratorio', lab_id=user.laboratorios[0].idLaboratorio)
-                    else:
-                        # Alternativa si el técnico no tiene laboratorios asignados
-                        next_page = url_for('tecnicos.dashboard')
+                    # Redirigir técnicos siempre al Panel de Técnico
+                    next_page = url_for('tecnicos.dashboard')
             return redirect(next_page)
     
     return render_template('auth/login.html', title='Iniciar sesión', form=form)
 
 @auth.route('/logout')
 @login_required
+@audit_user_action("logout")
 def logout():
+    audit_logger = get_audit_logger()
+    user_id = current_user.idUsuario if current_user.is_authenticated else "unknown"
+    
+    audit_logger.info("Usuario cerró sesión", 
+                     user_id=user_id,
+                     logout_type="manual")
+    
     logout_user()
     flash('Has cerrado sesión correctamente', 'success')
     return redirect(url_for('main.index'))
 
 @auth.route('/forgot-password', methods=['GET', 'POST'])
+@log_security_event("password_reset_request", risk_level="medium")
 def forgot_password():
     """Handle forgot password requests"""
+    security_logger = get_security_logger()
+    
     # Redirect if user is already logged in
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
@@ -112,11 +141,20 @@ def forgot_password():
             # Send reset email
             sent = EmailService.send_password_reset_email(user, token)
             if sent:
+                security_logger.info("Email de reset de contraseña enviado exitosamente", 
+                                   email=form.email.data,
+                                   user_id=user.idUsuario,
+                                   token_generated=True)
                 flash('Se ha enviado un correo electrónico con instrucciones para restablecer tu contraseña.', 'success')
             else:
+                security_logger.error("Fallo al enviar email de reset de contraseña", 
+                                    email=form.email.data,
+                                    user_id=user.idUsuario)
                 flash('No se pudo enviar el correo electrónico. Por favor, contacta al administrador.', 'danger')
         else:
             # We don't want to reveal that the email doesn't exist, so we show the same message
+            security_logger.warning("Intento de reset para email inexistente", 
+                                   email=form.email.data)
             flash('Se ha enviado un correo electrónico con instrucciones para restablecer tu contraseña.', 'success')
             
         return redirect(url_for('auth.login'))
@@ -124,8 +162,11 @@ def forgot_password():
     return render_template('auth/forgot_password.html', title='Recuperar Contraseña', form=form)
 
 @auth.route('/set-password/<string:user_id>/<string:token>', methods=['GET', 'POST'])
+@log_security_event("password_reset_completion", risk_level="high")
 def set_password(user_id, token):
     """Handle password reset/setup using a token"""
+    security_logger = get_security_logger()
+    
     # Redirect if user is already logged in
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
@@ -133,6 +174,9 @@ def set_password(user_id, token):
     # Find the user
     user = Usuario.query.get(user_id)
     if not user:
+        security_logger.warning("Intento de reset con usuario inexistente", 
+                               user_id=user_id,
+                               token=token[:10] + "...")
         flash('Usuario no encontrado', 'danger')
         return redirect(url_for('auth.login'))
         
@@ -141,12 +185,25 @@ def set_password(user_id, token):
     error_message = None
     is_new_user = user.password_hash == generate_password_hash('password123')  # Default password check
     
+    if not token_valid:
+        security_logger.warning("Intento de reset con token inválido", 
+                               user_id=user_id,
+                               email=user.email,
+                               token=token[:10] + "...")
+    
     form = SetPasswordForm()
     if form.validate_on_submit():
         if token_valid:
             # Set the new password
             user.set_password(form.password.data)
             db.session.commit()
+            
+            security_logger.info("Contraseña actualizada exitosamente", 
+                               user_id=user_id,
+                               email=user.email,
+                               is_new_user=is_new_user,
+                               reset_type="token_reset")
+            
             flash('Tu contraseña ha sido actualizada correctamente. Ya puedes iniciar sesión.', 'success')
             return redirect(url_for('auth.login'))
         else:
