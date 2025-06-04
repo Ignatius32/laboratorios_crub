@@ -80,14 +80,7 @@ $(document).ready(function() {
         } else {
             $('#cantidadError').hide();
             $('#submitBtn').prop('disabled', false);
-        }
-    });
-    
-    // Animar tarjetas al cargar la página
-    $('.card').each(function(index) {
-        $(this).css('animation-delay', (index * 0.1) + 's');
-        $(this).addClass('fade-in');
-    });
+        }    });
 });
 
 // Las funciones de confirmación ahora están en common.js
