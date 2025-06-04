@@ -1,11 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid">
-    <h1 class="page-title">Panel de Administración</h1>
+<div class="container-fluid">    <h1 class="page-title">Panel de Administración</h1>
     <p class="page-subtitle">Bienvenido(a), {{ current_user.nombre }} {{ current_user.apellido }}. Gestiona todos los aspectos del sistema desde este panel.</p>
     
-    <div class="row fade-in">
+    <div class="row">
         <!-- Stats Cards -->
         <div class="col-xl-3 col-md-6 mb-3">
             <div class="card admin-dashboard-stats">
@@ -71,10 +70,9 @@
                     <!-- <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
                 </div>
             </div>
-        </div>
-    </div>    <h2 class="page-title mt-4 mb-3">Gestión del Sistema</h2>
+        </div>    </div>    <h2 class="page-title mt-4 mb-3">Gestión del Sistema</h2>
 
-    <div class="row fade-in">
+    <div class="row">
         <!-- Cards de Acceso -->
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="card admin-panel-card text-center">
@@ -150,10 +148,8 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Información del Sistema -->
-    <div class="row fade-in mt-3">
+    </div>    <!-- Información del Sistema -->
+    <div class="row mt-3">
         <div class="col-12">
             <div class="card">
                 <div class="card-body">

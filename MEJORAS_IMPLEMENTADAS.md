@@ -57,6 +57,17 @@
 ### 8. **Script de Limpieza Automatizado**
 - ✅ **`cleanup_project.py` creado** para automatizar futuras reorganizaciones
 
+### 9. **Eliminación de Animaciones Fade-in**
+- ✅ **CSS**: Removida animación `@keyframes fadeIn` y clase `.fade-in`
+- ✅ **Templates**: Eliminadas clases `fade-in` de:
+  - `index.html` (2 ubicaciones)
+  - `admin/dashboard.html` (3 ubicaciones)
+- ✅ **JavaScript**: Removido código de animación de:
+  - `common.js` (animación automática de tarjetas)
+  - `admin-panel.js` (animación de dashboard)
+  - `tecnicos.js` (animación de tarjetas)
+- ✅ **Resultado**: Las secciones aparecen inmediatamente sin delay
+
 ## 📊 Nueva Estructura del Proyecto
 
 ```

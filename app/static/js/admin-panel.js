@@ -16,16 +16,7 @@ $(document).ready(function() {
                 orderable: false,
                 searchable: false
             }
-        ]
-    });
-
-    // Animación para tarjetas de dashboard
-    $('.admin-dashboard-stats, .admin-panel-card').each(function(index) {
-        $(this).css({
-            'animation-delay': (index * 0.1) + 's',
-            'animation': 'fadeIn 0.6s ease-in-out forwards'
-        });
-    });
+        ]    });
 
     // Mejorar experiencia en formularios
     $('.admin-form .form-control, .admin-form .form-select').on('focus', function() {

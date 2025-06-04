@@ -51,16 +51,8 @@ document.addEventListener('DOMContentLoaded', function() {
             this.closest('.form-group, .mb-3')?.classList.add('focused');
         });
         
-        control.addEventListener('blur', function() {
-            this.closest('.form-group, .mb-3')?.classList.remove('focused');
+        control.addEventListener('blur', function() {            this.closest('.form-group, .mb-3')?.classList.remove('focused');
         });
-    });
-    
-    // Animación para tarjetas al cargar la página
-    const cards = document.querySelectorAll('.card, .simple-card, .simple-panel');
-    cards.forEach((card, index) => {
-        card.style.animationDelay = `${index * 0.1}s`;
-        card.style.animation = 'fadeIn 0.6s ease-in-out forwards';
     });
 });
 
