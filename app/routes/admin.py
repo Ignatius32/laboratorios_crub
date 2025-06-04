@@ -7,8 +7,18 @@ from wtforms import StringField, PasswordField, SelectField, TextAreaField, Bool
 from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional, Regexp
 from app.integrations.google_drive import drive_integration
 from app.utils.email_service import EmailService
+from app.utils.stock_service import get_stock_map_for_laboratory, get_global_stock_for_products
+from app.utils.logging_decorators import (
+    log_admin_action, 
+    log_data_modification, 
+    audit_user_action,
+    monitor_performance,
+    log_business_operation
+)
+from app.utils.logging_config import get_business_logger, get_audit_logger, get_performance_logger
 import pandas as pd
 import io
+import logging
 
 admin = Blueprint('admin', __name__)
 
@@ -203,6 +213,8 @@ def list_usuarios():
 
 @admin.route('/usuarios/new', methods=['GET', 'POST'])
 @admin_required
+@log_admin_action("crear nuevo usuario")
+@audit_user_action("user_creation")
 def new_usuario():
     form = UsuarioForm()
     
@@ -269,6 +281,9 @@ def new_usuario():
 
 @admin.route('/usuarios/edit/<string:id>', methods=['GET', 'POST'])
 @admin_required
+@log_admin_action("editar usuario")
+@audit_user_action("user_modification")
+@log_data_modification(entity_type="Usuario")
 def edit_usuario(id):
     usuario = Usuario.query.get_or_404(id)
     form = UsuarioForm(obj=usuario)
@@ -310,6 +325,8 @@ def edit_usuario(id):
 
 @admin.route('/usuarios/delete/<string:id>', methods=['POST'])
 @admin_required
+@log_admin_action("eliminar usuario")
+@audit_user_action("user_deletion")
 def delete_usuario(id):
     usuario = Usuario.query.get_or_404(id)
     
@@ -486,23 +503,28 @@ def list_productos():
     
     # Obtener conteo total antes de paginar
     total_productos = productos_query.count()
-    
-    # Aplicar paginación
+      # Aplicar paginación
     productos_paginados = productos_query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Optimizar consultas de stock
+    product_ids = [p.idProducto for p in productos_paginados.items]
+    
+    if lab_id:
+        # Obtener stock del laboratorio específico de una vez
+        stock_map = get_stock_map_for_laboratory(lab_id, product_ids)
+    else:
+        # Obtener stock global de todos los productos de una vez
+        stock_map = get_global_stock_for_products(product_ids)
     
     # Preparar datos de productos con stock
     productos_con_stock = []
     for producto in productos_paginados.items:
         if lab_id:
-            # Si hay un laboratorio seleccionado, mostrar el stock de ese laboratorio
-            stock = producto.stock_en_laboratorio(lab_id)
-            # Si queremos filtrar y mostrar solo los productos que tienen stock en el laboratorio seleccionado
-            # podemos comentar esta línea para excluir los productos con stock cero
-            # if stock <= 0:
-            #    continue
+            # Si hay un laboratorio seleccionado, usar el stock del mapa optimizado
+            stock = stock_map.get(producto.idProducto, 0)
         else:
-            # Si no hay laboratorio seleccionado, mostrar el stock total
-            stock = producto.stock_total
+            # Si no hay laboratorio seleccionado, usar el stock global del mapa optimizado
+            stock = stock_map.get(producto.idProducto, 0)
                 
         productos_con_stock.append({
             'producto': producto,
@@ -521,6 +543,8 @@ def list_productos():
 
 @admin.route('/productos/new', methods=['GET', 'POST'])
 @admin_required
+@log_admin_action("crear nuevo producto")
+@log_business_operation("product_creation")
 def new_producto():
     form = ProductoForm()
     
@@ -549,6 +573,8 @@ def new_producto():
 
 @admin.route('/productos/edit/<string:id>', methods=['GET', 'POST'])
 @admin_required
+@log_admin_action("editar producto")
+@log_data_modification(entity_type="Producto")
 def edit_producto(id):
     producto = Producto.query.get_or_404(id)
     form = ProductoForm(obj=producto)
@@ -569,6 +595,8 @@ def edit_producto(id):
 
 @admin.route('/productos/delete/<string:id>', methods=['POST'])
 @admin_required
+@log_admin_action("eliminar producto")
+@log_business_operation("product_deletion")
 def delete_producto(id):
     producto = Producto.query.get_or_404(id)
     
@@ -584,7 +612,13 @@ def delete_producto(id):
 
 @admin.route('/productos/importar', methods=['GET', 'POST'])
 @admin_required
+@log_admin_action("importar productos desde Excel")
+@monitor_performance(threshold_ms=5000)
 def importar_productos():
+    import pandas as pd
+    import io
+    
+    logger = get_business_logger()
     form = ExcelUploadForm()
     
     # Eliminar el campo idLaboratorio del formulario ya que los productos ahora son globales
@@ -592,19 +626,59 @@ def importar_productos():
         delattr(form, 'idLaboratorio')
     
     if form.validate_on_submit():
+        # Validar archivo antes de procesarlo
+        if not form.archivo.data:
+            flash('No se ha seleccionado ningún archivo', 'danger')
+            return redirect(url_for('admin.importar_productos'))
+        
+        # Validar extensión del archivo
+        filename = form.archivo.data.filename
+        if not filename.lower().endswith(('.xlsx', '.xls')):
+            flash('El archivo debe ser un Excel (.xlsx o .xls)', 'danger')
+            return redirect(url_for('admin.importar_productos'))
+        
         try:
             # Leer el archivo Excel
             file_content = form.archivo.data.read()
+            
+            # Reset file pointer for potential re-read
+            form.archivo.data.seek(0)
+            
+            if len(file_content) == 0:
+                flash('El archivo está vacío', 'danger')
+                return redirect(url_for('admin.importar_productos'))
+            
             data_frame = pd.read_excel(io.BytesIO(file_content))
             
-            # Validar las columnas del archivo
+        except pd.errors.EmptyDataError:
+            flash('El archivo Excel está vacío o no contiene datos válidos', 'danger')
+            logger.error(f"Empty Excel file uploaded by user {current_user.idUsuario}")
+            return redirect(url_for('admin.importar_productos'))
+        
+        except pd.errors.ParserError as e:
+            flash('Error al leer el archivo Excel. Verifique que el formato sea correcto.', 'danger')
+            logger.error(f"Excel parsing error for user {current_user.idUsuario}: {str(e)}")
+            return redirect(url_for('admin.importar_productos'))
+        
+        except Exception as e:
+            flash('Error al procesar el archivo. Verifique que sea un archivo Excel válido.', 'danger')
+            logger.error(f"Unexpected error reading Excel file for user {current_user.idUsuario}: {str(e)}")
+            return redirect(url_for('admin.importar_productos'))
+        
+        try:
+            # Validar que el DataFrame no esté vacío
+            if data_frame.empty:
+                flash('El archivo no contiene datos para procesar', 'warning')
+                return redirect(url_for('admin.importar_productos'))
+              # Validar las columnas del archivo
             required_columns = ['ID Producto', 'Nombre', 'Tipo de Producto', 
                                'Estado Físico', 'URL Ficha de Seguridad', 'Descripción', 'Control Sedronar']
             
             # Verificar si todas las columnas requeridas están presentes
-            if not all(col in data_frame.columns for col in required_columns):
-                missing_cols = [col for col in required_columns if col not in data_frame.columns]
-                flash(f'El archivo no contiene todas las columnas requeridas. Faltan: {", ".join(missing_cols)}', 'danger')
+            missing_columns = [col for col in required_columns if col not in data_frame.columns]
+            if missing_columns:
+                flash(f'El archivo no contiene todas las columnas requeridas. Faltan: {", ".join(missing_columns)}', 'danger')
+                logger.warning(f"Missing columns in Excel upload by user {current_user.idUsuario}: {missing_columns}")
                 return redirect(url_for('admin.importar_productos'))
             
             # Mapeo de valores de campos a valores de la BD
@@ -627,13 +701,35 @@ def importar_productos():
             productos_actualizados = 0
             productos_saltados = 0
             errores = []
-            
-            # Procesar cada fila del Excel
+              # Procesar cada fila del Excel
             for index, row in data_frame.iterrows():
                 try:
+                    # Validar que ID Producto no esté vacío
+                    if pd.isna(row['ID Producto']) or str(row['ID Producto']).strip() == '':
+                        errores.append(f"Fila {index+2}: ID Producto está vacío")
+                        productos_saltados += 1
+                        continue
+                    
+                    # Validar que Nombre no esté vacío
+                    if pd.isna(row['Nombre']) or str(row['Nombre']).strip() == '':
+                        errores.append(f"Fila {index+2}: Nombre del producto está vacío")
+                        productos_saltados += 1
+                        continue
+                    
                     id_producto = str(row['ID Producto']).strip()
                     
+                    # Validar longitud del ID Producto
+                    if len(id_producto) < 4 or len(id_producto) > 10:
+                        errores.append(f"Fila {index+2}: ID Producto '{id_producto}' debe tener entre 4 y 10 caracteres")
+                        productos_saltados += 1
+                        continue
+                    
                     # Mapear tipo de producto
+                    if pd.isna(row['Tipo de Producto']):
+                        errores.append(f"Fila {index+2}: Tipo de producto está vacío")
+                        productos_saltados += 1
+                        continue
+                    
                     tipo_producto_excel = str(row['Tipo de Producto']).strip()
                     tipo_producto = tipo_producto_map.get(tipo_producto_excel, None)
                     if not tipo_producto:
@@ -641,11 +737,16 @@ def importar_productos():
                             # Si es una clave válida directamente
                             tipo_producto = tipo_producto_excel.lower()
                         else:
-                            errores.append(f"Fila {index+2}: Tipo de producto '{tipo_producto_excel}' no válido.")
+                            errores.append(f"Fila {index+2}: Tipo de producto '{tipo_producto_excel}' no válido. Valores permitidos: {', '.join(tipo_producto_map.keys())}")
                             productos_saltados += 1
                             continue
                     
                     # Mapear estado físico
+                    if pd.isna(row['Estado Físico']):
+                        errores.append(f"Fila {index+2}: Estado físico está vacío")
+                        productos_saltados += 1
+                        continue
+                    
                     estado_fisico_excel = str(row['Estado Físico']).strip()
                     estado_fisico = estado_fisico_map.get(estado_fisico_excel, None)
                     if not estado_fisico:
@@ -653,7 +754,7 @@ def importar_productos():
                             # Si es una clave válida directamente
                             estado_fisico = estado_fisico_excel.lower()
                         else:
-                            errores.append(f"Fila {index+2}: Estado físico '{estado_fisico_excel}' no válido.")
+                            errores.append(f"Fila {index+2}: Estado físico '{estado_fisico_excel}' no válido. Valores permitidos: {', '.join(estado_fisico_map.keys())}")
                             productos_saltados += 1
                             continue
                     
@@ -662,16 +763,24 @@ def importar_productos():
                     if not pd.isna(row['Control Sedronar']):
                         control_value = str(row['Control Sedronar']).strip().lower()
                         control_sedronar = control_value in ['true', 'verdadero', 'sí', 'si', '1', 'yes', 'y', 'true']
-                    
-                    # URL de ficha de seguridad (opcional)
+                      # Validar URL si se proporciona
                     url_ficha = None
                     if not pd.isna(row['URL Ficha de Seguridad']):
                         url_ficha = str(row['URL Ficha de Seguridad']).strip()
+                        # Validación básica de URL
+                        if url_ficha and not (url_ficha.startswith('http://') or url_ficha.startswith('https://')):
+                            errores.append(f"Fila {index+2}: URL de ficha de seguridad no válida (debe comenzar con http:// o https://)")
+                            productos_saltados += 1
+                            continue
                     
                     # Descripción (opcional)
                     descripcion = None
                     if not pd.isna(row['Descripción']):
                         descripcion = str(row['Descripción']).strip()
+                        if len(descripcion) > 500:  # Asumiendo límite de 500 caracteres
+                            errores.append(f"Fila {index+2}: Descripción es demasiado larga (máximo 500 caracteres)")
+                            productos_saltados += 1
+                            continue
                     
                     # Verificar si el producto ya existe
                     producto_existente = Producto.query.filter_by(idProducto=id_producto).first()
@@ -685,6 +794,7 @@ def importar_productos():
                         producto_existente.controlSedronar = control_sedronar
                         producto_existente.urlFichaSeguridad = url_ficha
                         productos_actualizados += 1
+                        logger.info(f"Updated product {id_producto} by user {current_user.idUsuario}")
                     else:
                         # Crear nuevo producto (ahora son globales, sin asignación a laboratorio)
                         nuevo_producto = Producto(
@@ -699,16 +809,42 @@ def importar_productos():
                         
                         db.session.add(nuevo_producto)
                         productos_creados += 1
+                        logger.info(f"Created new product {id_producto} by user {current_user.idUsuario}")
                         
-                except Exception as e:
-                    errores.append(f"Fila {index+2}: Error procesando producto: {str(e)}")
+                except ValueError as e:
+                    error_msg = f"Fila {index+2}: Error de formato en los datos: {str(e)}"
+                    errores.append(error_msg)
+                    logger.warning(f"Data format error in row {index+2}: {str(e)}")
                     productos_saltados += 1
-            
-            # Guardar cambios en la base de datos
-            db.session.commit()
+                
+                except KeyError as e:
+                    error_msg = f"Fila {index+2}: Columna faltante: {str(e)}"
+                    errores.append(error_msg)
+                    logger.error(f"Missing column in row {index+2}: {str(e)}")
+                    productos_saltados += 1
+                
+                except Exception as e:
+                    error_msg = f"Fila {index+2}: Error inesperado procesando producto: {str(e)}"
+                    errores.append(error_msg)
+                    logger.error(f"Unexpected error processing row {index+2}: {str(e)}")
+                    productos_saltados += 1
+              # Guardar cambios en la base de datos
+            try:
+                db.session.commit()
+                logger.info(f"Products import completed by user {current_user.idUsuario}: {productos_creados} created, {productos_actualizados} updated, {productos_saltados} skipped")
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error al guardar los productos en la base de datos: {str(e)}', 'danger')
+                logger.error(f"Database error during products import by user {current_user.idUsuario}: {str(e)}")
+                return redirect(url_for('admin.importar_productos'))
             
             # Mostrar resumen del proceso
-            flash(f'Importación completada: {productos_creados} productos creados, {productos_actualizados} actualizados, {productos_saltados} saltados', 'success')
+            if productos_creados > 0 or productos_actualizados > 0:
+                flash(f'Importación completada: {productos_creados} productos creados, {productos_actualizados} actualizados, {productos_saltados} saltados', 'success')
+            elif productos_saltados > 0:
+                flash(f'No se pudo procesar ningún producto. {productos_saltados} filas con errores', 'warning')
+            else:
+                flash('No se encontraron productos válidos para procesar', 'info')
             
             # Mostrar errores si ocurrieron
             if errores:
@@ -720,7 +856,10 @@ def importar_productos():
             return redirect(url_for('admin.list_productos'))
             
         except Exception as e:
-            flash(f'Error al procesar el archivo: {str(e)}', 'danger')
+            # Rollback en caso de error durante el procesamiento
+            db.session.rollback()
+            flash('Error inesperado durante el procesamiento del archivo. Contacte al administrador del sistema.', 'danger')
+            logger.error(f"Unexpected error during Excel processing by user {current_user.idUsuario}: {str(e)}")
             return redirect(url_for('admin.importar_productos'))
     
     return render_template('admin/productos/importar.html', title='Importar Productos', form=form)
@@ -751,6 +890,9 @@ def list_movimientos():
 
 @admin.route('/movimientos/new', methods=['GET', 'POST'])
 @admin_required
+@log_admin_action("crear nuevo movimiento")
+@log_business_operation("movement_creation")
+@monitor_performance(threshold_ms=2000)
 def new_movimiento():
     form = MovimientoForm()
     
@@ -881,6 +1023,8 @@ def get_products():
 
 @admin.route('/movimientos/delete/<string:id>', methods=['POST'])
 @admin_required
+@log_admin_action("eliminar movimiento")
+@log_business_operation("movement_deletion")
 def delete_movimiento(id):
     movimiento = Movimiento.query.get_or_404(id)
     db.session.delete(movimiento)

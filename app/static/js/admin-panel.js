@@ -36,13 +36,8 @@ $(document).ready(function() {
         $(this).closest('.form-group').removeClass('focused');
     });
 
-    // Tooltips para botones de acción
-    $('[data-bs-toggle="tooltip"]').tooltip();
+    // Tooltips para botones de acción    $('[data-bs-toggle="tooltip"]').tooltip();
 });
 
-// Función para confirmar eliminación
-function confirmarEliminar(url, nombre) {
-    if (confirm('¿Estás seguro que deseas eliminar ' + nombre + '?')) {
-        window.location = url;
-    }
-}
+// Las funciones de confirmación ahora están en common.js
+// confirmarEliminar() está disponible globalmente

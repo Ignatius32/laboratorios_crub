@@ -1,0 +1,156 @@
+{# 
+   Macros para modales reutilizables
+   Sistema de Gestión de Laboratorios CRUB
+#}
+
+{# Macro para modal de confirmación de eliminación #}
+{% macro confirm_delete_modal(modal_id='confirmDeleteModal', title='Confirmar Eliminación') %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="{{ modal_id }}Label">
+                    <i class="fas fa-exclamation-triangle"></i> {{ title }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">¿Estás seguro que deseas eliminar este elemento?</p>
+                <p class="text-muted small">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i> Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# Macro para modal básico #}
+{% macro basic_modal(modal_id, title, size='', backdrop=true, keyboard=true) %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" 
+     aria-labelledby="{{ modal_id }}Label" aria-hidden="true"
+     {% if not backdrop %}data-bs-backdrop="static"{% endif %}
+     {% if not keyboard %}data-bs-keyboard="false"{% endif %}>
+    <div class="modal-dialog {% if size %}modal-{{ size }}{% endif %}">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="{{ modal_id }}Label">{{ title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                {{ caller() if caller else '' }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# Macro para modal con formulario #}
+{% macro form_modal(modal_id, title, form_action, method='POST', size='') %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true">
+    <div class="modal-dialog {% if size %}modal-{{ size }}{% endif %}">
+        <div class="modal-content">
+            <form action="{{ form_action }}" method="{{ method }}" id="{{ modal_id }}Form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="{{ modal_id }}Label">{{ title }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    {{ caller() if caller else '' }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# Macro para modal de información #}
+{% macro info_modal(modal_id, title, icon_class='fas fa-info-circle', icon_color='text-info') %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="{{ modal_id }}Label">
+                    <i class="{{ icon_class }} {{ icon_color }}"></i> {{ title }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                {{ caller() if caller else '' }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                    <i class="fas fa-check"></i> Entendido
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# Macro para modal de confirmación genérico #}
+{% macro confirm_modal(modal_id, title, message, confirm_text='Confirmar', cancel_text='Cancelar', confirm_class='btn-primary') %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="{{ modal_id }}Label">{{ title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">{{ message }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> {{ cancel_text }}
+                </button>
+                <button type="button" class="btn {{ confirm_class }}" id="{{ modal_id }}ConfirmBtn">
+                    <i class="fas fa-check"></i> {{ confirm_text }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# Macro para modal de loading/carga #}
+{% macro loading_modal(modal_id='loadingModal', message='Procesando...') %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mb-0">{{ message }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# Macro para botón que abre modal #}
+{% macro modal_trigger_button(target_modal, button_text, button_class='btn-primary', icon_class='fas fa-plus') %}
+<button type="button" class="btn {{ button_class }}" data-bs-toggle="modal" data-bs-target="#{{ target_modal }}">
+    <i class="{{ icon_class }}"></i> {{ button_text }}
+</button>
+{% endmacro %}
