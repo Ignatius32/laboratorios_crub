@@ -2,13 +2,12 @@
 {% from 'macros/pagination.html' import render_pagination %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid">    <div class="d-flex justify-content-between align-items-start mb-4 mobile-stack">
         <div>
             <h1 class="page-title">Gestión de Productos</h1>
             <p class="page-subtitle">Administra el catálogo de productos disponibles en el sistema.</p>
         </div>
-        <div class="btn-group" role="group">
+        <div class="btn-group mobile-full-width" role="group">
             <a href="{{ url_for('admin.importar_productos') }}" class="btn btn-success me-2">
                 <i class="fas fa-file-excel me-2"></i>Importar Excel
             </a>
@@ -18,43 +17,50 @@
         </div>
     </div>
     
-    <div class="card mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Lista de Productos Globales</h6>
-            <form method="get" action="{{ url_for('admin.list_productos') }}" class="d-flex align-items-center flex-wrap">
-                <div class="d-flex align-items-center me-3 mb-2">
-                    <label for="laboratorio" class="me-2">Laboratorio:</label>
-                    <select name="laboratorio" id="laboratorio" class="form-select form-select-sm" style="width: 250px;">
-                        <option value="">Todos los laboratorios</option>
-                        {% for lab in laboratorios %}
-                        <option value="{{ lab.idLaboratorio }}" {% if selected_lab == lab.idLaboratorio %}selected{% endif %}>
-                            {{ lab.nombre }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="d-flex align-items-center me-3 mb-2">
-                    <label for="tipoProducto" class="me-2">Tipo:</label>
-                    <select name="tipoProducto" id="tipoProducto" class="form-select form-select-sm" style="width: 250px;">
-                        <option value="">Todos los tipos</option>
-                        {% for tipo_id, tipo_nombre in tipos_productos %}
-                        <option value="{{ tipo_id }}" {% if selected_tipo == tipo_id %}selected{% endif %}>
-                            {{ tipo_nombre }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="mb-2">
-                    <button type="submit" class="btn btn-sm btn-primary me-2">Filtrar</button>
-                    {% if selected_lab or selected_tipo %}
-                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-times"></i> Limpiar
-                    </a>
-                    {% endif %}
-                </div>
-            </form>
+    <div class="card mb-4">        <div class="card-header py-3">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <h6 class="m-0 font-weight-bold text-primary"></h6>   <form method="get" action="{{ url_for('admin.list_productos') }}" class="filters-container justify-content-end">
+                    <div class="filter-group">
+                        <label for="laboratorio">Laboratorio:</label>
+                        <select name="laboratorio" id="laboratorio" class="form-select form-select-sm" style="min-width: 250px;">
+                            <option value="">Todos los laboratorios</option>
+                            {% for lab in laboratorios %}
+                            <option value="{{ lab.idLaboratorio }}" {% if selected_lab == lab.idLaboratorio %}selected{% endif %}>
+                                {{ lab.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                      <div class="filter-group">
+                        <label for="tipoProducto">Tipo:</label>
+                        <select name="tipoProducto" id="tipoProducto" class="form-select form-select-sm" style="min-width: 250px;">
+                            <option value="">Todos los tipos</option>
+                            {% for tipo_id, tipo_nombre in tipos_productos %}
+                            <option value="{{ tipo_id }}" {% if selected_tipo == tipo_id %}selected{% endif %}>
+                                {{ tipo_nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="search">Buscar:</label>
+                        <input type="text" name="search" id="search" class="form-control form-control-sm" style="min-width: 200px;" 
+                               placeholder="Nombre del producto..." value="{{ search_term or '' }}">
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-filter me-1"></i>Filtrar
+                        </button>
+                        {% if selected_lab or selected_tipo or search_term %}
+                        <a href="{{ url_for('admin.list_productos') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Limpiar
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
         </div>
         <div class="card-body">            <div class="table-responsive">
                 <table class="table table-bordered table-hover" id="productos-table" width="100%" cellspacing="0">
@@ -182,6 +188,26 @@
         
         // Redirigir con los filtros aplicados
         window.location.href = url.toString();
+    });
+    
+    // Permitir búsqueda con Enter en el campo de búsqueda
+    document.getElementById('search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.querySelector('form').dispatchEvent(new Event('submit'));
+        }
+    });
+    
+    // Feedback visual cuando se está escribiendo en el campo de búsqueda
+    document.getElementById('search').addEventListener('input', function(e) {
+        const searchValue = this.value;
+        if (searchValue.length > 2) {
+            this.style.borderColor = '#28a745';
+        } else if (searchValue.length === 0) {
+            this.style.borderColor = '';
+        } else {
+            this.style.borderColor = '#ffc107';
+        }
     });
 </script>
 {% endblock %}

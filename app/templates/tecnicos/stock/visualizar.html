@@ -47,19 +47,20 @@
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Stock Disponible</h6>
         </div>
-        <div class="card-body">
-            <!-- Search and Filter -->
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="input-group">
+        <div class="card-body">            <!-- Search and Filter -->
+            <div class="filters-container mb-3">
+                <div class="filter-group">
+                    <label for="searchInput">Buscar:</label>
+                    <div class="input-group" style="min-width: 250px;">
                         <input type="text" id="searchInput" class="form-control" placeholder="Buscar producto...">
                         <button class="btn btn-primary" type="button">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <select id="tipoFilter" class="form-select">
+                <div class="filter-group">
+                    <label for="tipoFilter">Tipo:</label>
+                    <select id="tipoFilter" class="form-select" style="min-width: 200px;">
                         <option value="">Todos los tipos</option>
                         <option value="botiquin">Botiquín</option>
                         <option value="droguero">Droguero</option>
@@ -68,14 +69,15 @@
                         <option value="residuos">Residuos peligrosos</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <select id="stockFilter" class="form-select">
+                <div class="filter-group">
+                    <label for="stockFilter">Stock:</label>
+                    <select id="stockFilter" class="form-select" style="min-width: 150px;">
                         <option value="all">Todos</option>
                         <option value="inStock">Con stock</option>
                         <option value="outOfStock">Sin stock</option>
                     </select>
                 </div>
-            </div>            <div class="table-responsive">
+            </div><div class="table-responsive">
                 <table class="table table-bordered table-hover" id="stockTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
