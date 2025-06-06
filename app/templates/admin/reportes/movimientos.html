@@ -78,6 +78,22 @@
                             </div>
                         {% else %}
                             {{ form.laboratorio(class="form-select") }}
+                        {% endif %}                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- Control Sedronar -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.control_sedronar.label(class="form-label") }}
+                        {% if form.control_sedronar.errors %}
+                            {{ form.control_sedronar(class="form-select is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.control_sedronar.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.control_sedronar(class="form-select") }}
                         {% endif %}
                     </div>
                 </div>

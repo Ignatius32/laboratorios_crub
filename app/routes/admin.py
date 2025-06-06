@@ -164,6 +164,11 @@ class ReporteForm(FlaskForm):
         ('residuos', 'Residuos peligrosos')
     ], validators=[Optional()])
     laboratorio = SelectField('Laboratorio', validators=[Optional()], coerce=str)
+    control_sedronar = SelectField('Control Sedronar', choices=[
+        ('', 'Todos los productos'),
+        ('true', 'Solo productos Sedronar'),
+        ('false', 'Solo productos NO Sedronar')
+    ], validators=[Optional()])
     
     def __init__(self, *args, **kwargs):
         super(ReporteForm, self).__init__(*args, **kwargs)
@@ -1148,11 +1153,18 @@ def reporte_movimientos():
             # Convertir fechas
             fecha_inicial = datetime.strptime(form.fecha_inicial.data, '%Y-%m-%d')
             fecha_final = datetime.strptime(form.fecha_final.data, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-            
-            # Filtrar por tipo de producto si se selecciona uno
+              # Filtrar por tipo de producto si se selecciona uno
             productos_query = Producto.query
             if form.tipo_producto.data:
                 productos_query = productos_query.filter_by(tipoProducto=form.tipo_producto.data)
+            
+            # Filtrar por control Sedronar si se selecciona
+            if form.control_sedronar.data:
+                if form.control_sedronar.data == 'true':
+                    productos_query = productos_query.filter_by(controlSedronar=True)
+                elif form.control_sedronar.data == 'false':
+                    productos_query = productos_query.filter_by(controlSedronar=False)
+            
             productos = productos_query.all()
             
             # Construir consulta base para movimientos
