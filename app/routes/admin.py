@@ -482,6 +482,7 @@ def list_productos():
     # Obtener los filtros de los parámetros de consulta
     lab_id = request.args.get('laboratorio', None)
     tipo_producto = request.args.get('tipoProducto', None)
+    search_term = request.args.get('search', None)
     
     # Parámetros de paginación
     page = request.args.get('page', 1, type=int)
@@ -506,6 +507,12 @@ def list_productos():
     if tipo_producto:
         productos_query = productos_query.filter_by(tipoProducto=tipo_producto)
     
+    # Aplicar filtro de búsqueda si se especifica
+    if search_term:
+        productos_query = productos_query.filter(
+            Producto.nombre.ilike(f'%{search_term}%')
+        )
+    
     # Obtener conteo total antes de paginar
     total_productos = productos_query.count()
       # Aplicar paginación
@@ -529,8 +536,7 @@ def list_productos():
             stock = stock_map.get(producto.idProducto, 0)
         else:
             # Si no hay laboratorio seleccionado, usar el stock global del mapa optimizado
-            stock = stock_map.get(producto.idProducto, 0)
-                
+            stock = stock_map.get(producto.idProducto, 0)                
         productos_con_stock.append({
             'producto': producto,
             'stock_total': stock
@@ -543,6 +549,7 @@ def list_productos():
                          tipos_productos=tipos_productos,
                          selected_lab=lab_id,
                          selected_tipo=tipo_producto,
+                         search_term=search_term,
                          pagination=productos_paginados,
                          total_productos=total_productos)
 

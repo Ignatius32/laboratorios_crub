@@ -21,9 +21,10 @@
     <!-- Common CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <!-- DataTables Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/datatables-custom.css') }}">
-    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/datatables-custom.css') }}">    <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Filters Responsive CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/filters-responsive.css') }}">
     {% if 'admin' in request.path %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin-panel.css') }}">
     {% endif %}
@@ -143,6 +144,7 @@
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/confirm-action.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/filters-responsive.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
