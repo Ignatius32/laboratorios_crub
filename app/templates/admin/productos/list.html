@@ -24,7 +24,7 @@
             <form method="get" action="{{ url_for('admin.list_productos') }}" class="d-flex align-items-center flex-wrap">
                 <div class="d-flex align-items-center me-3 mb-2">
                     <label for="laboratorio" class="me-2">Laboratorio:</label>
-                    <select name="laboratorio" id="laboratorio" class="form-select form-select-sm" style="width: 180px;">
+                    <select name="laboratorio" id="laboratorio" class="form-select form-select-sm" style="width: 250px;">
                         <option value="">Todos los laboratorios</option>
                         {% for lab in laboratorios %}
                         <option value="{{ lab.idLaboratorio }}" {% if selected_lab == lab.idLaboratorio %}selected{% endif %}>
@@ -36,7 +36,7 @@
                 
                 <div class="d-flex align-items-center me-3 mb-2">
                     <label for="tipoProducto" class="me-2">Tipo:</label>
-                    <select name="tipoProducto" id="tipoProducto" class="form-select form-select-sm" style="width: 180px;">
+                    <select name="tipoProducto" id="tipoProducto" class="form-select form-select-sm" style="width: 250px;">
                         <option value="">Todos los tipos</option>
                         {% for tipo_id, tipo_nombre in tipos_productos %}
                         <option value="{{ tipo_id }}" {% if selected_tipo == tipo_id %}selected{% endif %}>

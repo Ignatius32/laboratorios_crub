@@ -198,6 +198,10 @@ def panel_laboratorio(lab_id):
 def list_productos(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     
+    # Obtener los filtros de los parámetros de consulta
+    tipo_producto = request.args.get('tipoProducto', None)
+    search_term = request.args.get('search', None)
+    
     # Parámetros de paginación
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
@@ -205,8 +209,27 @@ def list_productos(lab_id):
     # Filtro para mostrar solo productos con stock
     solo_con_stock = request.args.get('con_stock', False, type=lambda v: v.lower() == 'true')
     
+    # Definir los tipos de productos para el menú desplegable
+    tipos_productos = [
+        ('botiquin', 'Botiquín'),
+        ('droguero', 'Droguero'),
+        ('vidrio', 'Materiales de vidrio'),
+        ('seguridad', 'Elementos de seguridad'),
+        ('residuos', 'Residuos peligrosos')
+    ]
+    
     # Crear la query base
-    productos_query = Producto.query    # Si queremos sólo productos con stock, necesitamos obtenerlos todos para filtrar
+    productos_query = Producto.query
+    
+    # Aplicar filtro por tipo de producto si se especifica
+    if tipo_producto:
+        productos_query = productos_query.filter_by(tipoProducto=tipo_producto)
+    
+    # Aplicar filtro de búsqueda si se especifica
+    if search_term:
+        productos_query = productos_query.filter(
+            Producto.nombre.ilike(f'%{search_term}%')
+        )# Si queremos sólo productos con stock, necesitamos obtenerlos todos para filtrar
     if solo_con_stock:
         todos_productos = productos_query.all()
         
@@ -223,25 +246,28 @@ def list_productos(lab_id):
                     'producto': producto,
                     'stock': stock_en_lab
                 })
-        
-        # Paginación manual para productos filtrados
+          # Paginación manual para productos filtrados
         total_productos = len(productos_con_stock_positivo)
         inicio = (page - 1) * per_page
         fin = min(inicio + per_page, total_productos)
         productos_paginados = productos_con_stock_positivo[inicio:fin]
-          # Crear un objeto de paginación manual
+        
+        # Crear un objeto de paginación manual
         pagination = ManualPagination(productos_paginados, page, per_page, total_productos)
         
         return render_template('tecnicos/productos/list.html',
                               title=f'Productos - {laboratorio.nombre}',
                               laboratorio=laboratorio,
                               productos_con_stock=productos_paginados,
+                              tipos_productos=tipos_productos,
+                              selected_tipo=tipo_producto,
+                              search_term=search_term,
                               pagination=pagination,
                               total_productos=total_productos)
-    else:
-        # Obtener conteo total antes de paginar
+    else:        # Obtener conteo total antes de paginar
         total_productos = productos_query.count()
-          # Aplicar paginación a la consulta original
+        
+        # Aplicar paginación a la consulta original
         productos_paginados = productos_query.paginate(page=page, per_page=per_page, error_out=False)
         
         # Calcular stock en tiempo real para todos los productos en la página actual
@@ -261,6 +287,9 @@ def list_productos(lab_id):
                               title=f'Productos - {laboratorio.nombre}',
                               laboratorio=laboratorio,
                               productos_con_stock=productos_con_stock,
+                              tipos_productos=tipos_productos,
+                              selected_tipo=tipo_producto,
+                              search_term=search_term,
                               pagination=productos_paginados,
                               total_productos=total_productos)
 
