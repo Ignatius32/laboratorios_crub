@@ -5,6 +5,11 @@ from app import csrf
 from flask_wtf import FlaskForm
 from wtforms import SelectField, FloatField, StringField, TextAreaField, BooleanField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length, URL, Optional, Email, Regexp, ValidationError
+from flask_wtf.file import FileAllowed
+import base64
+import os
+from werkzeug.utils import secure_filename
+from app.integrations.google_drive import drive_integration
 from app.utils.pagination import ManualPagination
 from app.utils.logging_decorators import (
     log_business_operation, 
@@ -146,7 +151,13 @@ class ProductoTecnicoForm(FlaskForm):
     estadoFisico = SelectField('Estado Físico', 
                               choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
     controlSedronar = BooleanField('Control Sedronar')
-    urlFichaSeguridad = StringField('URL Ficha de Seguridad', validators=[Optional(), URL(), Length(max=200)])
+    fichaSeguridad = FileField('Ficha de Seguridad', 
+                              validators=[Optional(), 
+                                        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 
+                                                  'Solo se permiten archivos PDF e imágenes (JPG, PNG)')])
+    stockMinimo = FloatField('Stock Mínimo', validators=[Optional()])
+    marca = StringField('Marca', validators=[Optional(), Length(max=100)])
+    submit = SubmitField('Guardar')
 
 
 # Dashboard for technicians
@@ -317,6 +328,65 @@ def new_producto(lab_id):
                                   title='Nuevo Producto', 
                                   form=form,
                                   laboratorio=laboratorio)
+          # Manejar la subida de la ficha de seguridad
+        ficha_seguridad_id = None
+        if form.fichaSeguridad.data:
+            try:
+                # Verificar configuración de Google Drive
+                if not drive_integration.script_url:
+                    flash('Error de configuración: URL de Google Script no configurada', 'danger')
+                    return render_template('tecnicos/productos/form.html', 
+                                          title='Nuevo Producto', 
+                                          form=form,
+                                          laboratorio=laboratorio)
+                
+                # Leer el archivo y convertirlo a base64
+                file_data = form.fichaSeguridad.data.read()
+                if len(file_data) == 0:
+                    flash('Error: El archivo está vacío', 'warning')
+                    return render_template('tecnicos/productos/form.html', 
+                                          title='Nuevo Producto', 
+                                          form=form,
+                                          laboratorio=laboratorio)
+                
+                file_b64 = base64.b64encode(file_data).decode('utf-8')
+                
+                # Obtener la extensión del archivo
+                filename = secure_filename(form.fichaSeguridad.data.filename)
+                if not filename:
+                    flash('Error: Nombre de archivo no válido', 'warning')
+                    return render_template('tecnicos/productos/form.html', 
+                                          title='Nuevo Producto', 
+                                          form=form,
+                                          laboratorio=laboratorio)
+                
+                file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+                if not file_extension:
+                    flash('Error: No se pudo determinar la extensión del archivo', 'warning')
+                    return render_template('tecnicos/productos/form.html', 
+                                          title='Nuevo Producto', 
+                                          form=form,
+                                          laboratorio=laboratorio)
+                  # Subir el archivo a Google Drive
+                result = drive_integration.upload_ficha_seguridad(
+                    form.idProducto.data,
+                    file_b64,
+                    file_extension
+                )
+                
+                if result and 'file_id' in result:
+                    ficha_seguridad_id = result['file_id']
+                    flash('Ficha de seguridad subida correctamente', 'success')
+                elif result and 'error' in result:
+                    flash(f'Error al subir la ficha de seguridad: {result["error"]}', 'warning')
+                    # Continuar creando el producto sin la ficha
+                else:
+                    flash('Error desconocido al subir la ficha de seguridad', 'warning')
+                    # Continuar creando el producto sin la ficha
+                    
+            except Exception as e:
+                flash(f'Error al procesar la ficha de seguridad: {str(e)}', 'warning')
+                # Continuar creando el producto sin la ficha
         
         producto = Producto(
             idProducto=form.idProducto.data,
@@ -325,7 +395,9 @@ def new_producto(lab_id):
             tipoProducto=form.tipoProducto.data,
             estadoFisico=form.estadoFisico.data,
             controlSedronar=form.controlSedronar.data,
-            urlFichaSeguridad=form.urlFichaSeguridad.data
+            urlFichaSeguridad=ficha_seguridad_id,  # Guardar el ID del archivo en lugar de URL
+            stockMinimo=form.stockMinimo.data or 0,
+            marca=form.marca.data
         )
         
         db.session.add(producto)

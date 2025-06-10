@@ -25,6 +25,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Filters Responsive CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/filters-responsive.css') }}">
+    <!-- Fichas de Seguridad CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fichas-seguridad.css') }}">
     {% if 'admin' in request.path %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin-panel.css') }}">
     {% endif %}
@@ -131,6 +133,67 @@
         </div>
     </footer><!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Modal global para visualizar fichas de seguridad -->
+    <div class="modal fade" id="fichasSeguridadModal" tabindex="-1" aria-labelledby="fichasSeguridadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="fichasSeguridadModalLabel">
+                        <i class="fas fa-shield-alt me-2 text-warning"></i>
+                        Ficha de Seguridad - <span id="nombreProductoModal">Producto</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <!-- Barra de herramientas -->
+                    <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-warning text-dark me-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Material de Seguridad
+                            </span>
+                            <small class="text-muted">Documento requerido para manejo seguro</small>
+                        </div>
+                        <div class="btn-group">
+                            <a id="openFichaNewTabBtn" href="#" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-external-link-alt me-1"></i> Abrir en nueva pestaña
+                            </a>
+                            <a id="downloadFichaBtn" href="#" target="_blank" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-download me-1"></i> Descargar
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Contenedor del documento -->
+                    <div id="fichaDocumentContainer" class="position-relative">
+                        <!-- Spinner de carga -->
+                        <div id="fichaLoadingSpinner" class="d-none">
+                            <div class="d-flex justify-content-center align-items-center" style="height: 400px;">
+                                <div class="text-center">
+                                    <div class="spinner-border text-primary mb-3" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    <p class="text-muted">Cargando ficha de seguridad...</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Contenedor del visor -->
+                        <div id="fichaViewerContainer"></div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <small class="text-muted me-auto">
+                        <i class="fas fa-info-circle me-1"></i>
+                        La ficha de seguridad contiene información importante sobre riesgos, manipulación y almacenamiento.
+                    </small>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <!-- DataTables JS -->
@@ -145,6 +208,362 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/confirm-action.js') }}"></script>
     <script src="{{ url_for('static', filename='js/filters-responsive.js') }}"></script>
+    <!-- Fichas de Seguridad JS -->
+    <script src="{{ url_for('static', filename='js/fichas-seguridad-ejemplos.js') }}"></script>
+    
+    <!-- Script global para modal de fichas de seguridad -->
+    <script>
+        /**
+         * Modal global para visualizar fichas de seguridad de productos químicos
+         * Maneja PDFs, documentos de Word e imágenes desde Google Drive
+         */
+        let fichasSeguridadModalInstance = null;
+        let lastFichaDriveId = null;
+        let lastFichaTipo = null;
+        let lastProductoNombre = null;
+
+        /**
+         * Función principal para mostrar una ficha de seguridad
+         * @param {string} driveId - ID del archivo en Google Drive
+         * @param {string} nombreProducto - Nombre del producto químico
+         * @param {string} tipoArchivo - Tipo de archivo (pdf, doc, docx, jpg, png, etc.)
+         */
+        function showFichaSeguridad(driveId, nombreProducto, tipoArchivo = 'pdf') {
+            // Elementos del DOM
+            const modal = document.getElementById('fichasSeguridadModal');
+            const modalTitle = document.getElementById('nombreProductoModal');
+            const viewerContainer = document.getElementById('fichaViewerContainer');
+            const loadingSpinner = document.getElementById('fichaLoadingSpinner');
+            const openBtn = document.getElementById('openFichaNewTabBtn');
+            const downloadBtn = document.getElementById('downloadFichaBtn');
+            
+            // Guardar información para uso posterior
+            lastFichaDriveId = driveId;
+            lastFichaTipo = tipoArchivo;
+            lastProductoNombre = nombreProducto;
+            
+            // Actualizar título del modal
+            modalTitle.textContent = nombreProducto || 'Producto desconocido';
+            
+            // Validar que se haya proporcionado un ID de Drive
+            if (!driveId || driveId.trim() === '') {
+                mostrarErrorFicha('No se ha configurado una ficha de seguridad para este producto.');
+                mostrarModal();
+                return;
+            }
+            
+            // Mostrar spinner de carga
+            mostrarCargaFicha();
+              // Construir URLs para el archivo
+            const fileType = (tipoArchivo || 'pdf').toLowerCase();
+            const previewUrl = `/descargar_archivo_drive/${driveId}`;
+            const previewUrlDirecto = `/ficha_seguridad_directo/${driveId}`;
+            
+            // Configurar botones de acción
+            configurarBotonesFicha(previewUrl, previewUrlDirecto);
+              // Cargar documento según su tipo
+            setTimeout(() => {
+                cargarDocumentoPorTipo(fileType, previewUrl, previewUrlDirecto, nombreProducto);
+            }, 300); // Pequeña pausa para mostrar el spinner
+            
+            // Mostrar modal
+            mostrarModal();
+        }        /**
+         * Carga el documento según su tipo de archivo
+         * @param {string} fileType - Tipo de archivo
+         * @param {string} previewUrl - URL del archivo (método principal)
+         * @param {string} previewUrlDirecto - URL directa de Google Drive (fallback)
+         * @param {string} nombreProducto - Nombre del producto
+         */
+        function cargarDocumentoPorTipo(fileType, previewUrl, previewUrlDirecto, nombreProducto) {
+            const viewerContainer = document.getElementById('fichaViewerContainer');
+            const loadingSpinner = document.getElementById('fichaLoadingSpinner');
+            
+            try {
+                let contenidoVisor = '';
+                
+                if (['pdf'].includes(fileType)) {
+                    // Para PDFs usar iframe con parámetros de embebido y fallback
+                    contenidoVisor = `
+                        <iframe 
+                            src="${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH" 
+                            width="100%" 
+                            height="700px" 
+                            style="border: none; min-height: 700px;"
+                            title="Ficha de Seguridad - ${nombreProducto}"
+                            allow="fullscreen"
+                            onload="ocultarCargaFicha()"
+                            onerror="cargarConFallback('${previewUrlDirecto}', '${nombreProducto}')">
+                            <p>Su navegador no soporta la visualización de PDFs. 
+                               <a href="${previewUrlDirecto}" target="_blank">Haga clic aquí para abrir el documento</a>
+                            </p>
+                        </iframe>
+                    `;
+                } else if (['doc', 'docx'].includes(fileType)) {
+                    // Para documentos de Word, usar iframe con visualizador y fallback
+                    contenidoVisor = `
+                        <iframe 
+                            src="${previewUrl}" 
+                            width="100%" 
+                            height="700px" 
+                            style="border: none; min-height: 700px;"
+                            title="Ficha de Seguridad - ${nombreProducto}"
+                            onload="ocultarCargaFicha()"
+                            onerror="cargarConFallback('${previewUrlDirecto}', '${nombreProducto}')">
+                            <p>No se puede mostrar el documento. 
+                               <a href="${previewUrlDirecto}" target="_blank">Haga clic aquí para abrir el archivo</a>
+                            </p>
+                        </iframe>
+                    `;
+                } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileType)) {
+                    // Para imágenes mostrar directamente con fallback
+                    contenidoVisor = `
+                        <div class="text-center p-4">
+                            <img 
+                                src="${previewUrl}" 
+                                class="img-fluid" 
+                                style="max-height: 600px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"
+                                alt="Ficha de Seguridad - ${nombreProducto}"
+                                onload="ocultarCargaFicha()"
+                                onerror="this.src='${previewUrlDirecto}'; if(this.src.includes('ficha_seguridad_directo')) mostrarErrorFicha('Error al cargar la imagen de la ficha de seguridad.');">
+                        </div>
+                    `;
+                } else {
+                    // Para otros tipos de archivo mostrar mensaje con ambas opciones
+                    contenidoVisor = `
+                        <div class="alert alert-info m-4">
+                            <i class="fas fa-file-alt fa-2x mb-3 d-block text-center"></i>
+                            <h5 class="text-center">Archivo no visualizable en línea</h5>
+                            <p class="text-center mb-3">
+                                Este tipo de archivo (${fileType.toUpperCase()}) no puede ser visualizado directamente en el navegador.
+                            </p>
+                            <div class="text-center">
+                                <a href="${previewUrl}" target="_blank" class="btn btn-primary me-2">
+                                    <i class="fas fa-download me-2"></i>Descargar archivo
+                                </a>
+                                <a href="${previewUrlDirecto}" target="_blank" class="btn btn-outline-primary">
+                                    <i class="fas fa-external-link-alt me-2"></i>Abrir en Google Drive
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Insertar el contenido y ocultar spinner
+                viewerContainer.innerHTML = contenidoVisor;
+                
+                // Si es una imagen o contenido sin iframe, ocultar spinner inmediatamente
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileType) || !['pdf', 'doc', 'docx'].includes(fileType)) {
+                    setTimeout(ocultarCargaFicha, 500);
+                }
+                
+            } catch (error) {
+                console.error('Error al cargar la ficha de seguridad:', error);
+                mostrarErrorFicha('Error técnico al cargar la ficha de seguridad.');
+            }
+        }
+
+        /**
+         * Función de fallback para cargar con URL directa de Google Drive
+         * @param {string} fallbackUrl - URL directa de Google Drive
+         * @param {string} nombreProducto - Nombre del producto
+         */
+        function cargarConFallback(fallbackUrl, nombreProducto) {
+            console.log('Cargando con fallback URL:', fallbackUrl);
+            const viewerContainer = document.getElementById('fichaViewerContainer');
+            
+            const contenidoFallback = `
+                <iframe 
+                    src="${fallbackUrl}" 
+                    width="100%" 
+                    height="700px" 
+                    style="border: none; min-height: 700px;"
+                    title="Ficha de Seguridad - ${nombreProducto}"
+                    allow="fullscreen"
+                    onload="ocultarCargaFicha()">
+                    <p>No se puede mostrar el documento. 
+                       <a href="${fallbackUrl}" target="_blank">Haga clic aquí para abrir el archivo</a>
+                    </p>
+                </iframe>
+            `;
+            
+            viewerContainer.innerHTML = contenidoFallback;
+            setTimeout(ocultarCargaFicha, 1000);
+        }        /**
+         * Configura los botones de acción del modal
+         * @param {string} previewUrl - URL del archivo
+         * @param {string} previewUrlDirecto - URL directa de Google Drive
+         */
+        function configurarBotonesFicha(previewUrl, previewUrlDirecto) {
+            const openBtn = document.getElementById('openFichaNewTabBtn');
+            const downloadBtn = document.getElementById('downloadFichaBtn');
+            
+            // Configurar URLs de los botones (usar URL directa para abrir en nueva pestaña)
+            openBtn.href = previewUrlDirecto || previewUrl;
+            downloadBtn.href = previewUrl; // Usar URL de descarga para el botón de descarga
+            
+            // Mostrar botones
+            openBtn.style.display = '';
+            downloadBtn.style.display = '';
+            
+            // Agregar atributo de descarga al botón de descarga
+            downloadBtn.setAttribute('download', `ficha_seguridad_${lastProductoNombre || 'producto'}.${lastFichaTipo || 'pdf'}`);
+        }
+
+        /**
+         * Muestra el spinner de carga
+         */
+        function mostrarCargaFicha() {
+            const viewerContainer = document.getElementById('fichaViewerContainer');
+            const loadingSpinner = document.getElementById('fichaLoadingSpinner');
+            
+            viewerContainer.innerHTML = '';
+            loadingSpinner.classList.remove('d-none');
+        }
+
+        /**
+         * Oculta el spinner de carga
+         */
+        function ocultarCargaFicha() {
+            const loadingSpinner = document.getElementById('fichaLoadingSpinner');
+            loadingSpinner.classList.add('d-none');
+        }
+
+        /**
+         * Muestra un mensaje de error en el modal
+         * @param {string} mensaje - Mensaje de error a mostrar
+         */
+        function mostrarErrorFicha(mensaje) {
+            const viewerContainer = document.getElementById('fichaViewerContainer');
+            const openBtn = document.getElementById('openFichaNewTabBtn');
+            const downloadBtn = document.getElementById('downloadFichaBtn');
+            
+            viewerContainer.innerHTML = `
+                <div class="alert alert-warning m-4">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block text-center text-warning"></i>
+                    <h5 class="text-center">Ficha de Seguridad No Disponible</h5>
+                    <p class="text-center mb-0">${mensaje}</p>
+                    <hr>
+                    <p class="text-center small text-muted mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Contacte al administrador del laboratorio para obtener la ficha de seguridad correspondiente.
+                    </p>
+                </div>
+            `;
+            
+            // Ocultar botones si hay error
+            openBtn.style.display = 'none';
+            downloadBtn.style.display = 'none';
+            
+            ocultarCargaFicha();
+        }
+
+        /**
+         * Muestra el modal
+         */
+        function mostrarModal() {
+            fichasSeguridadModalInstance = new bootstrap.Modal(document.getElementById('fichasSeguridadModal'));
+            fichasSeguridadModalInstance.show();
+        }
+
+        /**
+         * Maneja el evento de cerrar modal para limpiar contenido
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('fichasSeguridadModal');
+            const openBtn = document.getElementById('openFichaNewTabBtn');
+            const downloadBtn = document.getElementById('downloadFichaBtn');
+            
+            // Limpiar contenido al cerrar el modal
+            modal.addEventListener('hidden.bs.modal', function () {
+                document.getElementById('fichaViewerContainer').innerHTML = '';
+                document.getElementById('nombreProductoModal').textContent = 'Producto';
+                lastFichaDriveId = null;
+                lastFichaTipo = null;
+                lastProductoNombre = null;
+                ocultarCargaFicha();
+            });
+            
+            // Cerrar modal automáticamente al hacer clic en los botones de acción
+            if (openBtn) {
+                openBtn.addEventListener('click', function(e) {
+                    if (fichasSeguridadModalInstance) {
+                        setTimeout(() => {
+                            fichasSeguridadModalInstance.hide();
+                        }, 300);
+                    }
+                });
+            }
+            
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', function(e) {
+                    if (fichasSeguridadModalInstance) {
+                        setTimeout(() => {
+                            fichasSeguridadModalInstance.hide();
+                        }, 300);
+                    }
+                });
+            }
+        });        /**
+         * Función de utilidad para extraer el ID de Google Drive de una URL
+         * @param {string} url - URL de Google Drive
+         * @returns {string|null} - ID del archivo o null si no se encuentra
+         */
+        function extraerDriveIdDeUrl(url) {
+            if (!url) return null;
+            
+            // Patrones comunes de URLs de Google Drive
+            const patterns = [
+                /\/file\/d\/([a-zA-Z0-9-_]+)/,
+                /id=([a-zA-Z0-9-_]+)/,
+                /\/d\/([a-zA-Z0-9-_]+)/
+            ];
+            
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            
+            // Si la URL parece ser solo el ID
+            if (/^[a-zA-Z0-9-_]+$/.test(url)) {
+                return url;
+            }
+            
+            return null;
+        }
+
+        /**
+         * Función auxiliar que extrae el ID de Drive de una URL y llama a showFichaSeguridad
+         * @param {string} url - URL completa de Google Drive
+         * @param {string} nombreProducto - Nombre del producto
+         * @param {string} tipoArchivo - Tipo de archivo (opcional, por defecto 'pdf')
+         */
+        function mostrarFichaSeguridadDesdeUrl(url, nombreProducto, tipoArchivo = 'pdf') {
+            const driveId = extraerDriveIdDeUrl(url);
+            
+            if (!driveId) {
+                console.error('No se pudo extraer el ID de Google Drive de la URL:', url);
+                mostrarErrorFicha('URL de ficha de seguridad no válida. Contacte al administrador.');
+                mostrarModal();
+                return;
+            }
+            
+            // Intentar detectar el tipo de archivo desde la URL o el nombre
+            let tipoDetectado = tipoArchivo;
+            if (url.includes('.pdf') || url.includes('pdf')) {
+                tipoDetectado = 'pdf';
+            } else if (url.includes('.doc')) {
+                tipoDetectado = url.includes('.docx') ? 'docx' : 'doc';
+            } else if (url.includes('.jpg') || url.includes('.jpeg')) {
+                tipoDetectado = 'jpg';
+            } else if (url.includes('.png')) {
+                tipoDetectado = 'png';
+            }
+            
+            showFichaSeguridad(driveId, nombreProducto, tipoDetectado);
+        }
+    </script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>

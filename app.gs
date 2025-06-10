@@ -21,15 +21,21 @@ function doPost(e) {
     if (requestData.token !== secureToken) {
       console.error("Token validation failed. Received: " + requestData.token + ", Expected: " + secureToken);
       return createErrorResponse("Invalid security token");
-    }      // Handle different actions
+    }    // Handle different actions
     if (requestData.action === "createLabFolders") {
       return handleCreateLabFolders(requestData);
     } else if (requestData.action === "deleteLabFolders") {
       return handleDeleteLabFolders(requestData);
     } else if (requestData.action === "uploadMovimientoDocumento") {
       return handleUploadMovimientoDocumento(requestData);
+    } else if (requestData.action === "uploadFichaSeguridad") {
+      return handleUploadFichaSeguridad(requestData);
     } else if (requestData.action === "sendEmail") {
       return handleSendEmail(requestData);
+    } else if (requestData.action === "downloadFile") {
+      return handleDownloadFile(requestData);
+    } else if (requestData.action === "getFileStreamUrl") {
+      return handleGetFileStreamUrl(requestData);
     } else {
       return createErrorResponse("Unknown action");
     }
@@ -246,8 +252,64 @@ function handleUploadMovimientoDocumento(data) {
     
   } catch (error) {
     console.error("Error uploading document: " + error);
-    return createErrorResponse("Error uploading document: " + error.toString());
+    return createErrorResponse("Error uploading document: " + error.toString());  }
+}
+
+/**
+ * Handles uploading a safety datasheet file for a product
+ */
+function handleUploadFichaSeguridad(data) {
+  // Validate required fields
+  if (!data.fileName || !data.fileData || !data.fileExtension) {
+    return createErrorResponse("Missing required fields: fileName, fileData, and fileExtension");
   }
+  
+  try {
+    // Folder ID for safety datasheets
+    const FICHA_SEGURIDAD_FOLDER_ID = "1ZsUxrJp9-rKkLs5gklVSKo_fjIoHVpRQ";
+    
+    // Decode the base64 file data
+    const fileBlob = Utilities.newBlob(
+      Utilities.base64Decode(data.fileData),
+      getMimeType(data.fileExtension),
+      data.fileName
+    );
+    
+    // Get the destination folder
+    const folder = DriveApp.getFolderById(FICHA_SEGURIDAD_FOLDER_ID);
+    
+    // Create the file in the folder
+    const file = folder.createFile(fileBlob);
+    
+    // Set sharing permissions to allow anyone with the link to view
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    // Return success with file information
+    return createSuccessResponse({
+      fileId: file.getId(),
+      fileUrl: file.getUrl(),
+      fileName: data.fileName,
+      message: "Safety datasheet uploaded successfully"
+    });
+    
+  } catch (error) {
+    console.error("Error uploading safety datasheet: " + error);
+    return createErrorResponse("Error uploading safety datasheet: " + error.toString());
+  }
+}
+
+/**
+ * Gets the appropriate MIME type for a file extension
+ */
+function getMimeType(extension) {
+  const mimeTypes = {
+    'pdf': 'application/pdf',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png'
+  };
+  
+  return mimeTypes[extension.toLowerCase()] || 'application/octet-stream';
 }
 
 /**
@@ -280,6 +342,107 @@ function handleSendEmail(data) {
   } catch (error) {
     console.error("Error sending email: " + error);
     return createErrorResponse("Error sending email: " + error.toString());
+  }
+}
+
+/**
+ * Handles downloading files from Google Drive
+ */
+function handleDownloadFile(data) {
+  // Validate required fields
+  if (!data.fileId) {
+    return createErrorResponse("Missing required field: fileId");
+  }
+  
+  try {
+    // Get the file from Google Drive
+    const file = DriveApp.getFileById(data.fileId);
+    
+    if (!file) {
+      return createErrorResponse("File not found: " + data.fileId);
+    }
+    
+    // Check if the file exists and is accessible
+    const fileName = file.getName();
+    const mimeType = file.getBlob().getContentType();
+    const fileSize = file.getSize();
+    
+    // Get file content as blob and convert to base64
+    const blob = file.getBlob();
+    const fileData = Utilities.base64Encode(blob.getBytes());
+    
+    console.log("Downloaded file: " + fileName + " (" + fileSize + " bytes)");
+    
+    // Return success with file data
+    return createSuccessResponse({
+      fileData: fileData,
+      fileName: fileName,
+      mimeType: mimeType,
+      fileSize: fileSize
+    });
+    
+  } catch (error) {
+    console.error("Error downloading file: " + error);
+    return createErrorResponse("Error downloading file: " + error.toString());
+  }
+}
+
+/**
+ * Handles getting a streaming URL for a file
+ */
+function handleGetFileStreamUrl(data) {
+  // Validate required fields
+  if (!data.fileId) {
+    return createErrorResponse("Missing required field: fileId");
+  }
+  
+  try {
+    // Get the file from Google Drive
+    const file = DriveApp.getFileById(data.fileId);
+    
+    if (!file) {
+      return createErrorResponse("File not found: " + data.fileId);
+    }
+    
+    const fileName = file.getName();
+    const mimeType = file.getBlob().getContentType();
+    
+    // Create a streaming URL for the file
+    // Note: This creates a public sharing link that will work for embedding
+    let streamUrl = "";
+    
+    // Check if file is already shared
+    try {
+      // Try to get existing sharing settings
+      const access = file.getSharingAccess();
+      
+      if (access === DriveApp.Access.ANYONE_WITH_LINK || access === DriveApp.Access.ANYONE) {
+        // File is already shared, get the view URL
+        streamUrl = "https://drive.google.com/file/d/" + data.fileId + "/preview";
+      } else {
+        // Share the file with "anyone with link can view" permissions
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        streamUrl = "https://drive.google.com/file/d/" + data.fileId + "/preview";
+      }
+      
+    } catch (shareError) {
+      console.error("Error setting sharing permissions: " + shareError);
+      // Fallback to downloadable URL
+      streamUrl = "https://drive.google.com/uc?export=download&id=" + data.fileId;
+    }
+    
+    console.log("Generated stream URL for file: " + fileName);
+    
+    // Return success with streaming URL
+    return createSuccessResponse({
+      streamUrl: streamUrl,
+      fileName: fileName,
+      mimeType: mimeType
+    });
+    
+  } catch (error) {
+    console.error("Error getting file stream URL: " + error);
+    return createErrorResponse("Error getting file stream URL: " + error.toString());
   }
 }
 
