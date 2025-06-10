@@ -71,7 +71,6 @@
                             <th>Tipo</th>
                             <th>Estado Físico</th>
                             <th>Control Sedronar</th>
-                            <th>Ficha Seguridad</th>
                             <th>Stock en Laboratorio</th>
                             <th>Acciones</th>
                         </tr>
@@ -111,17 +110,6 @@
                                     <span class="badge bg-success">No</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                {% if item.producto.urlFichaSeguridad %}
-                                    <span class="badge bg-success" title="Ficha de seguridad disponible">
-                                        <i class="fas fa-shield-alt me-1"></i>Disponible
-                                    </span>
-                                {% else %}
-                                    <span class="badge bg-warning text-dark" title="Ficha de seguridad no configurada">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>No disponible
-                                    </span>
-                                {% endif %}
-                            </td>
                             <td>{{ item.stock }}</td>
                             <td>
                                 <div class="btn-group" role="group">
@@ -140,7 +128,7 @@
                             </td>
                         </tr>                        {% else %}
                         <tr>
-                            <td colspan="8" class="text-center">No hay productos registrados</td>
+                            <td colspan="7" class="text-center">No hay productos registrados</td>
                         </tr>
                         {% endfor %}
                     </tbody>
