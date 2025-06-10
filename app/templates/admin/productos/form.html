@@ -13,9 +13,8 @@
     <div class="card mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">{{ 'Editar Producto' if producto else 'Nuevo Producto' }}</h6>
-        </div>
-        <div class="card-body">
-            <form method="POST" class="admin-form">
+        </div>        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data" class="admin-form">
                 {{ form.hidden_tag() }}
                 
                 <div class="row">
@@ -86,10 +85,90 @@
                         {% endif %}
                     </div>
                 </div>
+                  <div class="row">
+                    <!-- Stock Mínimo -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.stockMinimo.label(class="form-label") }}
+                        {% if form.stockMinimo.errors %}
+                            {{ form.stockMinimo(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.stockMinimo.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.stockMinimo(class="form-control") }}
+                        {% endif %}
+                        <small class="form-text text-muted">Cantidad mínima requerida en stock</small>
+                    </div>
+                    
+                    <!-- Marca -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.marca.label(class="form-label") }}
+                        {% if form.marca.errors %}
+                            {{ form.marca(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.marca.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.marca(class="form-control") }}
+                        {% endif %}
+                    </div>
+                </div>
+                  <div class="row">
+                    <!-- Stock Mínimo -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.stockMinimo.label(class="form-label") }}
+                        {% if form.stockMinimo.errors %}
+                            {{ form.stockMinimo(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.stockMinimo.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.stockMinimo(class="form-control") }}
+                        {% endif %}
+                        <small class="form-text text-muted">Cantidad mínima requerida en stock</small>
+                    </div>
+                    
+                    <!-- Marca -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.marca.label(class="form-label") }}
+                        {% if form.marca.errors %}
+                            {{ form.marca(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.marca.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.marca(class="form-control") }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Ficha de Seguridad (Archivo) -->
+                <div class="mb-3">
+                    {{ form.fichaSeguridad.label(class="form-label") }}
+                    {% if form.fichaSeguridad.errors %}
+                        {{ form.fichaSeguridad(class="form-control is-invalid") }}
+                        <div class="invalid-feedback">
+                            {% for error in form.fichaSeguridad.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ form.fichaSeguridad(class="form-control") }}
+                    {% endif %}
+                    <small class="form-text text-muted">Subir archivo PDF o imagen (JPG, PNG) con la ficha de seguridad del producto</small>
+                </div>
                 
                 <div class="row">
                     <!-- URL Ficha Seguridad -->
-                    <div class="col-md-12 mb-3">
+                    <div class="col-md-8 mb-3">
                         {{ form.urlFichaSeguridad.label(class="form-label") }}
                         {% if form.urlFichaSeguridad.errors %}
                             {{ form.urlFichaSeguridad(class="form-control is-invalid") }}
@@ -100,6 +179,20 @@
                             </div>
                         {% else %}
                             {{ form.urlFichaSeguridad(class="form-control") }}
+                        {% endif %}
+                        <small class="form-text text-muted">URL de Google Drive o ID del archivo (se actualiza automáticamente al subir archivo)</small>
+                    </div>
+                    
+                    <!-- Botón para ver ficha si existe URL -->
+                    <div class="col-md-4 mb-3 d-flex align-items-end">
+                        {% if producto and producto.urlFichaSeguridad %}                        <button type="button" class="btn btn-outline-warning w-100" 
+                                onclick="mostrarFichaSeguridadDesdeUrl('{{ producto.urlFichaSeguridad }}', '{{ producto.nombre }}')">
+                            <i class="fas fa-shield-alt me-2"></i> Ver Ficha Actual
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                            <i class="fas fa-shield-alt me-2"></i> Sin Ficha
+                        </button>
                         {% endif %}
                     </div>
                 </div>

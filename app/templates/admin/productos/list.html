@@ -63,8 +63,7 @@
             </div>
         </div>
         <div class="card-body">            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="productos-table" width="100%" cellspacing="0">
-                    <thead>
+                <table class="table table-bordered table-hover" id="productos-table" width="100%" cellspacing="0">                    <thead>
                         <tr>
                             <th>ID</th>
                             <th>Nombre</th>
@@ -103,29 +102,39 @@
                                 {% else %}
                                     <span class="badge bg-warning">Gaseoso</span>
                                 {% endif %}
-                            </td>
-                            <td>
+                            </td>                            <td>
                                 {% if item.producto.controlSedronar %}
                                     <span class="badge bg-danger">Sí</span>
                                 {% else %}
                                     <span class="badge bg-success">No</span>
                                 {% endif %}
-                            </td>                            <td>{{ item.stock_total }}</td>
-                            <td>
-                                <div class="btn-group" role="group">                                    <a href="{{ url_for('admin.edit_producto', id=item.producto.idProducto) }}" class="btn btn-sm btn-warning">
+                            </td>
+                            <td>{{ item.stock_total }}</td>                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('admin.view_producto', id=item.producto.idProducto) }}" class="btn btn-sm btn-info" title="Ver detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if item.producto.urlFichaSeguridad %}
+                                    <button type="button" class="btn btn-sm btn-warning" title="Ver ficha de seguridad" 
+                                            onclick="mostrarFichaSeguridadDesdeUrl('{{ item.producto.urlFichaSeguridad }}', '{{ item.producto.nombre }}')">
+                                        <i class="fas fa-shield-alt"></i>
+                                    </button>
+                                    {% endif %}
+                                    <a href="{{ url_for('admin.new_movimiento') }}?producto={{ item.producto.idProducto }}" class="btn btn-sm btn-success" title="Registrar movimiento">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    <a href="{{ url_for('admin.edit_producto', id=item.producto.idProducto) }}" class="btn btn-sm btn-secondary" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.producto.idProducto }}">
+                                    <button type="button" class="btn btn-sm btn-delete" title="Eliminar" data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.producto.idProducto }}">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
                             </td>
-                        </tr>
-                        {% else %}
-                        <tr>
+                        </tr>                        {% else %}                        <tr>
                             <td colspan="7" class="text-center">No hay productos registrados</td>
                         </tr>
-                        {% endfor %}                    </tbody>                </table>
+                        {% endfor %}</tbody>                </table>
             </div>
         </div>
     </div>
