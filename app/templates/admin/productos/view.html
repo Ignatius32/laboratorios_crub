@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_productos') }}">Productos</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ producto.nombre }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Detalles del Producto</h6>
+                    <div>
+                        <a href="{{ url_for('admin.edit_producto', id=producto.idProducto) }}" class="btn btn-sm btn-warning">
+                            <i class="fas fa-edit me-1"></i> Editar
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>ID:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ producto.idProducto }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Nombre:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ producto.nombre }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Tipo de Producto:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {% if producto.tipoProducto == 'botiquin' %}
+                                <span class="badge bg-primary">Botiquín</span>
+                            {% elif producto.tipoProducto == 'droguero' %}
+                                <span class="badge bg-warning">Droguero</span>
+                            {% elif producto.tipoProducto == 'vidrio' %}
+                                <span class="badge bg-info">Materiales de vidrio</span>
+                            {% elif producto.tipoProducto == 'seguridad' %}
+                                <span class="badge bg-success">Elementos de seguridad</span>
+                            {% elif producto.tipoProducto == 'residuos' %}
+                                <span class="badge bg-danger">Residuos peligrosos</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Otro</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Estado Físico:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {% if producto.estadoFisico == 'solido' %}
+                                <span class="badge bg-secondary">Sólido</span>
+                            {% elif producto.estadoFisico == 'liquido' %}
+                                <span class="badge bg-info">Líquido</span>
+                            {% else %}
+                                <span class="badge bg-warning">Gaseoso</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if producto.marca %}
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Marca:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ producto.marca }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Stock Mínimo:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ producto.stockMinimo or 0 }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Stock Total (todos los laboratorios):</strong>
+                        </div>
+                        <div class="col-md-8">
+                            <span class="fs-5 {% if stock_total > (producto.stockMinimo or 0) %}text-success{% else %}text-danger{% endif %}">
+                                {{ stock_total }}
+                            </span>
+                            {% if stock_total <= (producto.stockMinimo or 0) %}
+                                <small class="text-danger">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Por debajo del stock mínimo
+                                </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Control Sedronar:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {% if producto.controlSedronar %}
+                                <span class="badge bg-danger">Sí</span>
+                            {% else %}
+                                <span class="badge bg-success">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Ficha de Seguridad:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {% if producto.urlFichaSeguridad %}
+                                <button type="button" class="btn btn-sm btn-warning" 
+                                        onclick="mostrarFichaSeguridadDesdeUrl('{{ producto.urlFichaSeguridad }}', '{{ producto.nombre }}')">
+                                    <i class="fas fa-shield-alt me-1"></i> Ver Ficha de Seguridad
+                                </button>
+                            {% else %}
+                                <span class="text-muted">No disponible</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if producto.descripcion %}
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Descripción:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ producto.descripcion }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Stock por Laboratorio -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Stock por Laboratorio</h6>
+                </div>
+                <div class="card-body">
+                    {% if stock_por_laboratorio %}
+                        {% for lab_info in stock_por_laboratorio %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <strong>{{ lab_info.laboratorio.nombre }}</strong>
+                                <br>
+                                <small class="text-muted">{{ lab_info.laboratorio.idLaboratorio }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="fs-6 {% if lab_info.stock > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ lab_info.stock }}
+                                </span>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No hay stock registrado en ningún laboratorio.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Movimientos Recientes -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Movimientos Recientes</h6>
+                </div>
+                <div class="card-body">
+                    {% if movimientos_recientes %}
+                        {% for movimiento in movimientos_recientes %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <strong>
+                                    {% if movimiento.tipoMovimiento == 'ingreso' %}
+                                        <span class="text-success">Ingreso</span>
+                                    {% elif movimiento.tipoMovimiento == 'compra' %}
+                                        <span class="text-info">Compra</span>
+                                    {% elif movimiento.tipoMovimiento == 'uso' %}
+                                        <span class="text-warning">Uso</span>
+                                    {% elif movimiento.tipoMovimiento == 'transferencia' %}
+                                        <span class="text-primary">Transferencia</span>
+                                    {% else %}
+                                        <span class="text-secondary">{{ movimiento.tipoMovimiento.title() }}</span>
+                                    {% endif %}
+                                </strong>
+                                <small class="text-muted">{{ movimiento.timestamp.strftime('%d/%m/%Y') }}</small>
+                            </div>                            <div class="text-muted">
+                                Cantidad: {{ movimiento.cantidad }} {{ movimiento.unidadMedida }}
+                                <br>
+                                Laboratorio: {{ movimiento.laboratorio.nombre }}
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No hay movimientos registrados para este producto.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

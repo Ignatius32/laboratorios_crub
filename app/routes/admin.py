@@ -96,8 +96,11 @@ class ProductoForm(FlaskForm):
                                       ('residuos', 'Residuos peligrosos')])
     estadoFisico = SelectField('Estado Físico', 
                               choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
+    stockMinimo = FloatField('Stock Mínimo', validators=[Optional()])
+    marca = StringField('Marca', validators=[Optional(), Length(max=100)])
     controlSedronar = BooleanField('Control Sedronar')
     urlFichaSeguridad = StringField('URL Ficha de Seguridad', validators=[Optional(), URL(), Length(max=200)])
+    fichaSeguridad = FileField('Ficha de Seguridad (Archivo)', validators=[Optional()])
 
 class MovimientoForm(FlaskForm):
     tipoMovimiento = SelectField('Tipo de Movimiento', choices=[
@@ -566,14 +569,55 @@ def new_producto():
             flash('El ID de producto ya existe', 'danger')
             return render_template('admin/productos/form.html', title='Nuevo Producto', form=form)
         
+        # Handle file upload for ficha de seguridad
+        url_ficha = form.urlFichaSeguridad.data
+        if form.fichaSeguridad.data:
+            try:
+                import base64
+                # Read and encode the file
+                file_data = form.fichaSeguridad.data.read()
+                file_b64 = base64.b64encode(file_data).decode('utf-8')
+                filename = form.fichaSeguridad.data.filename
+                
+                # Validate file extension
+                if not filename or '.' not in filename:
+                    flash('Error: Archivo inválido', 'warning')
+                    return render_template('admin/productos/form.html', title='Nuevo Producto', form=form)
+                
+                file_extension = filename.rsplit('.', 1)[1].lower()
+                if file_extension not in ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx']:
+                    flash('Error: Tipo de archivo no permitido. Use PDF, JPG, PNG, DOC o DOCX.', 'warning')
+                    return render_template('admin/productos/form.html', title='Nuevo Producto', form=form)
+                
+                # Upload file to Google Drive
+                result = drive_integration.upload_ficha_seguridad(
+                    form.idProducto.data,
+                    file_b64,
+                    file_extension
+                )
+                
+                if result and 'file_id' in result:
+                    url_ficha = result['file_id']
+                    flash('Ficha de seguridad subida correctamente a Google Drive', 'success')
+                elif result and 'error' in result:
+                    flash(f'Error al subir la ficha de seguridad: {result["error"]}', 'warning')
+                else:
+                    flash('Error desconocido al subir la ficha de seguridad', 'warning')
+                    
+            except Exception as e:
+                current_app.logger.error(f"Error uploading ficha de seguridad: {str(e)}")
+                flash(f'Error al procesar la ficha de seguridad: {str(e)}', 'warning')
+        
         producto = Producto(
             idProducto=form.idProducto.data,
             nombre=form.nombre.data,
             descripcion=form.descripcion.data,
             tipoProducto=form.tipoProducto.data,
             estadoFisico=form.estadoFisico.data,
+            stockMinimo=form.stockMinimo.data or 0,
+            marca=form.marca.data,
             controlSedronar=form.controlSedronar.data,
-            urlFichaSeguridad=form.urlFichaSeguridad.data
+            urlFichaSeguridad=url_ficha
         )
         
         db.session.add(producto)
@@ -592,12 +636,53 @@ def edit_producto(id):
     form = ProductoForm(obj=producto)
     
     if form.validate_on_submit():
+        # Handle file upload for ficha de seguridad
+        url_ficha = form.urlFichaSeguridad.data
+        if form.fichaSeguridad.data:
+            try:
+                import base64
+                # Read and encode the file
+                file_data = form.fichaSeguridad.data.read()
+                file_b64 = base64.b64encode(file_data).decode('utf-8')
+                filename = form.fichaSeguridad.data.filename
+                
+                # Validate file extension
+                if not filename or '.' not in filename:
+                    flash('Error: Archivo inválido', 'warning')
+                    return render_template('admin/productos/form.html', title='Editar Producto', form=form, producto=producto)
+                
+                file_extension = filename.rsplit('.', 1)[1].lower()
+                if file_extension not in ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx']:
+                    flash('Error: Tipo de archivo no permitido. Use PDF, JPG, PNG, DOC o DOCX.', 'warning')
+                    return render_template('admin/productos/form.html', title='Editar Producto', form=form, producto=producto)
+                
+                # Upload file to Google Drive
+                result = drive_integration.upload_ficha_seguridad(
+                    producto.idProducto,
+                    file_b64,
+                    file_extension
+                )
+                
+                if result and 'file_id' in result:
+                    url_ficha = result['file_id']
+                    flash('Ficha de seguridad actualizada correctamente en Google Drive', 'success')
+                elif result and 'error' in result:
+                    flash(f'Error al subir la nueva ficha de seguridad: {result["error"]}', 'warning')
+                else:
+                    flash('Error desconocido al subir la nueva ficha de seguridad', 'warning')
+                    
+            except Exception as e:
+                current_app.logger.error(f"Error uploading ficha de seguridad: {str(e)}")
+                flash(f'Error al procesar la nueva ficha de seguridad: {str(e)}', 'warning')
+        
         producto.nombre = form.nombre.data
         producto.descripcion = form.descripcion.data
         producto.tipoProducto = form.tipoProducto.data
         producto.estadoFisico = form.estadoFisico.data
+        producto.stockMinimo = form.stockMinimo.data or 0
+        producto.marca = form.marca.data
         producto.controlSedronar = form.controlSedronar.data
-        producto.urlFichaSeguridad = form.urlFichaSeguridad.data
+        producto.urlFichaSeguridad = url_ficha
         
         db.session.commit()
         flash('Producto actualizado correctamente', 'success')
@@ -1383,3 +1468,46 @@ def exportar_reporte_excel():
         download_name=filename,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+@admin.route('/productos/view/<string:id>')
+@admin_required
+def view_producto(id):
+    from sqlalchemy import func
+    
+    producto = Producto.query.get_or_404(id)
+    
+    # Obtener stock por laboratorio
+    stock_por_laboratorio = db.session.query(
+        Laboratorio,
+        func.coalesce(func.sum(
+            db.case(
+                (Movimiento.tipoMovimiento.in_(['ingreso', 'compra', 'transferencia']), Movimiento.cantidad),
+                else_=-Movimiento.cantidad
+            )
+        ), 0).label('stock')
+    ).outerjoin(
+        Movimiento, 
+        (Movimiento.idLaboratorio == Laboratorio.idLaboratorio) & 
+        (Movimiento.idProducto == producto.idProducto)
+    ).group_by(Laboratorio.idLaboratorio).all()
+    
+    # Calcular stock total
+    stock_total = sum([lab_info[1] for lab_info in stock_por_laboratorio])
+      # Obtener movimientos recientes (últimos 10)
+    movimientos_recientes = Movimiento.query.filter_by(idProducto=producto.idProducto)\
+        .order_by(Movimiento.timestamp.desc())\
+        .limit(10).all()
+    
+    # Convertir a formato más fácil de usar en template
+    stock_info = []
+    for lab, stock in stock_por_laboratorio:
+        stock_info.append({
+            'laboratorio': lab,
+            'stock': stock
+        })
+    
+    return render_template('admin/productos/view.html',
+                         producto=producto,
+                         stock_total=stock_total,
+                         stock_por_laboratorio=stock_info,
+                         movimientos_recientes=movimientos_recientes)
