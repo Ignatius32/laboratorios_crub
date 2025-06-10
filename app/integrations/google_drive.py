@@ -236,8 +236,7 @@ class GoogleDriveIntegration:
                 json=data,
                 headers={'Content-Type': 'application/json'}
             )
-            
-            # Check response
+              # Check response
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):
@@ -253,6 +252,182 @@ class GoogleDriveIntegration:
         except Exception as e:
             current_app.logger.error(f"Exception in email sending: {str(e)}")
             return False
+            
+    def upload_ficha_seguridad(self, producto_id, file_data, file_extension):
+        """
+        Uploads a safety datasheet file to Google Drive
+        
+        Args:
+            producto_id (str): The product ID
+            file_data (str): Base64 encoded file data
+            file_extension (str): File extension (pdf, jpg, png, etc.)
+            
+        Returns:
+            dict: Dictionary with file ID and URL or None if there was an error
+        """
+        if not self.script_url:
+            current_app.logger.error("Google Script URL not configured")
+            return None
+            
+        try:
+            # Prepare the request data
+            file_name = f"ficha_seg_{producto_id}.{file_extension}"
+            
+            data = {
+                'action': 'uploadFichaSeguridad',
+                'token': str(self.secure_token),
+                'fileName': file_name,
+                'fileData': file_data,
+                'fileExtension': file_extension
+            }
+            
+            # Log the request for debugging (excluding file data)
+            log_data = {k: v for k, v in data.items() if k != 'fileData'}
+            current_app.logger.info(f"Sending ficha seguridad upload request to Google Script: {log_data}")
+            
+            # Send request to Google Apps Script
+            response = requests.post(
+                self.script_url,
+                json=data,
+                headers={'Content-Type': 'application/json'},
+                timeout=60  # Longer timeout for file uploads
+            )            # Check response
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    current_app.logger.info(f"Ficha de seguridad uploaded successfully: {file_name}")
+                    return {
+                        'file_id': result.get('fileId'),
+                        'file_url': result.get('fileUrl')
+                    }
+                else:
+                    error_msg = result.get('error', 'Unknown error')
+                    current_app.logger.error(f"Drive API Error: {error_msg}")
+                    return {'error': error_msg}
+            else:
+                error_msg = f"HTTP Error: {response.status_code}, Response: {response.text}"
+                current_app.logger.error(error_msg)
+                return {'error': error_msg}
+                
+        except Exception as e:
+            error_msg = f"Exception in ficha seguridad upload: {str(e)}"
+            current_app.logger.error(error_msg)
+            return {'error': error_msg}
+        
+    def download_file(self, file_id):
+        """
+        Downloads a file from Google Drive using the Google Apps Script
+        
+        Args:
+            file_id (str): The Google Drive file ID
+            
+        Returns:
+            dict: Dictionary with file data and metadata or None if there was an error
+        """
+        if not self.script_url:
+            current_app.logger.error("Google Script URL not configured")
+            return None
+            
+        try:
+            # Prepare the request data
+            data = {
+                'action': 'downloadFile',
+                'token': str(self.secure_token),
+                'fileId': file_id
+            }
+            
+            # Log the request for debugging
+            current_app.logger.info(f"Sending file download request to Google Script: {data}")
+            
+            # Send request to Google Apps Script
+            response = requests.post(
+                self.script_url,
+                json=data,
+                headers={'Content-Type': 'application/json'},
+                timeout=60  # Longer timeout for file downloads
+            )
+            
+            # Check response
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    current_app.logger.info(f"File downloaded successfully: {file_id}")
+                    return {
+                        'file_data': result.get('fileData'),  # Base64 encoded file data
+                        'file_name': result.get('fileName'),
+                        'mime_type': result.get('mimeType'),
+                        'file_size': result.get('fileSize')
+                    }
+                else:
+                    error_msg = result.get('error', 'Unknown error')
+                    current_app.logger.error(f"Drive API Error: {error_msg}")
+                    return {'error': error_msg}
+            else:
+                error_msg = f"HTTP Error: {response.status_code}, Response: {response.text}"
+                current_app.logger.error(error_msg)
+                return {'error': error_msg}
+                
+        except Exception as e:
+            error_msg = f"Exception in file download: {str(e)}"
+            current_app.logger.error(error_msg)
+            return {'error': error_msg}
+
+    def get_file_stream_url(self, file_id):
+        """
+        Gets a streaming URL for a file from Google Drive for direct embedding
+        
+        Args:
+            file_id (str): The Google Drive file ID
+            
+        Returns:
+            dict: Dictionary with streaming URL or None if there was an error
+        """
+        if not self.script_url:
+            current_app.logger.error("Google Script URL not configured")
+            return None
+            
+        try:
+            # Prepare the request data
+            data = {
+                'action': 'getFileStreamUrl',
+                'token': str(self.secure_token),
+                'fileId': file_id
+            }
+            
+            # Log the request for debugging
+            current_app.logger.info(f"Sending file stream URL request to Google Script: {data}")
+            
+            # Send request to Google Apps Script
+            response = requests.post(
+                self.script_url,
+                json=data,
+                headers={'Content-Type': 'application/json'},
+                timeout=30
+            )
+            
+            # Check response
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    current_app.logger.info(f"File stream URL obtained successfully: {file_id}")
+                    return {
+                        'stream_url': result.get('streamUrl'),
+                        'file_name': result.get('fileName'),
+                        'mime_type': result.get('mimeType')
+                    }
+                else:
+                    error_msg = result.get('error', 'Unknown error')
+                    current_app.logger.error(f"Drive API Error: {error_msg}")
+                    return {'error': error_msg}
+            else:
+                error_msg = f"HTTP Error: {response.status_code}, Response: {response.text}"
+                current_app.logger.error(error_msg)
+                return {'error': error_msg}
+                
+        except Exception as e:
+            error_msg = f"Exception in getting file stream URL: {str(e)}"
+            current_app.logger.error(error_msg)
+            return {'error': error_msg}
 
 # Create a singleton instance
 drive_integration = GoogleDriveIntegration()

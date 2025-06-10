@@ -118,16 +118,34 @@
                             {{ producto.descripcion }}
                         </div>
                     </div>
-                    {% endif %}
-                    {% if producto.urlFichaSeguridad %}
+                    {% endif %}                    {% if producto.urlFichaSeguridad %}
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Ficha de Seguridad:</strong>
+                        </div>                        <div class="col-md-8">
+                            <button type="button" class="btn btn-warning" 
+                                    onclick="mostrarFichaSeguridadTemporal('{{ producto.urlFichaSeguridad }}', '{{ producto.nombre }}')">
+                                <i class="fas fa-shield-alt me-2"></i> Ver Ficha de Seguridad
+                            </button>
+                            <small class="d-block text-muted mt-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Documento con información sobre manejo, riesgos y primeros auxilios
+                            </small>
+                        </div>
+                    </div>
+                    {% else %}
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <strong>Ficha de Seguridad:</strong>
                         </div>
                         <div class="col-md-8">
-                            <a href="{{ producto.urlFichaSeguridad }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-file-pdf me-1"></i> Ver Ficha de Seguridad
-                            </a>
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-exclamation-triangle me-1"></i>No disponible
+                            </span>
+                            <small class="d-block text-muted mt-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Contacte al administrador para solicitar la ficha de seguridad
+                            </small>
                         </div>
                     </div>
                     {% endif %}
@@ -165,10 +183,9 @@
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">Historial de Movimientos</h6>
-        </div>
-        <div class="card-body">
+        </div>        <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="movimientos-table" width="100%" cellspacing="0">
+                <table class="table table-bordered table-hover" id="producto-movimientos-table" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -182,7 +199,8 @@
                         {% for movimiento in movimientos %}
                         <tr>
                             <td>{{ movimiento.idMovimiento }}</td>
-                            <td>{{ movimiento.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>                            <td>
+                            <td>{{ movimiento.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
                                 {% if movimiento.tipoMovimiento == 'ingreso' %}
                                     <span class="badge bg-success">Ingreso</span>
                                 {% elif movimiento.tipoMovimiento == 'compra' %}
@@ -209,17 +227,88 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para mostrar la ficha de seguridad -->
+{% if producto.urlFichaSeguridad %}
+<div class="modal fade" id="fichaSegModal" tabindex="-1" aria-labelledby="fichaSegModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="fichaSegModalLabel">
+                    <i class="fas fa-file-pdf me-2"></i>Ficha de Seguridad - {{ producto.nombre }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Información:</strong> Por razones de seguridad, la ficha de seguridad se abrirá en una nueva ventana de Google Drive.
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <a id="viewFileBtn" href="#" target="_blank" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-eye me-2"></i> Ver Ficha de Seguridad
+                        </a>
+                    </div>
+                    <div class="col-12">
+                        <a id="downloadLink" href="#" target="_blank" class="btn btn-outline-success btn-lg w-100">
+                            <i class="fas fa-download me-2"></i> Descargar Ficha de Seguridad
+                        </a>
+                    </div>
+                </div>
+            </div>            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
     $(document).ready(function() {
-        $('#movimientos-table').DataTable({
-            language: {
-                url: '{{ url_for("static", filename="js/Spanish.json") }}'
-            },
-            order: [[1, 'desc']]  // Order by date, most recent first
+        // Solo inicializar DataTable si la tabla tiene datos
+        const table = $('#producto-movimientos-table');
+        if (table.length > 0) {
+            const tbody = table.find('tbody');
+            const rows = tbody.find('tr');
+            
+            // Solo inicializar si hay al menos una fila de datos (no solo el mensaje "No hay movimientos")
+            if (rows.length > 0 && !rows.first().find('td[colspan]').length) {
+                try {
+                    table.DataTable({
+                        language: {
+                            url: '{{ url_for("static", filename="js/Spanish.json") }}'
+                        },
+                        order: [[1, 'desc']],
+                        pageLength: 10,
+                        responsive: true,
+                        autoWidth: false
+                    });
+                } catch (error) {
+                    console.error('Error al inicializar DataTable:', error);
+                }
+            }
+        }
+        
+        // Configurar el modal de ficha de seguridad
+        {% if producto.urlFichaSeguridad %}
+        $('#fichaSegModal').on('show.bs.modal', function () {
+            const fileId = '{{ producto.urlFichaSeguridad }}';
+            let viewUrl;
+            if (fileId.startsWith('http')) {
+                viewUrl = fileId;
+            } else {
+                viewUrl = `https://drive.google.com/file/d/${fileId}/view`;
+            }
+            
+            document.getElementById('viewFileBtn').href = viewUrl;
+            document.getElementById('downloadLink').href = fileId.startsWith('http') ? fileId : `https://drive.google.com/uc?id=${fileId}&export=download`;
         });
+        {% endif %}
     });
 </script>
 {% endblock %}

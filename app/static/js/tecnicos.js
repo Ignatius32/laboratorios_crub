@@ -6,13 +6,11 @@ $(document).ready(function() {
     const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
     
     // Inicializar tablas de datos
-    if ($('.tecnico-table').length) {
-        $('.tecnico-table').DataTable({
+    if ($('.tecnico-table').length) {        $('.tecnico-table').DataTable({
             language: {
                 url: '/static/js/Spanish.json'
             },
             responsive: true,
-            stateSave: true,
             lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
             columnDefs: [
                 { 

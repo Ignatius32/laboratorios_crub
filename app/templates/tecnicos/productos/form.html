@@ -14,9 +14,8 @@
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">{{ 'Editar Producto' if producto else 'Nuevo Producto' }} - {{ laboratorio.nombre }}</h6>
-        </div>
-        <div class="card-body">
-            <form method="POST">
+        </div>        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
                 {{ form.hidden_tag() }}
                 
                 <div class="row">
@@ -85,22 +84,55 @@
                         {% else %}
                             {{ form.estadoFisico(class="form-select") }}
                         {% endif %}
+                    </div>                </div>
+                
+                <div class="row">
+                    <!-- Stock Mínimo -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.stockMinimo.label(class="form-label") }}
+                        {% if form.stockMinimo.errors %}
+                            {{ form.stockMinimo(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.stockMinimo.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.stockMinimo(class="form-control") }}
+                        {% endif %}
+                        <small class="form-text text-muted">Cantidad mínima requerida en stock</small>
+                    </div>
+                    
+                    <!-- Marca -->
+                    <div class="col-md-6 mb-3">
+                        {{ form.marca.label(class="form-label") }}
+                        {% if form.marca.errors %}
+                            {{ form.marca(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.marca.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.marca(class="form-control") }}
+                        {% endif %}
                     </div>
                 </div>
                 
-                <!-- URL Ficha Seguridad -->
+                <!-- Ficha de Seguridad -->
                 <div class="mb-3">
-                    {{ form.urlFichaSeguridad.label(class="form-label") }}
-                    {% if form.urlFichaSeguridad.errors %}
-                        {{ form.urlFichaSeguridad(class="form-control is-invalid") }}
+                    {{ form.fichaSeguridad.label(class="form-label") }}
+                    {% if form.fichaSeguridad.errors %}
+                        {{ form.fichaSeguridad(class="form-control is-invalid") }}
                         <div class="invalid-feedback">
-                            {% for error in form.urlFichaSeguridad.errors %}
+                            {% for error in form.fichaSeguridad.errors %}
                                 {{ error }}
                             {% endfor %}
                         </div>
                     {% else %}
-                        {{ form.urlFichaSeguridad(class="form-control") }}
+                        {{ form.fichaSeguridad(class="form-control") }}
                     {% endif %}
+                    <small class="form-text text-muted">Subir archivo PDF o imagen (JPG, PNG) con la ficha de seguridad del producto</small>
                 </div>
                 
                 <!-- Descripción -->
