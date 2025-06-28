@@ -13,6 +13,7 @@ from app.utils.keycloak_auth import keycloak_auth
 from app.integrations.keycloak_oidc import keycloak_oidc
 from werkzeug.security import generate_password_hash
 import json
+import sys
 import json
 
 auth = Blueprint('auth', __name__, url_prefix='/auth')
@@ -636,3 +637,33 @@ def reinit_keycloak():
     except Exception as e:
         flash(f'Failed to reinitialize Keycloak: {str(e)}', 'error')
         return redirect(url_for('auth.login'))
+
+@auth.route('/env-status')
+def env_status():
+    """Show environment status (debug mode only)"""
+    if not current_app.config.get('KEYCLOAK_DEBUG', False):
+        return "Debug mode required", 403
+    
+    import os
+    
+    env_info = {
+        'flask_config': {
+            'FLASK_ENV': current_app.config.get('FLASK_ENV'),
+            'APPLICATION_ROOT': current_app.config.get('APPLICATION_ROOT'),
+            'KEYCLOAK_SERVER_URL': current_app.config.get('KEYCLOAK_SERVER_URL'),
+            'KEYCLOAK_CLIENT_ID': current_app.config.get('KEYCLOAK_CLIENT_ID'),
+            'KEYCLOAK_DEBUG': current_app.config.get('KEYCLOAK_DEBUG'),
+        },
+        'os_environ': {
+            'FLASK_ENV': os.environ.get('FLASK_ENV'),
+            'APPLICATION_ROOT': os.environ.get('APPLICATION_ROOT'),
+            'KEYCLOAK_SERVER_URL': os.environ.get('KEYCLOAK_SERVER_URL'),
+            'KEYCLOAK_CLIENT_ID': os.environ.get('KEYCLOAK_CLIENT_ID'),
+            'KEYCLOAK_DEBUG': os.environ.get('KEYCLOAK_DEBUG'),
+        },
+        'working_directory': os.getcwd(),
+        'env_file_exists': os.path.exists('.env'),
+        'python_path': sys.path[:3]  # First 3 entries
+    }
+    
+    return f"<pre>{json.dumps(env_info, indent=2)}</pre>"
