@@ -47,7 +47,7 @@ def login():
     security_logger = get_security_logger()
     
     if current_user.is_authenticated:
-        security_logger.info("Usuario ya autenticado intentó acceder a login", 
+        security_logger.info("Authenticated user attempted to access login", 
                            user_id=current_user.idUsuario)
         if current_user.rol == 'admin':
             return redirect(url_for('admin.dashboard'))
@@ -263,25 +263,25 @@ def keycloak_login():
     security_logger = get_security_logger()
     
     if current_user.is_authenticated:
-        security_logger.info("Usuario ya autenticado intentó acceder a Keycloak login", 
+        security_logger.info("Authenticated user attempted to access Keycloak login", 
                            user_id=current_user.idUsuario)
         if current_user.rol == 'admin':
             return redirect(url_for('admin.dashboard'))
         else:
             return redirect(url_for('tecnicos.dashboard'))
     
-    security_logger.info("Iniciando autenticación con Keycloak",
+    security_logger.info("Starting Keycloak authentication",
                         operation="keycloak_login_initiate",
                         component="auth")
     
     try:
         return keycloak_oidc.authorize_redirect()
     except Exception as e:
-        security_logger.error("Error al iniciar autenticación con Keycloak",
+        security_logger.error("Error starting Keycloak authentication",
                             operation="keycloak_login_initiate",
                             component="auth",
                             error=str(e))
-        flash('Error al conectar con el sistema de autenticación. Intente nuevamente.', 'error')
+        flash('Authentication error. Please try again.', 'error')
         return redirect(url_for('main.index'))
 
 @auth.route('/callback')
@@ -308,14 +308,14 @@ def keycloak_callback():
                             component="auth",
                             error=error,
                             error_description=request.args.get('error_description'))
-        flash(f'Error de autenticación: {error}', 'error')
+        flash(f'Authentication error: {error}', 'error')
         return redirect(url_for('auth.login'))
     
     if not code:
         security_logger.warning("No authorization code received in callback",
                               operation="keycloak_callback",
                               component="auth")
-        flash('Error: No se recibió código de autorización.', 'error')
+        flash('Error: No authorization code received.', 'error')
         return redirect(url_for('auth.login'))
     
     try:
@@ -327,10 +327,10 @@ def keycloak_callback():
         token = keycloak_oidc.authorize_access_token()
         
         if not token:
-            security_logger.warning("No se recibió token válido desde Keycloak",
+            security_logger.warning("No valid token received from Keycloak",
                                   operation="keycloak_callback",
                                   component="auth")
-            flash('Error en la autenticación. Intente nuevamente.', 'error')
+            flash('Authentication error. Please try again.', 'error')
             return redirect(url_for('auth.login'))
         
         security_logger.info("Token received successfully",
@@ -342,7 +342,7 @@ def keycloak_callback():
         
         # Login user using Keycloak token
         if keycloak_auth.login_user_from_keycloak(token):
-            audit_logger.info("Usuario autenticado exitosamente con Keycloak",
+            audit_logger.info("User successfully authenticated with Keycloak",
                             operation="keycloak_login_success",
                             component="auth",
                             user_id=current_user.idUsuario,
@@ -356,22 +356,22 @@ def keycloak_callback():
                 else:
                     next_page = url_for('tecnicos.dashboard')
             
-            flash(f'¡Bienvenido, {current_user.nombre}!', 'success')
+            flash(f'Welcome, {current_user.nombre}!', 'success')
             return redirect(next_page)
         else:
-            security_logger.error("Falló el login del usuario desde Keycloak",
+            security_logger.error("Failed to login user from Keycloak",
                                 operation="keycloak_login_failed",
                                 component="auth")
-            flash('Error al procesar la autenticación. Contacte al administrador.', 'error')
+            flash('Error processing authentication. Contact administrator.', 'error')
             return redirect(url_for('auth.login'))
             
     except Exception as e:
-        security_logger.error("Error en callback de Keycloak",
+        security_logger.error("Error in Keycloak callback",
                             operation="keycloak_callback",
                             component="auth",
                             error=str(e),
                             error_type=type(e).__name__)
-        flash('Error en la autenticación. Intente nuevamente.', 'error')
+        flash('Authentication error. Please try again.', 'error')
         return redirect(url_for('auth.login'))
 
 @auth.route('/keycloak-logout')
