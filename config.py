@@ -29,19 +29,20 @@ class Config:
     LOG_DIR = os.environ.get('LOG_DIR', 'logs')
     
     # Keycloak Configuration
-    KEYCLOAK_SERVER_URL = os.environ.get('KEYCLOAK_SERVER_URL', '').rstrip('/') + '/' if os.environ.get('KEYCLOAK_SERVER_URL') else ''
+    KEYCLOAK_SERVER_URL = os.environ.get('KEYCLOAK_SERVER_URL', '')
     KEYCLOAK_REALM = os.environ.get('KEYCLOAK_REALM', 'CRUB')
     KEYCLOAK_CLIENT_ID = os.environ.get('KEYCLOAK_CLIENT_ID', '')
     KEYCLOAK_CLIENT_SECRET = os.environ.get('KEYCLOAK_CLIENT_SECRET', '')
-    
-    # Calculate Keycloak URIs
-    _base_url = f"https://{SERVER_NAME}{APPLICATION_ROOT}" if IS_PRODUCTION and SERVER_NAME else "http://127.0.0.1:5000"
-    KEYCLOAK_REDIRECT_URI = os.environ.get('KEYCLOAK_REDIRECT_URI', f"{_base_url}/auth/callback")
-    KEYCLOAK_POST_LOGOUT_REDIRECT_URI = os.environ.get('KEYCLOAK_POST_LOGOUT_REDIRECT_URI', f"{_base_url}/")
+    KEYCLOAK_REDIRECT_URI = os.environ.get('KEYCLOAK_REDIRECT_URI', '')
+    KEYCLOAK_POST_LOGOUT_REDIRECT_URI = os.environ.get('KEYCLOAK_POST_LOGOUT_REDIRECT_URI', '')
     
     # Role mapping
     KEYCLOAK_ADMIN_ROLE = os.environ.get('KEYCLOAK_ADMIN_ROLE', 'app_admin')
     KEYCLOAK_TECNICO_ROLE = os.environ.get('KEYCLOAK_TECNICO_ROLE', 'laboratorista')
+    
+    # Debug configuration
+    KEYCLOAK_DEBUG = os.environ.get('KEYCLOAK_DEBUG', 'false').lower() == 'true'
+    BROWSER_DEBUG = os.environ.get('BROWSER_DEBUG', 'false').lower() == 'true'
 
 
 class DevelopmentConfig(Config):
