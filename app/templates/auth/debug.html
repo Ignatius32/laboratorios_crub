@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Authentication Debug Information
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Debug Mode:</strong> This page shows detailed authentication information to help diagnose login issues.
+                    </div>
+                    
+                    <h5>Request Information</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>URL:</strong></td>
+                                <td><code>{{ request.url }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Method:</strong></td>
+                                <td><code>{{ request.method }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Referrer:</strong></td>
+                                <td><code>{{ request.referrer or 'None' }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>User Agent:</strong></td>
+                                <td><code>{{ request.user_agent.string }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Remote Address:</strong></td>
+                                <td><code>{{ request.remote_addr }}</code></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <h5 class="mt-4">URL Parameters</h5>
+                    {% if request.args %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                {% for key, value in request.args.items() %}
+                                <tr>
+                                    <td><strong>{{ key }}:</strong></td>
+                                    <td>
+                                        {% if key == 'code' and value|length > 20 %}
+                                            <code>{{ value[:10] }}...{{ value[-10:] }}</code>
+                                        {% else %}
+                                            <code>{{ value }}</code>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No URL parameters found</p>
+                    {% endif %}
+                    
+                    <h5 class="mt-4">Session Information</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Session ID:</strong></td>
+                                <td><code>{{ session.get('_id', 'Not available') }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Keycloak Authenticated:</strong></td>
+                                <td><code>{{ session.get('keycloak_authenticated', False) }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Has Keycloak Token:</strong></td>
+                                <td><code>{{ 'Yes' if session.get('keycloak_token') else 'No' }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Flask-Login Authenticated:</strong></td>
+                                <td><code>{{ current_user.is_authenticated }}</code></td>
+                            </tr>
+                            {% if current_user.is_authenticated %}
+                            <tr>
+                                <td><strong>User ID:</strong></td>
+                                <td><code>{{ current_user.idUsuario }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>User Email:</strong></td>
+                                <td><code>{{ current_user.email }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>User Role:</strong></td>
+                                <td><code>{{ current_user.rol }}</code></td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    
+                    <h5 class="mt-4">Configuration</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Keycloak Server:</strong></td>
+                                <td><code>{{ config.get('KEYCLOAK_SERVER_URL', 'Not configured') }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Keycloak Realm:</strong></td>
+                                <td><code>{{ config.get('KEYCLOAK_REALM', 'Not configured') }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Client ID:</strong></td>
+                                <td><code>{{ config.get('KEYCLOAK_CLIENT_ID', 'Not configured') }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Redirect URI:</strong></td>
+                                <td><code>{{ config.get('KEYCLOAK_REDIRECT_URI', 'Not configured') }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Application Root:</strong></td>
+                                <td><code>{{ config.get('APPLICATION_ROOT', 'Not configured') }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Server Name:</strong></td>
+                                <td><code>{{ config.get('SERVER_NAME', 'Not configured') }}</code></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    {% if error_details %}
+                    <h5 class="mt-4 text-danger">Error Details</h5>
+                    <div class="alert alert-danger">
+                        <pre><code>{{ error_details }}</code></pre>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Login
+                        </a>
+                        <button onclick="exportDebugData()" class="btn btn-secondary">
+                            <i class="fas fa-download me-2"></i>Export Debug Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportDebugData() {
+    const debugData = {
+        timestamp: new Date().toISOString(),
+        url: '{{ request.url }}',
+        method: '{{ request.method }}',
+        referrer: '{{ request.referrer or "None" }}',
+        userAgent: '{{ request.user_agent.string }}',
+        remoteAddr: '{{ request.remote_addr }}',
+        urlParams: {{ request.args.to_dict() | tojson }},
+        sessionInfo: {
+            sessionId: '{{ session.get("_id", "Not available") }}',
+            keycloakAuthenticated: {{ session.get('keycloak_authenticated', False) | tojson }},
+            hasKeycloakToken: {{ (session.get('keycloak_token') is not none) | tojson }},
+            flaskLoginAuthenticated: {{ current_user.is_authenticated | tojson }}
+            {% if current_user.is_authenticated %},
+            userId: '{{ current_user.idUsuario }}',
+            userEmail: '{{ current_user.email }}',
+            userRole: '{{ current_user.rol }}'
+            {% endif %}
+        },
+        configuration: {
+            keycloakServer: '{{ config.get("KEYCLOAK_SERVER_URL", "Not configured") }}',
+            keycloakRealm: '{{ config.get("KEYCLOAK_REALM", "Not configured") }}',
+            clientId: '{{ config.get("KEYCLOAK_CLIENT_ID", "Not configured") }}',
+            redirectUri: '{{ config.get("KEYCLOAK_REDIRECT_URI", "Not configured") }}',
+            applicationRoot: '{{ config.get("APPLICATION_ROOT", "Not configured") }}',
+            serverName: '{{ config.get("SERVER_NAME", "Not configured") }}'
+        }
+        {% if error_details %},
+        errorDetails: {{ error_details | tojson }}
+        {% endif %}
+    };
+    
+    const dataStr = JSON.stringify(debugData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `keycloak-debug-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+// Log debug information to console
+console.log('[AUTH-DEBUG] Debug page loaded with data:', {
+    url: '{{ request.url }}',
+    urlParams: {{ request.args.to_dict() | tojson }},
+    sessionAuth: {{ session.get('keycloak_authenticated', False) | tojson }},
+    userAuth: {{ current_user.is_authenticated | tojson }}
+});
+</script>
+{% endblock %}
