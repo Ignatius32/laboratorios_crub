@@ -428,6 +428,12 @@ def keycloak_callback():
                             error=str(e),
                             error_type=type(e).__name__,
                             traceback=str(e.__traceback__))
+        
+        # In debug mode, store error details and redirect to debug page
+        if current_app.config.get('KEYCLOAK_DEBUG', False):
+            session['auth_debug_error'] = f"Exception: {type(e).__name__}: {str(e)}"
+            return redirect(url_for('auth.auth_debug'))
+        
         flash('Authentication error. Please try again.', 'error')
         return redirect(url_for('auth.login'))
 
@@ -437,3 +443,24 @@ def keycloak_callback():
 def keycloak_logout():
     """Legacy route - redirect to unified logout"""
     return redirect(url_for('auth.logout'))
+
+@auth.route('/debug')
+def auth_debug():
+    """Debug route to show authentication information (only in debug mode)"""
+    from flask import current_app
+    
+    # Only allow in debug mode
+    if not current_app.config.get('KEYCLOAK_DEBUG', False):
+        flash('Debug mode is not enabled.', 'error')
+        return redirect(url_for('auth.login'))
+    
+    error_details = None
+    try:
+        # Try to get any stored error details from session
+        error_details = session.pop('auth_debug_error', None)
+    except:
+        pass
+    
+    return render_template('auth/debug.html', 
+                          title='Authentication Debug',
+                          error_details=error_details)
