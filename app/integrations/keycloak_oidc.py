@@ -2,7 +2,12 @@
 Keycloak OpenID Connect Integration for Flask Application
 Handles OAuth2/OIDC authentication flows
 """
-from authlib.integrations.flask_client import OAuth
+try:
+    from authlib.integrations.flask_client import OAuth
+except ImportError:
+    print("ERROR: authlib not installed. Run: pip install authlib")
+    OAuth = None
+
 from flask import current_app, session, url_for, redirect, request, flash
 from flask_login import login_user, logout_user
 import jwt
@@ -15,6 +20,9 @@ class KeycloakOIDC:
     """Handles Keycloak OpenID Connect authentication"""
     
     def __init__(self, app=None):
+        if OAuth is None:
+            raise ImportError("authlib is required for Keycloak integration. Run: pip install authlib")
+        
         self.oauth = OAuth()
         self.keycloak = None
         self.logger = get_security_logger()
@@ -24,15 +32,36 @@ class KeycloakOIDC:
     
     def init_app(self, app):
         """Initialize with Flask app"""
-        self.oauth.init_app(app)
-        
-        # Ensure server URL ends with /
-        server_url = app.config['KEYCLOAK_SERVER_URL']
-        if not server_url.endswith('/'):
-            server_url = server_url + '/'
-            app.config['KEYCLOAK_SERVER_URL'] = server_url
-        
         try:
+            self.oauth.init_app(app)
+            
+            # Ensure server URL ends with /
+            server_url = app.config['KEYCLOAK_SERVER_URL']
+            if not server_url.endswith('/'):
+                server_url = server_url + '/'
+                app.config['KEYCLOAK_SERVER_URL'] = server_url
+            
+            # Validate required configuration
+            required_configs = [
+                'KEYCLOAK_SERVER_URL',
+                'KEYCLOAK_REALM',
+                'KEYCLOAK_CLIENT_ID',
+                'KEYCLOAK_CLIENT_SECRET',
+                'KEYCLOAK_REDIRECT_URI'
+            ]
+            
+            missing_configs = []
+            for config in required_configs:
+                if not app.config.get(config):
+                    missing_configs.append(config)
+            
+            if missing_configs:
+                error_msg = f"Missing required Keycloak configuration: {', '.join(missing_configs)}"
+                self.logger.error(error_msg,
+                                operation="keycloak_init",
+                                component="keycloak_oidc")
+                raise ValueError(error_msg)
+            
             # Register Keycloak client with explicit configuration
             self.keycloak = self.oauth.register(
                 name='keycloak',
@@ -47,6 +76,26 @@ class KeycloakOIDC:
                     'scope': 'openid email profile'
                 }
             )
+            
+            self.logger.info("Keycloak OIDC client initialized successfully",
+                            operation="keycloak_init",
+                            component="keycloak_oidc",
+                            realm=app.config['KEYCLOAK_REALM'],
+                            server_url=server_url,
+                            client_id=app.config['KEYCLOAK_CLIENT_ID'],
+                            redirect_uri=app.config['KEYCLOAK_REDIRECT_URI'])
+                            
+        except Exception as e:
+            self.logger.error("Failed to initialize Keycloak OIDC client",
+                            operation="keycloak_init",
+                            component="keycloak_oidc",
+                            error=str(e),
+                            error_type=type(e).__name__,
+                            server_url=app.config.get('KEYCLOAK_SERVER_URL'),
+                            realm=app.config.get('KEYCLOAK_REALM'),
+                            client_id=app.config.get('KEYCLOAK_CLIENT_ID'))
+            # Don't raise the exception - allow the app to start but log the error
+            # The keycloak_login route will handle the case where self.keycloak is None
             
             self.logger.info("Keycloak OIDC client initialized successfully",
                             operation="keycloak_init",
