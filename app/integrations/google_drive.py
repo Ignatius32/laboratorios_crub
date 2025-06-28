@@ -1,7 +1,7 @@
 import requests
 import json
 import os
-from flask import current_app
+import logging
 
 class GoogleDriveIntegration:
     """
@@ -9,13 +9,25 @@ class GoogleDriveIntegration:
     """
     
     def __init__(self):
-        # Get Google Apps Script deployment URL from environment variables or config
+        # Get Google Apps Script deployment URL from environment variables
         self.script_url = os.environ.get('GOOGLE_SCRIPT_URL')
-        self.secure_token = os.environ.get('GOOGLE_DRIVE_SECURE_TOKEN', '1250')  # Use the same env var name as in Google Apps Script
+        self.secure_token = os.environ.get('GOOGLE_DRIVE_SECURE_TOKEN', '1250')
+        self.logger = logging.getLogger(__name__)
         
-        if not self.script_url:
-            # Fallback or development URL if not set in environment
-            self.script_url = current_app.config.get('GOOGLE_SCRIPT_URL', '')
+    def _get_script_url(self):
+        """Get the script URL, checking environment first, then Flask config if available"""
+        if self.script_url:
+            return self.script_url
+        
+        # Try to get from Flask config if we're in an application context
+        try:
+            from flask import has_app_context, current_app
+            if has_app_context():
+                return current_app.config.get('GOOGLE_SCRIPT_URL', '')
+        except:
+            pass
+        
+        return ''
     
     def create_laboratory_folders(self, lab_id, lab_name):
         """
@@ -28,8 +40,9 @@ class GoogleDriveIntegration:
         Returns:
             dict: Dictionary with folder IDs or None if there was an error
         """
-        if not self.script_url:
-            current_app.logger.error("Google Script URL not configured")
+        script_url = self._get_script_url()
+        if not script_url:
+            self.logger.error("Google Script URL not configured")
             return None
             
         try:
@@ -42,11 +55,11 @@ class GoogleDriveIntegration:
             }
             
             # Log the request for debugging
-            current_app.logger.info(f"Sending request to Google Script: {data}")
+            self.logger.info(f"Sending request to Google Script: {data}")
             
             # Send request to Google Apps Script
             response = requests.post(
-                self.script_url,
+                script_url,
                 json=data,
                 headers={'Content-Type': 'application/json'}
             )
@@ -60,14 +73,14 @@ class GoogleDriveIntegration:
                         'movimientos_folder_id': result.get('movimientosFolderId')
                     }
                 else:
-                    current_app.logger.error(f"Drive API Error: {result.get('error')}")
+                    self.logger.error(f"Drive API Error: {result.get('error')}")
                     return None
             else:
-                current_app.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
+                self.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
                 return None
                 
         except Exception as e:
-            current_app.logger.error(f"Exception in Google Drive integration: {str(e)}")
+            self.logger.error(f"Exception in Google Drive integration: {str(e)}")
             return None
             
     def delete_laboratory_folders(self, folder_ids):
@@ -83,12 +96,12 @@ class GoogleDriveIntegration:
             bool: True if deletion was successful, False otherwise
         """
         if not self.script_url:
-            current_app.logger.error("Google Script URL not configured")
+            self.logger.error("Google Script URL not configured")
             return False
             
         # If folder IDs are None or empty, return True (nothing to delete)
         if not folder_ids or (not folder_ids.get('lab_folder_id') and not folder_ids.get('movimientos_folder_id')):
-            current_app.logger.info("No folder IDs provided for deletion")
+            self.logger.info("No folder IDs provided for deletion")
             return True
             
         try:
@@ -101,7 +114,7 @@ class GoogleDriveIntegration:
             }
             
             # Log the request for debugging
-            current_app.logger.info(f"Sending folder deletion request to Google Script: {data}")
+            self.logger.info(f"Sending folder deletion request to Google Script: {data}")
             
             # Send request to Google Apps Script
             response = requests.post(
@@ -114,17 +127,17 @@ class GoogleDriveIntegration:
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):
-                    current_app.logger.info("Folders successfully deleted from Google Drive")
+                    self.logger.info("Folders successfully deleted from Google Drive")
                     return True
                 else:
-                    current_app.logger.error(f"Drive API Error: {result.get('error')}")
+                    self.logger.error(f"Drive API Error: {result.get('error')}")
                     return False
             else:                
-                current_app.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
+                self.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
                 return False
                 
         except Exception as e:
-            current_app.logger.error(f"Exception in Google Drive folder deletion: {str(e)}")
+            self.logger.error(f"Exception in Google Drive folder deletion: {str(e)}")
             return False
             
     def upload_movimiento_documento(self, lab_id, movimiento_id, file_data, file_name, file_type):
@@ -142,7 +155,7 @@ class GoogleDriveIntegration:
             dict: Dictionary with file ID and URL or None if there was an error
         """
         if not self.script_url:
-            current_app.logger.error("Google Script URL not configured")
+            self.logger.error("Google Script URL not configured")
             return None
             
         try:
@@ -164,7 +177,7 @@ class GoogleDriveIntegration:
             
             # Log the request for debugging (excluding file data)
             log_data = {k: v for k, v in data.items() if k != 'fileData'}
-            current_app.logger.info(f"Sending document upload request to Google Script: {log_data}")
+            self.logger.info(f"Sending document upload request to Google Script: {log_data}")
             
             # Send request to Google Apps Script
             response = requests.post(
@@ -183,14 +196,14 @@ class GoogleDriveIntegration:
                         'file_url': result.get('fileUrl')
                     }
                 else:
-                    current_app.logger.error(f"Drive API Error: {result.get('error')}")
+                    self.logger.error(f"Drive API Error: {result.get('error')}")
                     return None
             else:
-                current_app.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
+                self.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
                 return None
                 
         except Exception as e:
-            current_app.logger.error(f"Exception in Google Drive document upload: {str(e)}")
+            self.logger.error(f"Exception in Google Drive document upload: {str(e)}")
             return None
             
     def send_email(self, to, subject, html_body, sender_name=None, reply_to=None):
@@ -208,7 +221,7 @@ class GoogleDriveIntegration:
             bool: True if email was sent successfully, False otherwise
         """
         if not self.script_url:
-            current_app.logger.error("Google Script URL not configured")
+            self.logger.error("Google Script URL not configured")
             return False
             
         try:
@@ -228,7 +241,7 @@ class GoogleDriveIntegration:
                 data['replyTo'] = reply_to
             
             # Log the request for debugging
-            current_app.logger.info(f"Sending email request to Google Script: {to}, subject: {subject}")
+            self.logger.info(f"Sending email request to Google Script: {to}, subject: {subject}")
             
             # Send request to Google Apps Script
             response = requests.post(
@@ -240,17 +253,17 @@ class GoogleDriveIntegration:
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):
-                    current_app.logger.info(f"Email sent successfully to {to}")
+                    self.logger.info(f"Email sent successfully to {to}")
                     return True
                 else:
-                    current_app.logger.error(f"Google Script Error: {result.get('error')}")
+                    self.logger.error(f"Google Script Error: {result.get('error')}")
                     return False
             else:
-                current_app.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
+                self.logger.error(f"HTTP Error: {response.status_code}, Response: {response.text}")
                 return False
                 
         except Exception as e:
-            current_app.logger.error(f"Exception in email sending: {str(e)}")
+            self.logger.error(f"Exception in email sending: {str(e)}")
             return False
             
     def upload_ficha_seguridad(self, producto_id, file_data, file_extension):
@@ -266,7 +279,7 @@ class GoogleDriveIntegration:
             dict: Dictionary with file ID and URL or None if there was an error
         """
         if not self.script_url:
-            current_app.logger.error("Google Script URL not configured")
+            self.logger.error("Google Script URL not configured")
             return None
             
         try:
@@ -283,7 +296,7 @@ class GoogleDriveIntegration:
             
             # Log the request for debugging (excluding file data)
             log_data = {k: v for k, v in data.items() if k != 'fileData'}
-            current_app.logger.info(f"Sending ficha seguridad upload request to Google Script: {log_data}")
+            self.logger.info(f"Sending ficha seguridad upload request to Google Script: {log_data}")
             
             # Send request to Google Apps Script
             response = requests.post(
@@ -295,23 +308,23 @@ class GoogleDriveIntegration:
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):
-                    current_app.logger.info(f"Ficha de seguridad uploaded successfully: {file_name}")
+                    self.logger.info(f"Ficha de seguridad uploaded successfully: {file_name}")
                     return {
                         'file_id': result.get('fileId'),
                         'file_url': result.get('fileUrl')
                     }
                 else:
                     error_msg = result.get('error', 'Unknown error')
-                    current_app.logger.error(f"Drive API Error: {error_msg}")
+                    self.logger.error(f"Drive API Error: {error_msg}")
                     return {'error': error_msg}
             else:
                 error_msg = f"HTTP Error: {response.status_code}, Response: {response.text}"
-                current_app.logger.error(error_msg)
+                self.logger.error(error_msg)
                 return {'error': error_msg}
                 
         except Exception as e:
             error_msg = f"Exception in ficha seguridad upload: {str(e)}"
-            current_app.logger.error(error_msg)
+            self.logger.error(error_msg)
             return {'error': error_msg}
         
     def download_file(self, file_id):
@@ -325,7 +338,7 @@ class GoogleDriveIntegration:
             dict: Dictionary with file data and metadata or None if there was an error
         """
         if not self.script_url:
-            current_app.logger.error("Google Script URL not configured")
+            self.logger.error("Google Script URL not configured")
             return None
             
         try:
@@ -337,7 +350,7 @@ class GoogleDriveIntegration:
             }
             
             # Log the request for debugging
-            current_app.logger.info(f"Sending file download request to Google Script: {data}")
+            self.logger.info(f"Sending file download request to Google Script: {data}")
             
             # Send request to Google Apps Script
             response = requests.post(
@@ -351,7 +364,7 @@ class GoogleDriveIntegration:
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):
-                    current_app.logger.info(f"File downloaded successfully: {file_id}")
+                    self.logger.info(f"File downloaded successfully: {file_id}")
                     return {
                         'file_data': result.get('fileData'),  # Base64 encoded file data
                         'file_name': result.get('fileName'),
@@ -360,16 +373,16 @@ class GoogleDriveIntegration:
                     }
                 else:
                     error_msg = result.get('error', 'Unknown error')
-                    current_app.logger.error(f"Drive API Error: {error_msg}")
+                    self.logger.error(f"Drive API Error: {error_msg}")
                     return {'error': error_msg}
             else:
                 error_msg = f"HTTP Error: {response.status_code}, Response: {response.text}"
-                current_app.logger.error(error_msg)
+                self.logger.error(error_msg)
                 return {'error': error_msg}
                 
         except Exception as e:
             error_msg = f"Exception in file download: {str(e)}"
-            current_app.logger.error(error_msg)
+            self.logger.error(error_msg)
             return {'error': error_msg}
 
     def get_file_stream_url(self, file_id):
@@ -383,7 +396,7 @@ class GoogleDriveIntegration:
             dict: Dictionary with streaming URL or None if there was an error
         """
         if not self.script_url:
-            current_app.logger.error("Google Script URL not configured")
+            self.logger.error("Google Script URL not configured")
             return None
             
         try:
@@ -395,7 +408,7 @@ class GoogleDriveIntegration:
             }
             
             # Log the request for debugging
-            current_app.logger.info(f"Sending file stream URL request to Google Script: {data}")
+            self.logger.info(f"Sending file stream URL request to Google Script: {data}")
             
             # Send request to Google Apps Script
             response = requests.post(
@@ -409,7 +422,7 @@ class GoogleDriveIntegration:
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):
-                    current_app.logger.info(f"File stream URL obtained successfully: {file_id}")
+                    self.logger.info(f"File stream URL obtained successfully: {file_id}")
                     return {
                         'stream_url': result.get('streamUrl'),
                         'file_name': result.get('fileName'),
@@ -417,16 +430,16 @@ class GoogleDriveIntegration:
                     }
                 else:
                     error_msg = result.get('error', 'Unknown error')
-                    current_app.logger.error(f"Drive API Error: {error_msg}")
+                    self.logger.error(f"Drive API Error: {error_msg}")
                     return {'error': error_msg}
             else:
                 error_msg = f"HTTP Error: {response.status_code}, Response: {response.text}"
-                current_app.logger.error(error_msg)
+                self.logger.error(error_msg)
                 return {'error': error_msg}
                 
         except Exception as e:
             error_msg = f"Exception in getting file stream URL: {str(e)}"
-            current_app.logger.error(error_msg)
+            self.logger.error(error_msg)
             return {'error': error_msg}
 
 # Create a singleton instance
