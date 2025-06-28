@@ -12,6 +12,8 @@ from app.utils.logging_config import get_security_logger, get_audit_logger
 from app.utils.keycloak_auth import keycloak_auth
 from app.integrations.keycloak_oidc import keycloak_oidc
 from werkzeug.security import generate_password_hash
+import json
+import json
 
 auth = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -275,14 +277,58 @@ def keycloak_login():
                         component="auth")
     
     try:
-        return keycloak_oidc.authorize_redirect()
+        # Check if keycloak_oidc is properly initialized
+        if not keycloak_oidc or not keycloak_oidc.keycloak:
+            security_logger.error("Keycloak OIDC client not initialized",
+                                operation="keycloak_login_initiate",
+                                component="auth")
+            flash('Keycloak authentication is not properly configured. Contact administrator.', 'error')
+            return redirect(url_for('auth.login'))
+        
+        # Log configuration for debugging
+        security_logger.info("Keycloak configuration check",
+                           operation="keycloak_login_initiate",
+                           component="auth",
+                           server_url=current_app.config.get('KEYCLOAK_SERVER_URL'),
+                           realm=current_app.config.get('KEYCLOAK_REALM'),
+                           client_id=current_app.config.get('KEYCLOAK_CLIENT_ID'),
+                           redirect_uri=current_app.config.get('KEYCLOAK_REDIRECT_URI'))
+        
+        # Attempt to initiate OAuth flow
+        redirect_response = keycloak_oidc.authorize_redirect()
+        
+        security_logger.info("Keycloak authorization redirect initiated successfully",
+                           operation="keycloak_login_initiate",
+                           component="auth")
+        
+        return redirect_response
+        
+    except AttributeError as e:
+        security_logger.error("Keycloak OIDC attribute error",
+                            operation="keycloak_login_initiate",
+                            component="auth",
+                            error=str(e),
+                            error_type="AttributeError")
+        flash('Keycloak authentication service unavailable. Please try again later.', 'error')
+        return redirect(url_for('auth.login'))
+        
     except Exception as e:
         security_logger.error("Error starting Keycloak authentication",
                             operation="keycloak_login_initiate",
                             component="auth",
-                            error=str(e))
-        flash('Authentication error. Please try again.', 'error')
-        return redirect(url_for('main.index'))
+                            error=str(e),
+                            error_type=type(e).__name__,
+                            config_available=bool(current_app.config.get('KEYCLOAK_SERVER_URL')))
+        
+        # In debug mode, provide more detailed error information
+        if current_app.config.get('KEYCLOAK_DEBUG', False):
+            flash(f'Keycloak authentication error: {str(e)}', 'error')
+            # Store error details for debug page
+            session['auth_debug_error'] = f"Keycloak login error: {type(e).__name__}: {str(e)}"
+            return redirect(url_for('auth.auth_debug'))
+        else:
+            flash('Authentication error. Please try again.', 'error')
+            return redirect(url_for('auth.login'))
 
 @auth.route('/callback')
 @log_security_event("keycloak_callback", risk_level="medium")
@@ -464,3 +510,51 @@ def auth_debug():
     return render_template('auth/debug.html', 
                           title='Authentication Debug',
                           error_details=error_details)
+
+@auth.route('/test-keycloak-config')
+def test_keycloak_config():
+    """Test Keycloak configuration without initiating OAuth flow"""
+    if not current_app.config.get('KEYCLOAK_DEBUG', False):
+        return redirect(url_for('auth.login'))
+    
+    config_status = {
+        'KEYCLOAK_SERVER_URL': current_app.config.get('KEYCLOAK_SERVER_URL'),
+        'KEYCLOAK_REALM': current_app.config.get('KEYCLOAK_REALM'),
+        'KEYCLOAK_CLIENT_ID': current_app.config.get('KEYCLOAK_CLIENT_ID'),
+        'KEYCLOAK_CLIENT_SECRET': '***' if current_app.config.get('KEYCLOAK_CLIENT_SECRET') else None,
+        'KEYCLOAK_REDIRECT_URI': current_app.config.get('KEYCLOAK_REDIRECT_URI'),
+        'keycloak_oidc_initialized': keycloak_oidc is not None,
+        'keycloak_client_available': keycloak_oidc.keycloak is not None if keycloak_oidc else False
+    }
+    
+    return f"<pre>{json.dumps(config_status, indent=2)}</pre>"
+
+@auth.route('/keycloak-health')
+def keycloak_health():
+    """Simple health check for Keycloak integration"""
+    try:
+        from app.integrations.keycloak_oidc import keycloak_oidc
+        
+        status = {
+            'status': 'ok',
+            'keycloak_oidc_imported': True,
+            'keycloak_oidc_exists': keycloak_oidc is not None,
+            'oauth_client_exists': keycloak_oidc.oauth is not None if keycloak_oidc else False,
+            'keycloak_client_exists': keycloak_oidc.keycloak is not None if keycloak_oidc else False,
+            'config': {
+                'server_url': current_app.config.get('KEYCLOAK_SERVER_URL'),
+                'realm': current_app.config.get('KEYCLOAK_REALM'),
+                'client_id': current_app.config.get('KEYCLOAK_CLIENT_ID'),
+                'redirect_uri': current_app.config.get('KEYCLOAK_REDIRECT_URI')
+            }
+        }
+        
+        return json.dumps(status, indent=2), 200, {'Content-Type': 'application/json'}
+        
+    except Exception as e:
+        error_status = {
+            'status': 'error',
+            'error': str(e),
+            'error_type': type(e).__name__
+        }
+        return json.dumps(error_status, indent=2), 500, {'Content-Type': 'application/json'}
