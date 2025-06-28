@@ -131,7 +131,7 @@ class KeycloakOIDC:
             try:
                 access_token = token.get('access_token')
                 if access_token:
-                    userinfo_url = f"{current_app.config['KEYCLOAK_SERVER_URL']}realms/{current_app.config['KEYCLOAK_REALM']}/protocol/openid-connect/userinfo"
+                    userinfo_url = f"{current_app.config['KEYCLOAK_SERVER_URL']}/realms/{current_app.config['KEYCLOAK_REALM']}/protocol/openid-connect/userinfo"
                     headers = {'Authorization': f"Bearer {access_token}"}
                     
                     response = requests.get(userinfo_url, headers=headers, timeout=10)
@@ -209,7 +209,7 @@ class KeycloakOIDC:
         if not redirect_uri:
             redirect_uri = current_app.config['KEYCLOAK_POST_LOGOUT_REDIRECT_URI']
         
-        logout_endpoint = f"{current_app.config['KEYCLOAK_SERVER_URL']}realms/{current_app.config['KEYCLOAK_REALM']}/protocol/openid-connect/logout"
+        logout_endpoint = f"{current_app.config['KEYCLOAK_SERVER_URL']}/realms/{current_app.config['KEYCLOAK_REALM']}/protocol/openid-connect/logout"
         
         params = {
             'post_logout_redirect_uri': redirect_uri,
