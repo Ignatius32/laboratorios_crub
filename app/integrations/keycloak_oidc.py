@@ -31,7 +31,7 @@ class KeycloakOIDC:
             name='keycloak',
             client_id=app.config['KEYCLOAK_CLIENT_ID'],
             client_secret=app.config['KEYCLOAK_CLIENT_SECRET'],
-            server_metadata_url=f"{app.config['KEYCLOAK_SERVER_URL']}realms/{app.config['KEYCLOAK_REALM']}/.well-known/openid-configuration",
+            server_metadata_url=f"{app.config['KEYCLOAK_SERVER_URL']}/realms/{app.config['KEYCLOAK_REALM']}/.well-known/openid-configuration",
             client_kwargs={
                 'scope': 'openid email profile'
             }
