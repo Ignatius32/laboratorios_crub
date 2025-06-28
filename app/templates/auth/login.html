@@ -47,6 +47,16 @@
                         {{ form.submit(class="btn btn-primary py-2") }}
                     </div>
                 </form>
+                
+                <!-- Keycloak Login Option -->
+                <div class="text-center mb-3">
+                    <hr class="my-3">
+                    <p class="text-muted small mb-3">O inicia sesión con tu cuenta institucional</p>
+                    <a href="{{ url_for('auth.keycloak_login') }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-university me-2"></i>Iniciar sesión con CRUB
+                    </a>
+                </div>
+                
                 <div class="text-center mt-2">
                     <p class="text-muted small">Sistema de Gestión de Laboratorios<br>Centro Regional Universitario Bariloche</p>
                 </div>

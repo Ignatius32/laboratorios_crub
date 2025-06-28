@@ -8,9 +8,25 @@
             <h1 class="page-title">Gestión de Usuarios</h1>
             <p class="page-subtitle">Administra las cuentas de usuarios y sus permisos en el sistema.</p>
         </div>
-        <a href="{{ url_for('admin.new_usuario') }}" class="btn btn-primary">
-            <i class="fas fa-plus-circle me-2"></i>Nuevo Usuario
-        </a>
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('admin.new_usuario') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-2"></i>Nuevo Usuario
+            </a>
+            <button type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Toggle Dropdown</span>
+            </button>
+            <ul class="dropdown-menu">
+                <li>
+                    <form method="POST" action="{{ url_for('admin.sync_users_from_keycloak') }}" class="d-inline" 
+                          onsubmit="return confirm('¿Está seguro de que desea sincronizar los usuarios desde Keycloak? Esto puede crear o actualizar usuarios.')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="dropdown-item">
+                            <i class="fas fa-sync me-2"></i>Sincronizar desde Keycloak
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
     </div>
 
     <div class="card mb-4">
