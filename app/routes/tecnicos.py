@@ -37,7 +37,7 @@ def tecnico_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.rol != 'tecnico':
             flash('Acceso denegado: Se requiere ser técnico para acceder a esta página', 'danger')
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.keycloak_login'))
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function

@@ -6,6 +6,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField, FileField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional, Regexp
 from app.integrations.google_drive import drive_integration
+from app.integrations.keycloak_admin_client import keycloak_admin
 from app.utils.email_service import EmailService
 from app.utils.stock_service import get_stock_map_for_laboratory, get_global_stock_for_products
 from app.utils.logging_decorators import (
@@ -27,7 +28,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.rol != 'admin':
             flash('Acceso denegado: Se requiere privilegios de administrador', 'danger')
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.keycloak_login'))
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
@@ -346,6 +347,40 @@ def delete_usuario(id):
     db.session.delete(usuario)
     db.session.commit()
     flash('Usuario eliminado correctamente', 'success')
+    return redirect(url_for('admin.list_usuarios'))
+
+@admin.route('/usuarios/sync-keycloak', methods=['POST'])
+@admin_required
+@log_admin_action("sincronizar usuarios desde Keycloak")
+@audit_user_action("user_sync_keycloak")
+def sync_users_from_keycloak():
+    """Synchronize laboratorista users from Keycloak to local database"""
+    try:
+        # Perform the synchronization
+        sync_stats = keycloak_admin.sync_users_to_local_db()
+        
+        # Create a summary message
+        messages = []
+        if sync_stats['created'] > 0:
+            messages.append(f"{sync_stats['created']} usuarios creados")
+        if sync_stats['updated'] > 0:
+            messages.append(f"{sync_stats['updated']} usuarios actualizados")
+        if sync_stats['skipped'] > 0:
+            messages.append(f"{sync_stats['skipped']} usuarios omitidos")
+        if sync_stats['errors'] > 0:
+            messages.append(f"{sync_stats['errors']} errores")
+        
+        if sync_stats['created'] > 0 or sync_stats['updated'] > 0:
+            flash(f'Sincronización completada: {", ".join(messages)}', 'success')
+        elif sync_stats['skipped'] > 0 and sync_stats['errors'] == 0:
+            flash(f'Sincronización completada: {", ".join(messages)} (no hay cambios nuevos)', 'info')
+        else:
+            flash(f'Sincronización completada con problemas: {", ".join(messages)}', 'warning')
+            
+    except Exception as e:
+        current_app.logger.error(f"Error during Keycloak user synchronization: {str(e)}")
+        flash('Error durante la sincronización con Keycloak. Revise los logs para más detalles.', 'danger')
+    
     return redirect(url_for('admin.list_usuarios'))
 
 # CRUD for Laboratorios
