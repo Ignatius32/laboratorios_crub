@@ -33,12 +33,16 @@ class KeycloakOIDC:
             app.config['KEYCLOAK_SERVER_URL'] = server_url
         
         try:
-            # Register Keycloak client
+            # Register Keycloak client with explicit configuration
             self.keycloak = self.oauth.register(
                 name='keycloak',
                 client_id=app.config['KEYCLOAK_CLIENT_ID'],
                 client_secret=app.config['KEYCLOAK_CLIENT_SECRET'],
                 server_metadata_url=f"{server_url}realms/{app.config['KEYCLOAK_REALM']}/.well-known/openid-configuration",
+                authorize_url=f"{server_url}realms/{app.config['KEYCLOAK_REALM']}/protocol/openid-connect/auth",
+                access_token_url=f"{server_url}realms/{app.config['KEYCLOAK_REALM']}/protocol/openid-connect/token",
+                userinfo_endpoint=f"{server_url}realms/{app.config['KEYCLOAK_REALM']}/protocol/openid-connect/userinfo",
+                jwks_uri=f"{server_url}realms/{app.config['KEYCLOAK_REALM']}/protocol/openid-connect/certs",
                 client_kwargs={
                     'scope': 'openid email profile'
                 }
