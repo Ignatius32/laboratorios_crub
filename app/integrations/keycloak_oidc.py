@@ -26,21 +26,38 @@ class KeycloakOIDC:
         """Initialize with Flask app"""
         self.oauth.init_app(app)
         
-        # Register Keycloak client
-        self.keycloak = self.oauth.register(
-            name='keycloak',
-            client_id=app.config['KEYCLOAK_CLIENT_ID'],
-            client_secret=app.config['KEYCLOAK_CLIENT_SECRET'],
-            server_metadata_url=f"{app.config['KEYCLOAK_SERVER_URL']}/realms/{app.config['KEYCLOAK_REALM']}/.well-known/openid-configuration",
-            client_kwargs={
-                'scope': 'openid email profile'
-            }
-        )
+        # Ensure server URL ends with /
+        server_url = app.config['KEYCLOAK_SERVER_URL']
+        if not server_url.endswith('/'):
+            server_url = server_url + '/'
+            app.config['KEYCLOAK_SERVER_URL'] = server_url
         
-        self.logger.info("Keycloak OIDC client initialized",
-                        operation="keycloak_init",
-                        component="keycloak_oidc",
-                        realm=app.config['KEYCLOAK_REALM'])
+        try:
+            # Register Keycloak client
+            self.keycloak = self.oauth.register(
+                name='keycloak',
+                client_id=app.config['KEYCLOAK_CLIENT_ID'],
+                client_secret=app.config['KEYCLOAK_CLIENT_SECRET'],
+                server_metadata_url=f"{server_url}realms/{app.config['KEYCLOAK_REALM']}/.well-known/openid-configuration",
+                client_kwargs={
+                    'scope': 'openid email profile'
+                }
+            )
+            
+            self.logger.info("Keycloak OIDC client initialized successfully",
+                            operation="keycloak_init",
+                            component="keycloak_oidc",
+                            realm=app.config['KEYCLOAK_REALM'],
+                            server_url=server_url)
+                            
+        except Exception as e:
+            self.logger.error("Failed to initialize Keycloak OIDC client",
+                            operation="keycloak_init",
+                            component="keycloak_oidc",
+                            error=str(e),
+                            server_url=server_url,
+                            realm=app.config['KEYCLOAK_REALM'])
+            raise
     
     def authorize_redirect(self):
         """Initiate OAuth2 authorization flow"""
@@ -87,6 +104,14 @@ class KeycloakOIDC:
     def get_user_info(self, token):
         """Get user information from Keycloak"""
         try:
+            # Log token structure for debugging
+            self.logger.info("Getting user info from token",
+                           operation="get_user_info",
+                           component="keycloak_oidc",
+                           token_keys=list(token.keys()) if token else [],
+                           has_id_token=bool(token.get('id_token') if token else False),
+                           has_access_token=bool(token.get('access_token') if token else False))
+            
             # Try multiple methods to extract user info
             user_info = None
             
@@ -97,13 +122,16 @@ class KeycloakOIDC:
                     self.logger.info("User info retrieved via parse_id_token",
                                    operation="get_user_info",
                                    component="keycloak_oidc",
-                                   user_id=user_info.get('sub'))
+                                   user_id=user_info.get('sub'),
+                                   user_email=user_info.get('email'),
+                                   user_name=user_info.get('name'))
                     return user_info
             except Exception as e:
                 self.logger.warning("Failed to parse ID token with authlib",
                                   operation="get_user_info",
                                   component="keycloak_oidc",
-                                  error=str(e))
+                                  error=str(e),
+                                  error_type=type(e).__name__)
             
             # Method 2: Manually decode ID token
             try:
