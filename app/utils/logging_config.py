@@ -103,7 +103,12 @@ class LoggerManager:
         log_level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO').upper())
         
         # Crear directorio de logs
-        os.makedirs(self.log_dir, exist_ok=True)
+        try:
+            os.makedirs(self.log_dir, exist_ok=True)
+        except PermissionError:
+            # Fallback to /tmp if can't create logs directory
+            self.log_dir = '/tmp/laboratorios-crub-logs'
+            os.makedirs(self.log_dir, exist_ok=True)
         
         # Configurar logger principal de la aplicación
         self._setup_app_logger(app, log_level)
