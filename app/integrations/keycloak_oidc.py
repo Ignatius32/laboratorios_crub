@@ -114,14 +114,39 @@ class KeycloakOIDC:
     
     def authorize_redirect(self):
         """Initiate OAuth2 authorization flow"""
-        redirect_uri = current_app.config['KEYCLOAK_REDIRECT_URI']
-        
-        self.logger.info("Initiating OAuth2 authorization",
-                        operation="oauth_authorize",
-                        component="keycloak_oidc",
-                        redirect_uri=redirect_uri)
-        
-        return self.keycloak.authorize_redirect(redirect_uri)
+        try:
+            redirect_uri = current_app.config['KEYCLOAK_REDIRECT_URI']
+            
+            self.logger.info("Initiating OAuth2 authorization",
+                            operation="oauth_authorize",
+                            component="keycloak_oidc",
+                            redirect_uri=redirect_uri,
+                            keycloak_client_exists=self.keycloak is not None,
+                            oauth_exists=self.oauth is not None)
+            
+            if not self.keycloak:
+                self.logger.error("Keycloak client is None in authorize_redirect",
+                                operation="oauth_authorize",
+                                component="keycloak_oidc")
+                raise ValueError("Keycloak client is not initialized")
+            
+            # Call the authorize_redirect method
+            result = self.keycloak.authorize_redirect(redirect_uri)
+            
+            self.logger.info("OAuth2 authorization redirect created successfully",
+                           operation="oauth_authorize",
+                           component="keycloak_oidc",
+                           result_type=type(result).__name__)
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error("Failed to create authorization redirect",
+                            operation="oauth_authorize",
+                            component="keycloak_oidc",
+                            error=str(e),
+                            error_type=type(e).__name__)
+            raise
     
     def authorize_access_token(self):
         """Exchange authorization code for access token"""

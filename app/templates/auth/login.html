@@ -58,6 +58,17 @@
                     <a href="{{ url_for('auth.keycloak_login') }}" id="keycloak-login-btn" class="btn btn-outline-secondary w-100">
                         <i class="fas fa-university me-2"></i>Iniciar sesión con CRUB
                     </a>
+                    
+                    {% if config.get('KEYCLOAK_DEBUG', False) %}
+                    <div class="mt-2">
+                        <small class="text-muted d-block mb-2">Debug Tools:</small>
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('auth.keycloak_health') }}" class="btn btn-outline-info btn-sm">Health</a>
+                            <a href="{{ url_for('auth.auth_debug') }}" class="btn btn-outline-warning btn-sm">Debug</a>
+                            <a href="{{ url_for('auth.reinit_keycloak') }}" class="btn btn-outline-success btn-sm">Reinit</a>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
                 
                 <div class="text-center mt-2">

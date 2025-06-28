@@ -277,12 +277,59 @@ def keycloak_login():
                         component="auth")
     
     try:
+        # Import here to avoid circular imports and ensure fresh import
+        from app.integrations.keycloak_oidc import keycloak_oidc
+        
+        # Log detailed diagnostic information
+        security_logger.info("Keycloak OIDC diagnostic",
+                           operation="keycloak_login_initiate",
+                           component="auth",
+                           keycloak_oidc_exists=keycloak_oidc is not None,
+                           oauth_exists=keycloak_oidc.oauth is not None if keycloak_oidc else False,
+                           keycloak_client_exists=keycloak_oidc.keycloak is not None if keycloak_oidc else False,
+                           keycloak_client_type=type(keycloak_oidc.keycloak).__name__ if keycloak_oidc and keycloak_oidc.keycloak else None)
+        
         # Check if keycloak_oidc is properly initialized
-        if not keycloak_oidc or not keycloak_oidc.keycloak:
-            security_logger.error("Keycloak OIDC client not initialized",
+        if not keycloak_oidc:
+            security_logger.error("Keycloak OIDC object is None",
                                 operation="keycloak_login_initiate",
                                 component="auth")
-            flash('Keycloak authentication is not properly configured. Contact administrator.', 'error')
+            flash('Keycloak authentication service is not available. Contact administrator.', 'error')
+            return redirect(url_for('auth.login'))
+        
+        if not keycloak_oidc.oauth:
+            security_logger.error("Keycloak OAuth object is None",
+                                operation="keycloak_login_initiate",
+                                component="auth")
+            flash('OAuth service is not properly initialized. Contact administrator.', 'error')
+            return redirect(url_for('auth.login'))
+        
+        if not keycloak_oidc.keycloak:
+            security_logger.error("Keycloak client is None - reinitializing",
+                                operation="keycloak_login_initiate",
+                                component="auth")
+            
+            # Try to reinitialize the Keycloak client
+            try:
+                keycloak_oidc.init_app(current_app)
+                security_logger.info("Keycloak client reinitialized",
+                                   operation="keycloak_login_initiate",
+                                   component="auth",
+                                   client_now_exists=keycloak_oidc.keycloak is not None)
+            except Exception as reinit_error:
+                security_logger.error("Failed to reinitialize Keycloak client",
+                                    operation="keycloak_login_initiate",
+                                    component="auth",
+                                    error=str(reinit_error))
+                flash('Keycloak authentication is not properly configured. Contact administrator.', 'error')
+                return redirect(url_for('auth.login'))
+        
+        # Final check after potential reinitialization
+        if not keycloak_oidc.keycloak:
+            security_logger.error("Keycloak client still None after reinitialization",
+                                operation="keycloak_login_initiate",
+                                component="auth")
+            flash('Keycloak authentication service unavailable. Contact administrator.', 'error')
             return redirect(url_for('auth.login'))
         
         # Log configuration for debugging
@@ -295,11 +342,16 @@ def keycloak_login():
                            redirect_uri=current_app.config.get('KEYCLOAK_REDIRECT_URI'))
         
         # Attempt to initiate OAuth flow
+        security_logger.info("Calling authorize_redirect",
+                           operation="keycloak_login_initiate",
+                           component="auth")
+        
         redirect_response = keycloak_oidc.authorize_redirect()
         
         security_logger.info("Keycloak authorization redirect initiated successfully",
                            operation="keycloak_login_initiate",
-                           component="auth")
+                           component="auth",
+                           redirect_response_type=type(redirect_response).__name__)
         
         return redirect_response
         
@@ -309,8 +361,14 @@ def keycloak_login():
                             component="auth",
                             error=str(e),
                             error_type="AttributeError")
-        flash('Keycloak authentication service unavailable. Please try again later.', 'error')
-        return redirect(url_for('auth.login'))
+        
+        if current_app.config.get('KEYCLOAK_DEBUG', False):
+            flash(f'Keycloak attribute error: {str(e)}', 'error')
+            session['auth_debug_error'] = f"AttributeError: {str(e)}"
+            return redirect(url_for('auth.auth_debug'))
+        else:
+            flash('Keycloak authentication service error. Contact administrator.', 'error')
+            return redirect(url_for('auth.login'))
         
     except Exception as e:
         security_logger.error("Error starting Keycloak authentication",
@@ -558,3 +616,23 @@ def keycloak_health():
             'error_type': type(e).__name__
         }
         return json.dumps(error_status, indent=2), 500, {'Content-Type': 'application/json'}
+
+@auth.route('/reinit-keycloak')
+def reinit_keycloak():
+    """Manually reinitialize Keycloak OIDC client (debug mode only)"""
+    if not current_app.config.get('KEYCLOAK_DEBUG', False):
+        flash('Debug mode required for this operation.', 'error')
+        return redirect(url_for('auth.login'))
+    
+    try:
+        from app.integrations.keycloak_oidc import keycloak_oidc
+        
+        # Force reinitialization
+        keycloak_oidc.init_app(current_app)
+        
+        flash('Keycloak OIDC client reinitialized successfully.', 'success')
+        return redirect(url_for('auth.login'))
+        
+    except Exception as e:
+        flash(f'Failed to reinitialize Keycloak: {str(e)}', 'error')
+        return redirect(url_for('auth.login'))
