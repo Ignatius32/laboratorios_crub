@@ -103,8 +103,7 @@ class LoggerManager:
         log_level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO').upper())
         
         # Crear directorio de logs
-        if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir)
+        os.makedirs(self.log_dir, exist_ok=True)
         
         # Configurar logger principal de la aplicación
         self._setup_app_logger(app, log_level)
