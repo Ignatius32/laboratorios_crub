@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.urls import url_parse
 from app.models.models import Usuario, db
@@ -295,26 +295,46 @@ def keycloak_callback():
     security_logger.info("Callback received",
                         operation="keycloak_callback",
                         component="auth",
-                        query_params=dict(request.args))
+                        query_params=dict(request.args),
+                        headers={k: v for k, v in request.headers if k.lower() not in ['authorization', 'cookie']},
+                        referrer=request.referrer,
+                        user_agent=request.user_agent.string,
+                        remote_addr=request.remote_addr)
     
     # Check if we have required parameters
     code = request.args.get('code')
     state = request.args.get('state')
     error = request.args.get('error')
+    session_state = request.args.get('session_state')
+    iss = request.args.get('iss')
+    
+    # Detailed parameter logging
+    security_logger.info("Callback parameters analysis",
+                        operation="keycloak_callback",
+                        component="auth",
+                        has_code=bool(code),
+                        has_state=bool(state),
+                        has_error=bool(error),
+                        has_session_state=bool(session_state),
+                        has_iss=bool(iss),
+                        code_length=len(code) if code else 0,
+                        state_value=state[:10] + "..." if state and len(state) > 10 else state)
     
     if error:
         security_logger.error("Error parameter received in callback",
                             operation="keycloak_callback",
                             component="auth",
                             error=error,
-                            error_description=request.args.get('error_description'))
+                            error_description=request.args.get('error_description'),
+                            state=state)
         flash(f'Authentication error: {error}', 'error')
         return redirect(url_for('auth.login'))
     
     if not code:
         security_logger.warning("No authorization code received in callback",
                               operation="keycloak_callback",
-                              component="auth")
+                              component="auth",
+                              all_params=dict(request.args))
         flash('Error: No authorization code received.', 'error')
         return redirect(url_for('auth.login'))
     
@@ -322,14 +342,24 @@ def keycloak_callback():
         # Exchange authorization code for access token
         security_logger.info("Attempting to exchange code for token",
                            operation="keycloak_callback",
-                           component="auth")
+                           component="auth",
+                           code_prefix=code[:10] + "..." if len(code) > 10 else code)
+        
+        # Log session state before token exchange
+        security_logger.info("Session state before token exchange",
+                           operation="keycloak_callback",
+                           component="auth",
+                           session_keys=list(session.keys()),
+                           session_id=session.get('_id', 'unknown'))
         
         token = keycloak_oidc.authorize_access_token()
         
         if not token:
             security_logger.warning("No valid token received from Keycloak",
                                   operation="keycloak_callback",
-                                  component="auth")
+                                  component="auth",
+                                  oauth_client_id=current_app.config.get('KEYCLOAK_CLIENT_ID'),
+                                  oauth_server_url=current_app.config.get('KEYCLOAK_SERVER_URL'))
             flash('Authentication error. Please try again.', 'error')
             return redirect(url_for('auth.login'))
         
@@ -338,7 +368,17 @@ def keycloak_callback():
                            component="auth",
                            token_type=token.get('token_type'),
                            has_access_token=bool(token.get('access_token')),
-                           has_id_token=bool(token.get('id_token')))
+                           has_id_token=bool(token.get('id_token')),
+                           has_refresh_token=bool(token.get('refresh_token')),
+                           expires_in=token.get('expires_in'),
+                           scope=token.get('scope'))
+        
+        # Log session state after token exchange
+        security_logger.info("Session state after token exchange",
+                           operation="keycloak_callback",
+                           component="auth",
+                           session_keys=list(session.keys()),
+                           keycloak_authenticated=session.get('keycloak_authenticated', False))
         
         # Login user using Keycloak token
         if keycloak_auth.login_user_from_keycloak(token):
@@ -346,7 +386,15 @@ def keycloak_callback():
                             operation="keycloak_login_success",
                             component="auth",
                             user_id=current_user.idUsuario,
-                            email=current_user.email)
+                            email=current_user.email,
+                            role=current_user.rol)
+            
+            security_logger.info("User login successful",
+                               operation="keycloak_callback",
+                               component="auth",
+                               user_id=current_user.idUsuario,
+                               user_role=current_user.rol,
+                               user_authenticated=current_user.is_authenticated)
             
             # Handle next parameter
             next_page = request.args.get('next')
@@ -356,12 +404,20 @@ def keycloak_callback():
                 else:
                     next_page = url_for('tecnicos.dashboard')
             
+            security_logger.info("Redirecting user after successful login",
+                               operation="keycloak_callback",
+                               component="auth",
+                               next_page=next_page,
+                               user_id=current_user.idUsuario)
+            
             flash(f'Welcome, {current_user.nombre}!', 'success')
             return redirect(next_page)
         else:
             security_logger.error("Failed to login user from Keycloak",
                                 operation="keycloak_login_failed",
-                                component="auth")
+                                component="auth",
+                                token_present=bool(token),
+                                session_state=dict(session))
             flash('Error processing authentication. Contact administrator.', 'error')
             return redirect(url_for('auth.login'))
             
@@ -370,7 +426,8 @@ def keycloak_callback():
                             operation="keycloak_callback",
                             component="auth",
                             error=str(e),
-                            error_type=type(e).__name__)
+                            error_type=type(e).__name__,
+                            traceback=str(e.__traceback__))
         flash('Authentication error. Please try again.', 'error')
         return redirect(url_for('auth.login'))
 
