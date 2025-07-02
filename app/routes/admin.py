@@ -6,6 +6,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField, FileField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional, Regexp
 from app.integrations.google_drive import drive_integration
+from app.integrations.keycloak_admin_client import keycloak_admin
 from app.utils.email_service import EmailService
 from app.utils.stock_service import get_stock_map_for_laboratory, get_global_stock_for_products
 from app.utils.logging_decorators import (
@@ -27,7 +28,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.rol != 'admin':
             flash('Acceso denegado: Se requiere privilegios de administrador', 'danger')
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.keycloak_login'))
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
@@ -224,68 +225,13 @@ def list_usuarios():
 @log_admin_action("crear nuevo usuario")
 @audit_user_action("user_creation")
 def new_usuario():
-    form = UsuarioForm()
-    
-    if form.validate_on_submit():
-        # Check if user ID or email already exists
-        if Usuario.query.filter_by(idUsuario=form.idUsuario.data).first():
-            flash('El ID de usuario ya existe', 'danger')
-            return render_template('admin/usuarios/form.html', title='Nuevo Usuario', form=form)
-        
-        if Usuario.query.filter_by(email=form.email.data).first():
-            flash('El email ya está registrado', 'danger')
-            return render_template('admin/usuarios/form.html', title='Nuevo Usuario', form=form)
-        usuario = Usuario(
-            idUsuario=form.idUsuario.data,
-            nombre=form.nombre.data,
-            apellido=form.apellido.data,
-            email=form.email.data,
-            telefono=form.telefono.data,
-            rol=form.rol.data
-        )
-        
-        # Set default password initially
-        if form.rol.data == 'admin' and form.password.data:
-            # For admin users, use provided password if available
-            usuario.set_password(form.password.data)
-        else:
-            # Set a temporary password for technicians or if no password provided for admin
-            usuario.set_password('password123')  # Default password
-        
-        # Assign labs
-        selected_labs = form.labs_asignados.data
-        for lab_id in selected_labs:
-            lab = Laboratorio.query.get(lab_id)
-            if lab:
-                usuario.laboratorios.append(lab)
-        
-        # Save the user to get an ID
-        db.session.add(usuario)
-        db.session.commit()
-        
-        # If it's a technician, generate a reset token and send an email
-        if usuario.rol == 'tecnico':
-            try:
-                # Generate reset token
-                token = usuario.generate_reset_token()
-                db.session.commit()
-                
-                # Send email with password setup link
-                email_sent = EmailService.send_password_reset_email(usuario, token, is_new_user=True)
-                
-                if email_sent:
-                    flash(f'Usuario creado correctamente. Se ha enviado un email a {usuario.email} para establecer la contraseña.', 'success')
-                else:
-                    flash('Usuario creado correctamente, pero hubo un problema al enviar el email. El usuario puede restablecer su contraseña desde la página de inicio de sesión.', 'warning')
-                    current_app.logger.error(f"Failed to send password setup email to {usuario.email}")
-            except Exception as e:
-                current_app.logger.error(f"Error sending password setup email: {str(e)}")
-                flash('Usuario creado correctamente, pero hubo un problema al enviar el email de configuración.', 'warning')
-        else:
-            flash('Usuario administrador creado correctamente', 'success')
-        return redirect(url_for('admin.list_usuarios'))
-    
-    return render_template('admin/usuarios/form.html', title='Nuevo Usuario', form=form)
+    """
+    FUNCIONALIDAD DESHABILITADA:
+    La creación manual de usuarios ha sido deshabilitada.
+    Los usuarios deben sincronizarse desde Keycloak usando la función de sincronización.
+    """
+    flash('La creación manual de usuarios está deshabilitada. Use la función de sincronización con Keycloak.', 'warning')
+    return redirect(url_for('admin.list_usuarios'))
 
 @admin.route('/usuarios/edit/<string:id>', methods=['GET', 'POST'])
 @admin_required
@@ -346,6 +292,57 @@ def delete_usuario(id):
     db.session.delete(usuario)
     db.session.commit()
     flash('Usuario eliminado correctamente', 'success')
+    return redirect(url_for('admin.list_usuarios'))
+
+@admin.route('/usuarios/sync-keycloak', methods=['POST'])
+@admin_required
+@log_admin_action("sincronizar usuarios desde Keycloak")
+@audit_user_action("user_sync_keycloak")
+def sync_users_from_keycloak():
+    """Synchronize laboratorista users from Keycloak to local database"""
+    try:
+        # Check if keycloak_admin is available
+        if not keycloak_admin:
+            current_app.logger.error("Keycloak admin client not available")
+            flash('Error: Keycloak admin client no está disponible. Verifique la configuración.', 'danger')
+            return redirect(url_for('admin.list_usuarios'))
+        
+        # Check if admin client is initialized
+        if not keycloak_admin.admin_client:
+            current_app.logger.error("Keycloak admin client not initialized")
+            flash('Error: Keycloak admin client no está inicializado. Verifique la configuración.', 'danger')
+            return redirect(url_for('admin.list_usuarios'))
+        
+        current_app.logger.info("Starting Keycloak user synchronization")
+        
+        # Perform the synchronization
+        sync_stats = keycloak_admin.sync_users_to_local_db()
+        
+        current_app.logger.info(f"Keycloak synchronization completed: {sync_stats}")
+        
+        # Create a summary message
+        messages = []
+        if sync_stats['created'] > 0:
+            messages.append(f"{sync_stats['created']} usuarios creados")
+        if sync_stats['updated'] > 0:
+            messages.append(f"{sync_stats['updated']} usuarios actualizados")
+        if sync_stats['skipped'] > 0:
+            messages.append(f"{sync_stats['skipped']} usuarios omitidos")
+        if sync_stats['errors'] > 0:
+            messages.append(f"{sync_stats['errors']} errores")
+        
+        if sync_stats['created'] > 0 or sync_stats['updated'] > 0:
+            flash(f'Sincronización completada: {", ".join(messages)}', 'success')
+        elif sync_stats['skipped'] > 0 and sync_stats['errors'] == 0:
+            flash(f'Sincronización completada: {", ".join(messages)} (no hay cambios nuevos)', 'info')
+        else:
+            flash(f'Sincronización completada con problemas: {", ".join(messages)}', 'warning')
+            
+    except Exception as e:
+        error_msg = f"Error during Keycloak user synchronization: {str(e)}"
+        current_app.logger.error(error_msg, exc_info=True)
+        flash(f'Error durante la sincronización con Keycloak: {str(e)}', 'danger')
+    
     return redirect(url_for('admin.list_usuarios'))
 
 # CRUD for Laboratorios

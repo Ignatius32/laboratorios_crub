@@ -103,8 +103,12 @@ class LoggerManager:
         log_level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO').upper())
         
         # Crear directorio de logs
-        if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir)
+        try:
+            os.makedirs(self.log_dir, exist_ok=True)
+        except PermissionError:
+            # Fallback to /tmp if can't create logs directory
+            self.log_dir = '/tmp/laboratorios-crub-logs'
+            os.makedirs(self.log_dir, exist_ok=True)
         
         # Configurar logger principal de la aplicación
         self._setup_app_logger(app, log_level)
@@ -128,7 +132,8 @@ class LoggerManager:
         structured_handler = logging.handlers.RotatingFileHandler(
             os.path.join(self.log_dir, 'app_structured.log'),
             maxBytes=10485760,  # 10MB
-            backupCount=10
+            backupCount=10,
+            encoding='utf-8'
         )
         structured_handler.setLevel(log_level)
         structured_handler.setFormatter(StructuredJSONFormatter())
@@ -137,7 +142,8 @@ class LoggerManager:
         traditional_handler = logging.handlers.RotatingFileHandler(
             os.path.join(self.log_dir, 'app.log'),
             maxBytes=10485760,
-            backupCount=5
+            backupCount=5,
+            encoding='utf-8'
         )
         traditional_handler.setLevel(log_level)
         traditional_formatter = logging.Formatter(
@@ -200,7 +206,8 @@ class LoggerManager:
             structured_handler = logging.handlers.RotatingFileHandler(
                 os.path.join(self.log_dir, config['structured_filename']),
                 maxBytes=10485760,
-                backupCount=20 if logger_name == 'audit' else 10
+                backupCount=20 if logger_name == 'audit' else 10,
+                encoding='utf-8'
             )
             structured_handler.setLevel(config['level'])
             structured_handler.setFormatter(StructuredJSONFormatter())
@@ -209,7 +216,8 @@ class LoggerManager:
             traditional_handler = logging.handlers.RotatingFileHandler(
                 os.path.join(self.log_dir, config['filename']),
                 maxBytes=10485760,
-                backupCount=10 if logger_name == 'audit' else 5
+                backupCount=10 if logger_name == 'audit' else 5,
+                encoding='utf-8'
             )
             traditional_handler.setLevel(config['level'])
             traditional_formatter = logging.Formatter(

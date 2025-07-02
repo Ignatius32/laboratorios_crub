@@ -148,6 +148,23 @@
                 </div>
             </div>
         </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card admin-panel-card text-center border-success">
+                <div class="card-body">
+                    <i class="fas fa-sync text-success"></i>
+                    <h5 class="card-title">Integración Keycloak</h5>
+                    <p class="card-text">Sincroniza usuarios laboratoristas desde Keycloak-CRUB.</p>
+                    <form method="POST" action="{{ url_for('admin.sync_users_from_keycloak') }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success" 
+                                onclick="return confirm('¿Sincronizar usuarios desde Keycloak?')">
+                            <i class="fas fa-sync me-2"></i>Sincronizar Ahora
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>    <!-- Información del Sistema -->
     <div class="row mt-3">
         <div class="col-12">
