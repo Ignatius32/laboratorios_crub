@@ -8,9 +8,16 @@
             <h1 class="page-title">Gestión de Usuarios</h1>
             <p class="page-subtitle">Administra las cuentas de usuarios y sus permisos en el sistema.</p>
         </div>
-        <a href="{{ url_for('admin.new_usuario') }}" class="btn btn-primary">
-            <i class="fas fa-plus-circle me-2"></i>Nuevo Usuario
-        </a>
+        <div>
+            <form method="POST" action="{{ url_for('admin.sync_users_from_keycloak') }}" class="keycloak-sync-form" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-success" 
+                        onsubmit="console.log('[DEBUG] Sync form submitting'); return confirm('¿Sincronizar usuarios desde Keycloak?')"
+                        onclick="console.log('[DEBUG] Sync button clicked'); return confirm('¿Sincronizar usuarios desde Keycloak?')">
+                    <i class="fas fa-sync me-2"></i>Sincronizar Ahora
+                </button>
+            </form>
+        </div>
     </div>
 
     <div class="card mb-4">
@@ -107,11 +114,41 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Keycloak Debug Script -->
+<script src="{{ url_for('static', filename='js/keycloak-debug.js') }}"></script>
+<script>
+    // Enable Keycloak debugging
+    window.keycloakDebugger?.log('Usuario list page loaded');
+</script>
+
 <script>
     // Script para mantener los parámetros de paginación si se agregan filtros futuros
     document.addEventListener('DOMContentLoaded', function() {
-        const formEl = document.querySelector('form');
-        if (formEl) {
+        // Limpiar token CSRF de la URL si existe
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('csrf_token')) {
+            console.log('[DEBUG] Removing CSRF token from URL');
+            url.searchParams.delete('csrf_token');
+            // Actualizar la URL sin recargar la página
+            window.history.replaceState({}, document.title, url.toString());
+        }
+        
+        // Log all forms on the page for debugging
+        const allForms = document.querySelectorAll('form');
+        console.log('[DEBUG] All forms on page:', Array.from(allForms).map(f => ({
+            action: f.action,
+            method: f.method,
+            id: f.id,
+            className: f.className
+        })));
+        
+        // Buscar SOLO formularios de paginación y filtros, excluyendo COMPLETAMENTE el de sincronización
+        const paginationForms = document.querySelectorAll('form:not(.keycloak-sync-form):not([action*="sync_users_from_keycloak"])');
+        
+        console.log('[DEBUG] Pagination forms found:', paginationForms.length);
+        
+        paginationForms.forEach(function(formEl) {
+            console.log('[DEBUG] Adding pagination handler to form:', formEl.action);
             formEl.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
@@ -129,6 +166,18 @@
                 url.searchParams.set('page', '1');
                 window.location.href = url.toString();
             });
+        });
+        
+        // Verificar específicamente el formulario de sincronización
+        const syncForm = document.querySelector('form[action*="sync_users_from_keycloak"]');
+        if (syncForm) {
+            console.log('[DEBUG] Sync form found:', {
+                action: syncForm.action,
+                method: syncForm.method,
+                hasCSRF: !!syncForm.querySelector('input[name="csrf_token"]')
+            });
+        } else {
+            console.log('[DEBUG] Sync form NOT found');
         }
     });
 </script>

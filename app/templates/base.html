@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% if title %}{{ title }} | {% endif %}Gestión de Laboratorios CRUB{% endblock %}</title>    <!-- Preconect to necessary domains -->
+    <title>{% block title %}{% if title %}{{ title }} | {% endif %}Gestión de Laboratorios CRUB{% endblock %}</title>
+    <!-- Debug configuration -->
+    <meta name="keycloak-debug" content="true">
+    <meta name="browser-debug" content="true">    <!-- Preconect to necessary domains -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Google Fonts -->
@@ -208,6 +211,10 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/confirm-action.js') }}"></script>
     <script src="{{ url_for('static', filename='js/filters-responsive.js') }}"></script>
+    <!-- Keycloak Debug JS (only in debug mode) -->
+    {% if config.get('KEYCLOAK_DEBUG', False) or config.get('BROWSER_DEBUG', False) %}
+    <script src="{{ url_for('static', filename='js/keycloak-debug.js') }}"></script>
+    {% endif %}
     <!-- Fichas de Seguridad JS -->
     <script src="{{ url_for('static', filename='js/fichas-seguridad-ejemplos.js') }}"></script>
     
