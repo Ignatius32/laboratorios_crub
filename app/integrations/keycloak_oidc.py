@@ -62,7 +62,8 @@ class KeycloakOIDC:
                                 component="keycloak_oidc")
                 raise ValueError(error_msg)
             
-            # Register Keycloak client with explicit configuration
+            # Register Keycloak client with explicit configuration for v26
+            # Note: Keycloak v26 uses /realms/ instead of /auth/realms/
             self.keycloak = self.oauth.register(
                 name='keycloak',
                 client_id=app.config['KEYCLOAK_CLIENT_ID'],
@@ -77,13 +78,14 @@ class KeycloakOIDC:
                 }
             )
             
-            self.logger.info("Keycloak OIDC client initialized successfully",
+            self.logger.info("Keycloak OIDC client initialized successfully for v26",
                             operation="keycloak_init",
                             component="keycloak_oidc",
                             realm=app.config['KEYCLOAK_REALM'],
                             server_url=server_url,
                             client_id=app.config['KEYCLOAK_CLIENT_ID'],
-                            redirect_uri=app.config['KEYCLOAK_REDIRECT_URI'])
+                            redirect_uri=app.config['KEYCLOAK_REDIRECT_URI'],
+                            version="v26")
                             
         except Exception as e:
             self.logger.error("Failed to initialize Keycloak OIDC client",
@@ -296,11 +298,12 @@ class KeycloakOIDC:
             return []
     
     def logout_url(self, redirect_uri=None):
-        """Generate logout URL"""
+        """Generate logout URL for Keycloak v26"""
         if not redirect_uri:
             redirect_uri = current_app.config['KEYCLOAK_POST_LOGOUT_REDIRECT_URI']
         
-        logout_endpoint = f"{current_app.config['KEYCLOAK_SERVER_URL']}/realms/{current_app.config['KEYCLOAK_REALM']}/protocol/openid-connect/logout"
+        # Keycloak v26 logout endpoint structure: /realms/{realm}/protocol/openid-connect/logout
+        logout_endpoint = f"{current_app.config['KEYCLOAK_SERVER_URL']}realms/{current_app.config['KEYCLOAK_REALM']}/protocol/openid-connect/logout"
         
         params = {
             'post_logout_redirect_uri': redirect_uri,
@@ -314,10 +317,11 @@ class KeycloakOIDC:
         
         logout_url = f"{logout_endpoint}?{urlencode(params)}"
         
-        self.logger.info("Logout URL generated",
+        self.logger.info("Logout URL generated for Keycloak v26",
                         operation="generate_logout_url",
                         component="keycloak_oidc",
-                        redirect_uri=redirect_uri)
+                        redirect_uri=redirect_uri,
+                        version="v26")
         
         return logout_url
     

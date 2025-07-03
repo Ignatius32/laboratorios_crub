@@ -10,12 +10,12 @@ def test_keycloak_urls():
     """Test different Keycloak URL configurations"""
     
     # Configuration from .env.production
-    server_url = "https://huayca.crub.uncoma.edu.ar/keycloak/"
+    server_url = "https://huayca.crub.uncoma.edu.ar/auth"
     realm = "CRUB"
     
     # Test different base URLs
     base_urls = [
-        "https://huayca.crub.uncoma.edu.ar/keycloak/",  # Your current config
+        "https://huayca.crub.uncoma.edu.ar/auth",  # Your current config
         "https://huayca.crub.uncoma.edu.ar",       # Modern Keycloak (no /auth)
     ]
     
@@ -69,7 +69,7 @@ def test_client_endpoints():
     client_id = "laboratorios-crub"
     
     # Test the authorization URL that would be constructed
-    base_url = "https://huayca.crub.uncoma.edu.ar/keycloak/"
+    base_url = "https://huayca.crub.uncoma.edu.ar/auth"
     realm = "CRUB"
     redirect_uri = "https://huayca.crub.uncoma.edu.ar/laboratorios-crub/auth/callback"
     

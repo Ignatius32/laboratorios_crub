@@ -28,10 +28,11 @@ class Config:
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     LOG_DIR = os.environ.get('LOG_DIR', 'logs')
     
-    # Keycloak Configuration
-    KEYCLOAK_SERVER_URL = os.environ.get('KEYCLOAK_SERVER_URL', '')
+    # Keycloak Configuration - Updated for v26
+    # Note: Keycloak v26 changed URL structure from /auth to /keycloak
+    KEYCLOAK_SERVER_URL = os.environ.get('KEYCLOAK_SERVER_URL', 'https://huayca.crub.uncoma.edu.ar/keycloak/')
     KEYCLOAK_REALM = os.environ.get('KEYCLOAK_REALM', 'CRUB')
-    KEYCLOAK_CLIENT_ID = os.environ.get('KEYCLOAK_CLIENT_ID', '')
+    KEYCLOAK_CLIENT_ID = os.environ.get('KEYCLOAK_CLIENT_ID', 'laboratorios-crub-dev')
     KEYCLOAK_CLIENT_SECRET = os.environ.get('KEYCLOAK_CLIENT_SECRET', '')
     KEYCLOAK_REDIRECT_URI = os.environ.get('KEYCLOAK_REDIRECT_URI', '')
     KEYCLOAK_POST_LOGOUT_REDIRECT_URI = os.environ.get('KEYCLOAK_POST_LOGOUT_REDIRECT_URI', '')

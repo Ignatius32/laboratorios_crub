@@ -515,7 +515,7 @@ def keycloak_callback():
                                next_page=next_page,
                                user_id=current_user.idUsuario)
             
-            flash(f'Welcome, {current_user.nombre}!', 'success')
+            # flash(f'Acceso correcto, {current_user.nombre}!', 'success')
             return redirect(next_page)
         else:
             security_logger.error("Failed to login user from Keycloak",
