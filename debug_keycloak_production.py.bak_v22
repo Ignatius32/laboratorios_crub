@@ -24,7 +24,7 @@ def debug_keycloak_production():
     print()
     
     # Production configuration
-    server_url = "https://huayca.crub.uncoma.edu.ar/keycloak/"
+    server_url = "https://huayca.crub.uncoma.edu.ar/auth/"
     realm = "CRUB"
     client_id = "laboratorios-crub"
     redirect_uri = "https://huayca.crub.uncoma.edu.ar/laboratorios-crub/auth/callback"

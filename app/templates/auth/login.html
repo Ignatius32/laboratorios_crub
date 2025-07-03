@@ -3,133 +3,262 @@
 {% block content %}
 <!-- Debug meta tag for Keycloak debugging -->
 <meta name="keycloak-debug" content="{{ config.get('KEYCLOAK_DEBUG', 'false') }}">
+<meta name="keycloak-version" content="26">
+<meta name="keycloak-endpoint" content="{{ config.get('KEYCLOAK_SERVER_URL', '') }}">
 
 <div class="row justify-content-center my-5">
     <div class="col-md-5">
-        <div class="card">
+        <div class="card shadow-sm">
             <div class="card-body p-5">
                 <div class="text-center mb-4">
                     <img src="{{ url_for('static', filename='img/logo-web.png') }}" alt="Logo CRUB" style="height: 80px;" class="mb-3">
                     <h3 class="mb-1">Bienvenido</h3>
-                    <p class="text-muted">Ingresa tus datos para acceder al sistema</p>
+                    <p class="text-muted">Sistema de Gestión de Laboratorios CRUB</p>
                 </div>
-                <form method="POST" action="{{ url_for('auth.login') }}">
-                    {{ form.hidden_tag() }}                    <div class="mb-3">
-                        {{ form.email.label(class="form-label") }}
-                        {% if form.email.errors %}
-                            {{ form.email(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.email.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>                        {% else %}
-                            {{ form.email(class="form-control", placeholder="Ingrese su dirección de email") }}
-                        {% endif %}
-                    </div>
-                    <div class="mb-4">
-                        {{ form.password.label(class="form-label") }}
-                        {% if form.password.errors %}
-                            {{ form.password(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.password.errors %}
-                                    {{ error }}
-                                {% endfor %}
+
+                <!-- Primary Keycloak Login (Updated for v26) -->
+                <div class="text-center mb-4">
+                    <a href="{{ url_for('auth.keycloak_login') }}" id="keycloak-login-btn" class="btn btn-primary btn-lg w-100 py-3">
+                        <i class="fas fa-university me-2"></i>
+                        <span>Iniciar sesión con cuenta CRUB</span>
+                    </a>
+                    <p class="text-muted small mt-2">Utiliza tu usuario y contraseña institucional</p>
+                </div>
+
+                <!-- Alternative local login -->
+                <div class="text-center mb-3">
+                    <button type="button" class="btn btn-link text-muted small" data-bs-toggle="collapse" data-bs-target="#localLoginForm" aria-expanded="false">
+                        ¿Problemas con el acceso institucional? Usar login local
+                    </button>
+                </div>
+
+                <div class="collapse" id="localLoginForm">
+                    <hr class="my-3">
+                    <form method="POST" action="{{ url_for('auth.login') }}">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.email.label(class="form-label") }}
+                            {% if form.email.errors %}
+                                {{ form.email(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.email(class="form-control", placeholder="Ingrese su dirección de email") }}
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.password.label(class="form-label") }}
+                            {% if form.password.errors %}
+                                {{ form.password(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.password.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.password(class="form-control", placeholder="Ingrese su contraseña") }}
+                            {% endif %}
+                        </div>
+                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                {{ form.remember_me(class="form-check-input") }}
+                                {{ form.remember_me.label(class="form-check-label") }}
                             </div>
-                        {% else %}
-                            {{ form.password(class="form-control", placeholder="Ingrese su contraseña") }}
-                        {% endif %}
-                        <div class="text-end mt-2">
                             <a href="{{ url_for('auth.forgot_password') }}" class="text-decoration-none text-primary small">¿Olvidaste tu contraseña?</a>
                         </div>
-                    </div>                    
-                    <div class="mb-4">
-                        {{ form.remember_me(class="form-check-input") }}
-                        {{ form.remember_me.label(class="form-check-label") }}
-                    </div>
-                    <div class="d-grid mb-4">
-                        {{ form.submit(class="btn btn-primary py-2") }}
-                    </div>
-                </form>
-                
-                <!-- Keycloak Login Option -->
-                <div class="text-center mb-3">
-                    <hr class="my-3">
-                    <p class="text-muted small mb-3">O inicia sesión con tu cuenta institucional</p>
-                    <a href="{{ url_for('auth.keycloak_login') }}" id="keycloak-login-btn" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-university me-2"></i>Iniciar sesión con CRUB
-                    </a>
-                    
-                    {% if config.get('KEYCLOAK_DEBUG', False) %}
-                    <div class="mt-2">
-                        <small class="text-muted d-block mb-2">Debug Tools:</small>
-                        <div class="btn-group w-100" role="group">
-                            <a href="{{ url_for('auth.keycloak_health') }}" class="btn btn-outline-info btn-sm">Health</a>
-                            <a href="{{ url_for('auth.auth_debug') }}" class="btn btn-outline-warning btn-sm">Debug</a>
-                            <a href="{{ url_for('auth.reinit_keycloak') }}" class="btn btn-outline-success btn-sm">Reinit</a>
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-outline-primary") }}
                         </div>
-                    </div>
-                    {% endif %}
+                    </form>
                 </div>
+
+                <!-- Keycloak Status Indicator -->
+                <div id="keycloak-status" class="text-center mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-circle text-success me-1" style="font-size: 0.5em;"></i>
+                        Autenticación CRUB v26 disponible
+                    </small>
+                </div>
+
+                <!-- Debug Panel for development -->
+                {% if config.get('KEYCLOAK_DEBUG', False) %}
+                <div class="mt-3 p-3 bg-light rounded">
+                    <small class="text-muted d-block mb-2">
+                        <i class="fas fa-tools me-1"></i>Herramientas de desarrollo:
+                    </small>
+                    <div class="btn-group w-100 mb-2" role="group">
+                        <a href="{{ url_for('auth.keycloak_health') }}" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-heartbeat me-1"></i>Health
+                        </a>
+                        <a href="{{ url_for('auth.auth_debug') }}" class="btn btn-outline-warning btn-sm">
+                            <i class="fas fa-bug me-1"></i>Debug
+                        </a>
+                        <a href="{{ url_for('auth.reinit_keycloak') }}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-refresh me-1"></i>Reinit
+                        </a>
+                    </div>
+                    <div class="text-center">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="testKeycloakConnection()">
+                            <i class="fas fa-network-wired me-1"></i>Test Connection
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
                 
-                <div class="text-center mt-2">
-                    <p class="text-muted small">Sistema de Gestión de Laboratorios<br>Centro Regional Universitario Bariloche</p>
+                <div class="text-center mt-4">
+                    <p class="text-muted small mb-0">Centro Regional Universitario Bariloche</p>
+                    <p class="text-muted small">Universidad Nacional del Comahue</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Debug Panel (only visible when debugging is enabled) -->
+<!-- Enhanced Debug Panel (only visible when debugging is enabled) -->
 {% if config.get('BROWSER_DEBUG', False) or config.get('KEYCLOAK_DEBUG', False) %}
 <div id="debug-panel" class="position-fixed bottom-0 end-0 bg-dark text-white p-3 m-3 rounded" style="z-index: 9999; max-width: 400px; max-height: 300px; overflow-y: auto; font-size: 0.8em;">
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <strong>Debug Panel</strong>
+        <strong>Debug Panel v26</strong>
         <button type="button" class="btn btn-sm btn-outline-light" onclick="toggleDebugPanel()">
             <i class="fas fa-times"></i>
         </button>
     </div>
     <div id="debug-content">
-        <div>Debug mode enabled</div>
-        <div>Check console for detailed logs</div>
+        <div>Keycloak v26 Debug enabled</div>
+        <div>Endpoint: {{ config.get('KEYCLOAK_SERVER_URL', 'Not configured') }}</div>
+        <div>Realm: {{ config.get('KEYCLOAK_REALM', 'Not configured') }}</div>
+        <div id="connection-status">Testing connection...</div>
     </div>
 </div>
 
 <script>
+// Enhanced debugging for Keycloak v26
 function toggleDebugPanel() {
     const panel = document.getElementById('debug-panel');
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 
-// Add debug event logging for the login page
+// Test Keycloak v26 connection
+async function testKeycloakConnection() {
+    const statusElement = document.getElementById('connection-status');
+    const keycloakStatusElement = document.getElementById('keycloak-status');
+    
+    try {
+        statusElement.textContent = 'Testing connection...';
+        
+        // Test the new v26 endpoint structure
+        const serverUrl = '{{ config.get("KEYCLOAK_SERVER_URL", "") }}';
+        const realm = '{{ config.get("KEYCLOAK_REALM", "") }}';
+        
+        if (!serverUrl || !realm) {
+            throw new Error('Keycloak configuration missing');
+        }
+        
+        const testUrl = `${serverUrl}realms/${realm}/.well-known/openid-configuration`;
+        
+        const response = await fetch(testUrl);
+        
+        if (response.ok) {
+            const config = await response.json();
+            statusElement.innerHTML = `
+                <div class="text-success">✓ Connection OK</div>
+                <div>Auth: ${config.authorization_endpoint ? '✓' : '✗'}</div>
+                <div>Token: ${config.token_endpoint ? '✓' : '✗'}</div>
+                <div>Logout: ${config.end_session_endpoint ? '✓' : '✗'}</div>
+            `;
+            
+            // Update main status indicator
+            if (keycloakStatusElement) {
+                keycloakStatusElement.innerHTML = `
+                    <small class="text-muted">
+                        <i class="fas fa-circle text-success me-1" style="font-size: 0.5em;"></i>
+                        Autenticación CRUB v26 disponible
+                    </small>
+                `;
+            }
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (error) {
+        statusElement.innerHTML = `<div class="text-danger">✗ Error: ${error.message}</div>`;
+        
+        // Update main status indicator
+        if (keycloakStatusElement) {
+            keycloakStatusElement.innerHTML = `
+                <small class="text-muted">
+                    <i class="fas fa-circle text-warning me-1" style="font-size: 0.5em;"></i>
+                    Verificando conexión con CRUB...
+                </small>
+            `;
+        }
+    }
+}
+
+// Enhanced event logging
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[AUTH-DEBUG-v26] Login page loaded with Keycloak v26 support');
+    
     const keycloakBtn = document.getElementById('keycloak-login-btn');
     
     if (keycloakBtn) {
         keycloakBtn.addEventListener('click', function(e) {
+            console.log('[AUTH-DEBUG-v26] Keycloak login button clicked', {
+                href: this.href,
+                timestamp: new Date().toISOString(),
+                version: 'v26'
+            });
+            
             if (window.keycloakDebugger) {
-                window.keycloakDebugger.logAuthEvent('keycloak_login_button_clicked', {
+                window.keycloakDebugger.logAuthEvent('keycloak_v26_login_button_clicked', {
                     url: this.href,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    version: 'v26'
                 });
             }
-            console.log('[AUTH-DEBUG] Keycloak login button clicked', {
-                href: this.href,
-                timestamp: new Date().toISOString()
-            });
         });
+    }
+    
+    // Automatically test connection on load if debug is enabled
+    if (document.getElementById('debug-panel')) {
+        setTimeout(testKeycloakConnection, 1000);
     }
     
     // Log any flash messages
     const alerts = document.querySelectorAll('.alert');
     if (alerts.length > 0) {
         const messages = Array.from(alerts).map(alert => alert.textContent.trim());
-        console.log('[AUTH-DEBUG] Flash messages on page load:', messages);
+        console.log('[AUTH-DEBUG-v26] Flash messages detected:', messages);
         
         if (window.keycloakDebugger) {
             window.keycloakDebugger.logAuthEvent('flash_messages_detected', {
-                messages: messages
+                messages: messages,
+                version: 'v26'
             });
         }
+    }
+});
+
+// Bootstrap collapse event handling
+document.addEventListener('DOMContentLoaded', function() {
+    const localLoginToggle = document.querySelector('[data-bs-target="#localLoginForm"]');
+    const localLoginForm = document.getElementById('localLoginForm');
+    
+    if (localLoginToggle && localLoginForm) {
+        localLoginForm.addEventListener('shown.bs.collapse', function() {
+            console.log('[AUTH-DEBUG-v26] Local login form expanded');
+            // Focus on email field when form is shown
+            const emailField = document.querySelector('#localLoginForm input[type="email"]');
+            if (emailField) {
+                emailField.focus();
+            }
+        });
+        
+        localLoginForm.addEventListener('hidden.bs.collapse', function() {
+            console.log('[AUTH-DEBUG-v26] Local login form collapsed');
+        });
     }
 });
 </script>

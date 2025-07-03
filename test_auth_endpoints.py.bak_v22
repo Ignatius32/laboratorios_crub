@@ -45,7 +45,7 @@ def test_auth_endpoints():
         
         if response.status_code == 302:
             location = response.headers.get('Location', '')
-            if 'huayca.crub.uncoma.edu.ar/keycloak/realms/CRUB' in location:
+            if 'huayca.crub.uncoma.edu.ar/auth/realms/CRUB' in location:
                 print("✅ Keycloak login redirects to Keycloak server")
             elif '/auth/login' in location:
                 print("⚠️  Keycloak login redirects back to login (check logs)")

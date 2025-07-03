@@ -52,7 +52,7 @@ def test_keycloak_login_route():
                     location = response.headers.get('Location', '')
                     print(f"Redirect location: {location}")
                     
-                    if 'huayca.crub.uncoma.edu.ar/keycloak/realms/CRUB' in location:
+                    if 'huayca.crub.uncoma.edu.ar/auth/realms/CRUB' in location:
                         print("✅ Successfully redirects to Keycloak")
                     elif '/auth/login' in location:
                         print("⚠️  Redirects back to login - check for error messages")
