@@ -36,7 +36,6 @@
                             <th>Teléfono</th>
                             <th>Rol</th>
                             <th>Laboratorios</th>
-                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -63,42 +62,10 @@
                                     <span class="text-muted">Ninguno</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('admin.edit_usuario', id=usuario.idUsuario) }}" class="btn btn-sm btn-warning">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ usuario.idUsuario }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
                         </tr>
-
-                        <!-- Delete Modal for each user -->
-                        <div class="modal fade" id="deleteModal{{ usuario.idUsuario }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ usuario.idUsuario }}" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="deleteModalLabel{{ usuario.idUsuario }}">Confirmar Eliminación</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        ¿Estás seguro de que deseas eliminar al usuario <strong>{{ usuario.nombre }} {{ usuario.apellido }}</strong>?
-                                        <p class="text-danger mt-2">Esta acción no se puede deshacer.</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                        <form action="{{ url_for('admin.delete_usuario', id=usuario.idUsuario) }}" method="POST">
-                                            <button type="submit" class="btn btn-delete">Eliminar</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                         {% else %}
                         <tr>
-                            <td colspan="8" class="text-center">No hay usuarios registrados</td>
+                            <td colspan="7" class="text-center">No hay usuarios registrados</td>
                         </tr>
                         {% endfor %}
                     </tbody>

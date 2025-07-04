@@ -28,6 +28,12 @@ class LoginForm(FlaskForm):
     password = PasswordField('Contraseña', validators=[DataRequired()])
     remember_me = BooleanField('Recordarme')
     submit = SubmitField('Iniciar sesión')
+    
+class KeycloakDirectLoginForm(FlaskForm):
+    username = StringField('Usuario', validators=[DataRequired()])
+    password = PasswordField('Contraseña', validators=[DataRequired()])
+    remember_me = BooleanField('Recordarme')
+    submit = SubmitField('Iniciar sesión con CRUB')
 
 class PasswordResetRequestForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
@@ -44,6 +50,144 @@ class SetPasswordForm(FlaskForm):
     ])
     submit = SubmitField('Guardar contraseña')
 
+def handle_keycloak_direct_login(form, security_logger):
+    """Handle direct Keycloak authentication using username/password"""
+    try:
+        from keycloak import KeycloakOpenID
+        
+        # Initialize Keycloak OpenID client
+        keycloak_openid = KeycloakOpenID(
+            server_url=current_app.config['KEYCLOAK_SERVER_URL'],
+            client_id=current_app.config['KEYCLOAK_CLIENT_ID'],
+            realm_name=current_app.config['KEYCLOAK_REALM'],
+            client_secret_key=current_app.config['KEYCLOAK_CLIENT_SECRET']
+        )
+        
+        security_logger.info("Attempting direct Keycloak authentication",
+                           operation="keycloak_direct_login",
+                           component="auth",
+                           username=form.username.data)
+        
+        # Authenticate with Keycloak using Resource Owner Password Credentials flow
+        token = keycloak_openid.token(
+            username=form.username.data,
+            password=form.password.data
+        )
+        
+        if token:
+            security_logger.info("Direct Keycloak authentication successful",
+                               operation="keycloak_direct_login",
+                               component="auth",
+                               username=form.username.data,
+                               token_type=token.get('token_type'))
+            
+            # Set session markers for Keycloak authentication
+            session['keycloak_authenticated'] = True
+            session['keycloak_token'] = token
+            
+            # Login user using Keycloak token
+            if keycloak_auth.login_user_from_keycloak(token):
+                security_logger.info("User logged in successfully via direct Keycloak",
+                                   operation="keycloak_direct_login",
+                                   component="auth",
+                                   user_id=current_user.idUsuario,
+                                   username=form.username.data)
+                
+                # Handle next parameter
+                next_page = request.args.get('next')
+                if not next_page or url_parse(next_page).netloc != '':
+                    if current_user.rol == 'admin':
+                        next_page = url_for('admin.dashboard')
+                    else:
+                        next_page = url_for('tecnicos.dashboard')
+                
+                flash(f'Bienvenido, {current_user.nombre}!', 'success')
+                return redirect(next_page)
+            else:
+                security_logger.error("Failed to create user session after Keycloak auth",
+                                     operation="keycloak_direct_login",
+                                     component="auth",
+                                     username=form.username.data)
+                flash('Error al procesar la autenticación. Contacte al administrador.', 'error')
+                return redirect(url_for('auth.login'))
+        else:
+            security_logger.warning("Direct Keycloak authentication failed - no token",
+                                   operation="keycloak_direct_login",
+                                   component="auth",
+                                   username=form.username.data)
+            flash('Credenciales incorrectas. Verifique su usuario y contraseña.', 'error')
+            return redirect(url_for('auth.login'))
+            
+    except Exception as e:
+        error_msg = str(e)
+        security_logger.error("Error in direct Keycloak authentication",
+                            operation="keycloak_direct_login",
+                            component="auth",
+                            username=form.username.data,
+                            error=error_msg,
+                            error_type=type(e).__name__)
+        
+        # Handle specific Keycloak errors
+        if "invalid_grant" in error_msg.lower():
+            flash('Credenciales incorrectas. Verifique su usuario y contraseña.', 'error')
+        elif "unauthorized" in error_msg.lower():
+            flash('No autorizado. Verifique sus credenciales.', 'error')
+        elif "connection" in error_msg.lower():
+            flash('Error de conexión con el servidor de autenticación.', 'error')
+        else:
+            flash('Error de autenticación. Intente nuevamente.', 'error')
+        
+        return redirect(url_for('auth.login'))
+
+def handle_local_login(form, security_logger):
+    """Handle local authentication"""
+    # Check if it's the admin login from environment variables
+    admin_username = current_app.config.get('ADMIN_USERNAME')
+    admin_password = current_app.config.get('ADMIN_PASSWORD')
+    
+    if form.email.data == admin_username and form.password.data == admin_password:
+        # Find admin user or create if not exists
+        admin_user = Usuario.query.filter_by(rol='admin').first()
+        if admin_user:
+            login_user(admin_user, remember=form.remember_me.data)
+            security_logger.info("Login exitoso de administrador", 
+                               user_id=admin_user.idUsuario,
+                               email=form.email.data,
+                               login_type="admin_env_credentials")
+        else:
+            security_logger.error("Intento de login admin sin usuario en BD", 
+                                email=form.email.data)
+            flash('Error: No se encontró un usuario administrador en la base de datos', 'danger')
+            return redirect(url_for('auth.login'))
+            
+        return redirect(url_for('admin.dashboard'))
+    else:            
+        # Try to authenticate as regular user
+        user = Usuario.query.filter_by(email=form.email.data).first()
+        if user is None or not user.check_password(form.password.data):
+            security_logger.warning("Intento de login fallido", 
+                                   email=form.email.data,
+                                   reason="invalid_credentials",
+                                   user_exists=user is not None)
+            flash('Email o contraseña incorrectos', 'danger')
+            return redirect(url_for('auth.login'))
+        
+        login_user(user, remember=form.remember_me.data)
+        security_logger.info("Login exitoso de usuario regular", 
+                           user_id=user.idUsuario,
+                           email=user.email,
+                           role=user.rol,
+                           login_type="regular_user")
+        
+        next_page = request.args.get('next')
+        if not next_page or url_parse(next_page).netloc != '':
+            if user.rol == 'admin':
+                next_page = url_for('admin.dashboard')
+            else:
+                # Redirigir técnicos siempre al Panel de Técnico
+                next_page = url_for('tecnicos.dashboard')
+        return redirect(next_page)
+
 @auth.route('/login', methods=['GET', 'POST'])
 @log_security_event("login_attempt", risk_level="medium")
 def login():
@@ -58,57 +202,22 @@ def login():
             # Redirigir técnicos siempre al Panel de Técnico
             return redirect(url_for('tecnicos.dashboard'))
     
-    form = LoginForm()
-    if form.validate_on_submit():
-        # Check if it's the admin login from environment variables
-        from flask import current_app
-        admin_username = current_app.config.get('ADMIN_USERNAME')
-        admin_password = current_app.config.get('ADMIN_PASSWORD')
-        
-        if form.email.data == admin_username and form.password.data == admin_password:
-            # Find admin user or create if not exists
-            admin_user = Usuario.query.filter_by(rol='admin').first()
-            if admin_user:
-                login_user(admin_user, remember=form.remember_me.data)
-                security_logger.info("Login exitoso de administrador", 
-                                   user_id=admin_user.idUsuario,
-                                   email=form.email.data,
-                                   login_type="admin_env_credentials")
-            else:
-                security_logger.error("Intento de login admin sin usuario en BD", 
-                                    email=form.email.data)
-                flash('Error: No se encontró un usuario administrador en la base de datos', 'danger')
-                return redirect(url_for('auth.login'))
-                
-            return redirect(url_for('admin.dashboard'))
-        else:            
-            # Try to authenticate as regular user
-            user = Usuario.query.filter_by(email=form.email.data).first()
-            if user is None or not user.check_password(form.password.data):
-                security_logger.warning("Intento de login fallido", 
-                                       email=form.email.data,
-                                       reason="invalid_credentials",
-                                       user_exists=user is not None)
-                flash('Email o contraseña incorrectos', 'danger')
-                return redirect(url_for('auth.login'))
-            
-            login_user(user, remember=form.remember_me.data)
-            security_logger.info("Login exitoso de usuario regular", 
-                               user_id=user.idUsuario,
-                               email=user.email,
-                               role=user.rol,
-                               login_type="regular_user")
-            
-            next_page = request.args.get('next')
-            if not next_page or url_parse(next_page).netloc != '':
-                if user.rol == 'admin':
-                    next_page = url_for('admin.dashboard')
-                else:
-                    # Redirigir técnicos siempre al Panel de Técnico
-                    next_page = url_for('tecnicos.dashboard')
-            return redirect(next_page)
+    # Create forms for both login methods
+    local_form = LoginForm()
+    keycloak_form = KeycloakDirectLoginForm()
     
-    return render_template('auth/login.html', title='Iniciar sesión', form=form)
+    # Handle Keycloak direct login
+    if keycloak_form.validate_on_submit() and keycloak_form.submit.data:
+        return handle_keycloak_direct_login(keycloak_form, security_logger)
+    
+    # Handle local login
+    if local_form.validate_on_submit() and local_form.submit.data:
+        return handle_local_login(local_form, security_logger)
+    
+    return render_template('auth/login.html', 
+                          title='Iniciar sesión', 
+                          local_form=local_form,
+                          keycloak_form=keycloak_form)
 
 @auth.route('/logout')
 @login_required
