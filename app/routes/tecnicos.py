@@ -89,7 +89,10 @@ class MovimientoTecnicoForm(FlaskForm):
         ('transferencia', 'Transferencia')
     ])
     cantidad = FloatField('Cantidad', validators=[DataRequired()])
-    unidadMedida = StringField('Unidad de Medida', validators=[DataRequired(), Length(max=10)])
+    unidadMedida = SelectField('Unidad de Medida', choices=[
+        ('Lt', 'Litros (Lt)'),
+        ('Kg', 'Kilogramos (Kg)')
+    ], validators=[DataRequired()])
     idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
     
     # Campos para movimientos tipo 'compra'    tipoDocumento = SelectField('Tipo de Documento', choices=[
@@ -414,7 +417,8 @@ def new_producto(lab_id):
             cantidad=0,  # Stock inicial 0
             unidadMedida='unidades',  # Unidad por defecto
             idProducto=form.idProducto.data,
-            idLaboratorio=lab_id
+            idLaboratorio=lab_id,
+            created_by=current_user.idUsuario if current_user.is_authenticated else None
         )
         
         db.session.add(movimiento)
@@ -586,7 +590,9 @@ def new_movimiento(lab_id):
             urlDocumento=url_documento,
             laboratorioDestino=lab_destino,
             fechaFactura=fecha_factura if tipo_movimiento == 'compra' else None,
-            idProveedor=form.idProveedor.data if tipo_movimiento == 'compra' and form.idProveedor.data != 0 else None,            numeroDocumento=form.numeroDocumento.data if tipo_movimiento == 'compra' else None
+            idProveedor=form.idProveedor.data if tipo_movimiento == 'compra' and form.idProveedor.data != 0 else None,
+            numeroDocumento=form.numeroDocumento.data if tipo_movimiento == 'compra' else None,
+            created_by=current_user.idUsuario if current_user.is_authenticated else None
         )
         db.session.add(movimiento)
         
@@ -603,7 +609,8 @@ def new_movimiento(lab_id):
                 idLaboratorio=lab_destino,
                 # We include a reference to the original movement
                 tipoDocumento='transferencia',
-                laboratorioDestino=lab_id  # Original lab becomes "source" in this context
+                laboratorioDestino=lab_id,  # Original lab becomes "source" in this context
+                created_by=current_user.idUsuario if current_user.is_authenticated else None
             )
             db.session.add(movimiento_dest)
         

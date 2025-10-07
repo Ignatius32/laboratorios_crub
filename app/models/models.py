@@ -108,8 +108,13 @@ class Producto(db.Model):
     stockMinimo = db.Column(db.Float, nullable=True, default=0)
     marca = db.Column(db.String(100), nullable=True)
     
+    # Auditoría
+    created_by = db.Column(db.String(10), db.ForeignKey('usuario.idUsuario'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
+    
     # Relationships
-    movimientos = db.relationship('Movimiento', backref='producto', lazy=True)    # Calcular el stock total en todos los laboratorios (en tiempo real)
+    movimientos = db.relationship('Movimiento', backref='producto', lazy=True)
+    creador = db.relationship('Usuario', foreign_keys=[created_by], backref='productos_creados')    # Calcular el stock total en todos los laboratorios (en tiempo real)
     @property
     def stock_total(self):
         from app.utils.stock_service import get_global_stock_map
@@ -134,10 +139,18 @@ class Movimiento(db.Model):
     urlDocumento = db.Column(db.String(255), nullable=True)  # URL to the stored document in Google Drive
     laboratorioDestino = db.Column(db.String(10), nullable=True)  # For 'transferencia' type
     fechaFactura = db.Column(db.Date, nullable=True)  # Date of the invoice for 'compra' type
-    cuitProveedor = db.Column(db.String(13), nullable=True)  # Legacy field, kept for compatibility    # Foreign keys with indexes for better performance
+    cuitProveedor = db.Column(db.String(13), nullable=True)  # Legacy field, kept for compatibility
+    
+    # Auditoría
+    created_by = db.Column(db.String(10), db.ForeignKey('usuario.idUsuario'), nullable=True)
+    
+    # Foreign keys with indexes for better performance
     idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False, index=True)
     idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False, index=True)
     idProveedor = db.Column(db.Integer, db.ForeignKey('proveedor.idProveedor'), nullable=True, index=True)
+    
+    # Relationship para el creador
+    creador = db.relationship('Usuario', foreign_keys=[created_by], backref='movimientos_creados')
 
     # Composite indexes for common queries
     __table_args__ = (

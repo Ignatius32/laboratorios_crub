@@ -104,9 +104,9 @@
                     </button>
                     
                     {% if reporte_data %}
-                    <!-- <a href="{{ url_for('admin.exportar_reporte_excel') }}" class="btn btn-success ms-2">
-                        <i class="fas fa-table me-2"></i>Exportar a Excel
-                    </a> -->
+                    <a href="{{ url_for('admin.reporte_movimientos') }}?clear=1" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-times me-1"></i>Limpiar Filtros
+                    </a>
                     {% endif %}
                 </div>
             </form>

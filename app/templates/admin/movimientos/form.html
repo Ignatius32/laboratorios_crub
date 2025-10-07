@@ -157,14 +157,14 @@
                         <div class="col-md-6 mb-3">
                             {{ form.idProveedor.label(class="form-label") }}
                             {% if form.idProveedor.errors %}
-                                {{ form.idProveedor(class="form-select is-invalid") }}
+                                {{ form.idProveedor(class="form-select is-invalid", id="proveedorSelect") }}
                                 <div class="invalid-feedback">
                                     {% for error in form.idProveedor.errors %}
                                         {{ error }}
                                     {% endfor %}
                                 </div>
                             {% else %}
-                                {{ form.idProveedor(class="form-select") }}
+                                {{ form.idProveedor(class="form-select", id="proveedorSelect") }}
                             {% endif %}
                         </div>
                     </div>
@@ -218,6 +218,49 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para Nuevo Proveedor -->
+<div class="modal fade" id="nuevoProveedorModal" tabindex="-1" aria-labelledby="nuevoProveedorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="nuevoProveedorModalLabel">Nuevo Proveedor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="nuevoProveedorForm">
+                    <div class="mb-3">
+                        <label for="proveedorNombre" class="form-label">Nombre *</label>
+                        <input type="text" class="form-control" id="proveedorNombre" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="proveedorCuit" class="form-label">CUIT *</label>
+                        <input type="text" class="form-control" id="proveedorCuit" required 
+                               pattern="^\d{2}-?\d{8}-?\d{1}$" 
+                               placeholder="XX-XXXXXXXX-X o XXXXXXXXXXX">
+                        <small class="form-text text-muted">Formato: XX-XXXXXXXX-X</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="proveedorDireccion" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="proveedorDireccion">
+                    </div>
+                    <div class="mb-3">
+                        <label for="proveedorTelefono" class="form-label">Teléfono</label>
+                        <input type="text" class="form-control" id="proveedorTelefono">
+                    </div>
+                    <div class="mb-3">
+                        <label for="proveedorEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="proveedorEmail">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="guardarProveedor">Guardar Proveedor</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -227,65 +270,9 @@ $(document).ready(function() {
     const tipoMovimiento = document.getElementById('tipoMovimiento');
     const compraFields = document.getElementById('compraFields');
     const transferenciaFields = document.getElementById('transferenciaFields');
-
-    // Store the initial product options to restore when needed
-    var allProducts = [];
     
-    // Save all products initially
-    $('#product-select option').each(function() {
-        allProducts.push({
-            value: $(this).val(),
-            text: $(this).text()
-        });
-    });
-
-    // When laboratory selection changes
-    $('#lab-select').change(function() {
-        var labId = $(this).val();
-        if(labId) {
-            // Clear current product options
-            $('#product-select').empty();
-            
-            // Get products for selected lab via AJAX
-            $.ajax({
-                url: "{{ url_for('admin.get_products_by_lab', lab_id='') }}" + labId,
-                type: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    if(data.products.length > 0) {
-                        // Add options for each product
-                        $.each(data.products, function(key, product) {
-                            $('#product-select').append('<option value="' + product.id + '">' + product.nombre + '</option>');
-                        });
-                    } else {
-                        // If no products for this lab, restore all products
-                        restoreAllProducts();
-                    }
-                },
-                error: function() {
-                    // On error, restore all products
-                    restoreAllProducts();
-                    $('#product-select').append('<option value="" disabled>Error al cargar productos</option>');
-                }
-            });
-        } else {
-            // If no lab selected, restore all products
-            restoreAllProducts();
-        }
-    });
-    
-    // Function to restore all products
-    function restoreAllProducts() {
-        $('#product-select').empty();
-        $.each(allProducts, function(index, product) {
-            $('#product-select').append('<option value="' + product.value + '">' + product.text + '</option>');
-        });
-    }
-    
-    // Trigger change event if lab is already selected (e.g., when form is rendered with errors)
-    if ($('#lab-select').val()) {
-        $('#lab-select').trigger('change');
-    }
+    // Bandera para controlar cuando el cambio es programático
+    var isSelectingProgrammatically = false;
 
     // Función para mostrar/ocultar campos según el tipo de movimiento
     function updateFields() {
@@ -308,6 +295,96 @@ $(document).ready(function() {
     
     // Añadir listener para cuando cambie el tipo de movimiento
     tipoMovimiento.addEventListener('change', updateFields);
+    
+    // Manejar selección de "Nuevo proveedor..."
+    $('#proveedorSelect').on('change', function() {
+        var currentValue = $(this).val();
+        
+        // Solo actuar si NO es un cambio programático Y el valor actual es '0'
+        if (!isSelectingProgrammatically && currentValue == '0') {
+            // Mostrar modal para nuevo proveedor
+            $('#nuevoProveedorModal').modal('show');
+            // Resetear a la opción vacía
+            $(this).val('');
+        }
+    });
+    
+    // Guardar nuevo proveedor
+    $('#guardarProveedor').click(function() {
+        const nombre = $('#proveedorNombre').val().trim();
+        const cuit = $('#proveedorCuit').val().trim();
+        const direccion = $('#proveedorDireccion').val().trim();
+        const telefono = $('#proveedorTelefono').val().trim();
+        const email = $('#proveedorEmail').val().trim();
+        
+        if (!nombre || !cuit) {
+            alert('El nombre y CUIT son obligatorios');
+            return;
+        }
+        
+        // Validar formato CUIT
+        const cuitPattern = /^\d{2}-?\d{8}-?\d{1}$/;
+        if (!cuitPattern.test(cuit)) {
+            alert('Formato de CUIT inválido. Use XX-XXXXXXXX-X o XXXXXXXXXXX');
+            return;
+        }
+        
+        // Crear proveedor vía AJAX
+        $.ajax({
+            url: "{{ url_for('admin.new_proveedor') }}",
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                nombre: nombre,
+                cuit: cuit,
+                direccion: direccion,
+                telefono: telefono,
+                email: email
+            }),
+            headers: {
+                'X-CSRFToken': '{{ form.csrf_token._value() }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Marcar que el siguiente cambio es programático
+                    isSelectingProgrammatically = true;
+                    
+                    // Agregar el nuevo proveedor al select
+                    const newOption = `<option value="${response.proveedor.id}" selected>${response.proveedor.nombre} (${response.proveedor.cuit})</option>`;
+                    $('#proveedorSelect option[value="0"]').before(newOption);
+                    $('#proveedorSelect').val(response.proveedor.id);
+                    
+                    // Restaurar la bandera después de un pequeño delay
+                    setTimeout(function() {
+                        isSelectingProgrammatically = false;
+                    }, 100);
+                    
+                    // Limpiar y cerrar modal
+                    $('#nuevoProveedorForm')[0].reset();
+                    $('#nuevoProveedorModal').modal('hide');
+                    
+                    alert('Proveedor creado correctamente');
+                } else {
+                    alert('Error: ' + (response.error || 'No se pudo crear el proveedor'));
+                }
+            },
+            error: function(xhr) {
+                const errorMsg = xhr.responseJSON && xhr.responseJSON.error 
+                    ? xhr.responseJSON.error 
+                    : 'Error al crear el proveedor';
+                alert(errorMsg);
+            }
+        });
+    });
+    
+    // Resetear formulario cuando se cierra el modal
+    $('#nuevoProveedorModal').on('hidden.bs.modal', function() {
+        $('#nuevoProveedorForm')[0].reset();
+        // Volver a seleccionar "Nuevo proveedor..." en caso de que se haya cancelado
+        if (!$('#proveedorSelect').val()) {
+            $('#proveedorSelect').val('');
+        }
+    });
 });
 </script>
 {% endblock %}

@@ -111,7 +111,10 @@ class MovimientoForm(FlaskForm):
         ('transferencia', 'Transferencia')
     ])
     cantidad = FloatField('Cantidad', validators=[DataRequired()])
-    unidadMedida = StringField('Unidad de Medida', validators=[DataRequired(), Length(max=10)])
+    unidadMedida = SelectField('Unidad de Medida', choices=[
+        ('Lt', 'Litros (Lt)'),
+        ('Kg', 'Kilogramos (Kg)')
+    ], validators=[DataRequired()])
     idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
     idLaboratorio = SelectField('Laboratorio', validators=[DataRequired()], coerce=str)
     
@@ -122,7 +125,7 @@ class MovimientoForm(FlaskForm):
     ], validators=[Optional()])
     numeroDocumento = StringField('Número de Documento', validators=[Optional(), Length(max=50)])
     fechaFactura = StringField('Fecha de Factura', validators=[Optional()])
-    idProveedor = SelectField('Proveedor', validators=[Optional()], coerce=int)
+    idProveedor = SelectField('Proveedor', validators=[Optional()])
     documento = FileField('Documento (PDF)', validators=[Optional()])
     
     # Campo para movimientos tipo 'transferencia'
@@ -135,12 +138,12 @@ class MovimientoForm(FlaskForm):
         self.idProducto.choices = [(p.idProducto, p.nombre) for p in Producto.query.all()]
         self.laboratorioDestino.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
         
-        # Populate provider choices
+        # Populate provider choices - Opción vacía al inicio y "Nuevo proveedor..." al final
         proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
-        self.idProveedor.choices = [(0, 'Nuevo proveedor...')] + [(p.idProveedor, f"{p.nombre} ({p.cuit})") for p in proveedores]
+        self.idProveedor.choices = [('', 'Seleccione un proveedor')] + [(p.idProveedor, f"{p.nombre} ({p.cuit})") for p in proveedores] + [(0, '➕ Nuevo proveedor...')]
     
-    def validate(self):
-        if not super().validate():
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators=extra_validators):
             return False
             
         if self.tipoMovimiento.data == 'compra':
@@ -614,7 +617,8 @@ def new_producto():
             stockMinimo=form.stockMinimo.data or 0,
             marca=form.marca.data,
             controlSedronar=form.controlSedronar.data,
-            urlFichaSeguridad=url_ficha
+            urlFichaSeguridad=url_ficha,
+            created_by=current_user.idUsuario if current_user.is_authenticated else None
         )
         
         db.session.add(producto)
@@ -1075,8 +1079,10 @@ def new_movimiento():
             numeroDocumento=form.numeroDocumento.data if tipo_movimiento == 'compra' else None,
             urlDocumento=url_documento,
             fechaFactura=fecha_factura,
-            idProveedor=form.idProveedor.data if tipo_movimiento == 'compra' and form.idProveedor.data != 0 else None,
-            laboratorioDestino=lab_destino        )
+            idProveedor=int(form.idProveedor.data) if tipo_movimiento == 'compra' and form.idProveedor.data and form.idProveedor.data not in ['', '0'] else None,
+            laboratorioDestino=lab_destino,
+            created_by=current_user.idUsuario if current_user.is_authenticated else None
+        )
         
         db.session.add(movimiento)
         
@@ -1093,7 +1099,8 @@ def new_movimiento():
                 idLaboratorio=lab_destino,
                 # We include a reference to the original movement
                 tipoDocumento='transferencia',
-                laboratorioDestino=form.idLaboratorio.data  # Original lab becomes "source" in this context
+                laboratorioDestino=form.idLaboratorio.data,  # Original lab becomes "source" in this context
+                created_by=current_user.idUsuario if current_user.is_authenticated else None
             )
             db.session.add(movimiento_dest)
         
@@ -1153,6 +1160,52 @@ def list_proveedores():
 @admin.route('/proveedores/new', methods=['GET', 'POST'])
 @admin_required
 def new_proveedor():
+    # Si es una petición AJAX (JSON)
+    if request.is_json:
+        try:
+            data = request.get_json()
+            
+            # Validar datos requeridos
+            if not data.get('nombre') or not data.get('cuit'):
+                return {'success': False, 'error': 'Nombre y CUIT son obligatorios'}, 400
+            
+            # Limpiar CUIT (remover guiones)
+            cleaned_cuit = ''.join(filter(str.isdigit, data['cuit']))
+            
+            # Validar que el CUIT tenga 11 dígitos
+            if len(cleaned_cuit) != 11:
+                return {'success': False, 'error': 'CUIT inválido. Debe tener 11 dígitos'}, 400
+            
+            # Verificar si ya existe un proveedor con ese CUIT
+            if Proveedor.query.filter_by(cuit=cleaned_cuit).first():
+                return {'success': False, 'error': 'Ya existe un proveedor con ese CUIT'}, 400
+            
+            # Crear proveedor
+            proveedor = Proveedor(
+                nombre=data['nombre'],
+                direccion=data.get('direccion', ''),
+                telefono=data.get('telefono', ''),
+                email=data.get('email', ''),
+                cuit=cleaned_cuit
+            )
+            
+            db.session.add(proveedor)
+            db.session.commit()
+            
+            return {
+                'success': True, 
+                'proveedor': {
+                    'id': proveedor.idProveedor,
+                    'nombre': proveedor.nombre,
+                    'cuit': proveedor.cuit
+                }
+            }, 200
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'error': str(e)}, 500
+    
+    # Si es una petición normal (formulario HTML)
     form = ProveedorForm()
     
     if form.validate_on_submit():
@@ -1229,6 +1282,12 @@ def reporte_movimientos():
     from sqlalchemy import and_, or_
     from app.utils.pagination import ManualPagination
     
+    # Limpiar filtros si se solicita
+    if request.args.get('clear'):
+        session.pop('reporte_filtros', None)
+        session.pop('reporte_data_completo', None)
+        return redirect(url_for('admin.reporte_movimientos'))
+    
     # Obtener página actual desde parámetros GET
     page = request.args.get('page', 1, type=int)
     per_page = 15  # Cantidad de elementos por página
@@ -1237,7 +1296,27 @@ def reporte_movimientos():
     reporte_data = []
     pagination = None
     
+    # Si es POST, guardar filtros en sesión
     if form.validate_on_submit():
+        session['reporte_filtros'] = {
+            'fecha_inicial': form.fecha_inicial.data,
+            'fecha_final': form.fecha_final.data,
+            'tipo_producto': form.tipo_producto.data,
+            'laboratorio': form.laboratorio.data,
+            'control_sedronar': form.control_sedronar.data
+        }
+    
+    # Si es GET y hay filtros guardados, usarlos
+    if request.method == 'GET' and 'reporte_filtros' in session:
+        filtros = session['reporte_filtros']
+        form.fecha_inicial.data = filtros['fecha_inicial']
+        form.fecha_final.data = filtros['fecha_final']
+        form.tipo_producto.data = filtros['tipo_producto']
+        form.laboratorio.data = filtros['laboratorio']
+        form.control_sedronar.data = filtros['control_sedronar']
+    
+    # Generar reporte si hay filtros (POST o GET con filtros guardados)
+    if form.validate_on_submit() or (request.method == 'GET' and 'reporte_filtros' in session):
         try:
             # Convertir fechas
             fecha_inicial = datetime.strptime(form.fecha_inicial.data, '%Y-%m-%d')

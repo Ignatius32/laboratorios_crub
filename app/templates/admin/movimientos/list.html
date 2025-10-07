@@ -29,6 +29,7 @@
                             <th>Cantidad</th>
                             <th>Unidad</th>
                             <th>Laboratorio</th>
+                            <th>Creado por</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -48,6 +49,15 @@
                             <td>{{ movimiento.cantidad }}</td>
                             <td>{{ movimiento.unidadMedida }}</td>
                             <td>{{ movimiento.laboratorio.nombre }}</td>
+                            <td>
+                                {% if movimiento.creador %}
+                                    <span title="{{ movimiento.creador.email }}">
+                                        {{ movimiento.creador.nombre }} {{ movimiento.creador.apellido }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">No registrado</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ movimiento.idMovimiento }}">
                                     <i class="fas fa-trash"></i>
@@ -91,25 +101,6 @@
 
 {% block scripts %}
 <script>
-    $(document).ready(function() {
-        // Inicializar DataTable para la tabla de movimientos admin
-        $('#admin-movimientos-table').DataTable({
-            language: {
-                url: '{{ url_for("static", filename="js/Spanish.json") }}'
-            },
-            order: [[1, 'desc']],  // Order by date, most recent first
-            responsive: true,
-            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-            columnDefs: [
-                { 
-                    targets: -1, // Última columna (acciones)
-                    orderable: false,
-                    searchable: false
-                }
-            ]
-        });
-    });
-
     // Script para mantener los parámetros de paginación si se agregan filtros futuros
     document.addEventListener('DOMContentLoaded', function() {
         const formEl = document.querySelector('form');
