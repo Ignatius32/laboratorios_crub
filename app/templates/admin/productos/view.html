@@ -213,19 +213,19 @@
                         {% for movimiento in movimientos_recientes %}
                         <div class="mb-3">
                             <div class="d-flex justify-content-between">
-                                <strong>
+                                <div>
                                     {% if movimiento.tipoMovimiento == 'ingreso' %}
-                                        <span class="text-success">Ingreso</span>
+                                        <span class="badge bg-success">Ingreso</span>
                                     {% elif movimiento.tipoMovimiento == 'compra' %}
-                                        <span class="text-info">Compra</span>
+                                        <span class="badge bg-primary">Compra</span>
                                     {% elif movimiento.tipoMovimiento == 'uso' %}
-                                        <span class="text-warning">Uso</span>
+                                        <span class="badge bg-warning text-dark">Uso</span>
                                     {% elif movimiento.tipoMovimiento == 'transferencia' %}
-                                        <span class="text-primary">Transferencia</span>
+                                        <span class="badge bg-info text-dark">Transferencia</span>
                                     {% else %}
-                                        <span class="text-secondary">{{ movimiento.tipoMovimiento.title() }}</span>
+                                        <span class="badge bg-secondary">{{ movimiento.tipoMovimiento|title }}</span>
                                     {% endif %}
-                                </strong>
+                                </div>
                                 <small class="text-muted">{{ movimiento.timestamp.strftime('%d/%m/%Y') }}</small>
                             </div>                            <div class="text-muted">
                                 Cantidad: {{ movimiento.cantidad }} {{ movimiento.unidadMedida }}

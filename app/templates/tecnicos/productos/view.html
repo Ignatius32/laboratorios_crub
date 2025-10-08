@@ -206,11 +206,11 @@
                                 {% elif movimiento.tipoMovimiento == 'compra' %}
                                     <span class="badge bg-primary">Compra</span>
                                 {% elif movimiento.tipoMovimiento == 'uso' %}
-                                    <span class="badge bg-danger">Uso</span>
+                                    <span class="badge bg-warning text-dark">Uso</span>
                                 {% elif movimiento.tipoMovimiento == 'transferencia' %}
-                                    <span class="badge bg-warning">Transferencia</span>
+                                    <span class="badge bg-info text-dark">Transferencia</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">{{ movimiento.tipoMovimiento }}</span>
+                                    <span class="badge bg-secondary">{{ movimiento.tipoMovimiento|title }}</span>
                                 {% endif %}
                             </td>
                             <td>{{ movimiento.cantidad }}</td>
