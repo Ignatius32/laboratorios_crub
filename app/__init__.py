@@ -43,6 +43,14 @@ def create_app(config_class=Config):
     if app.config.get('APPLICATION_ROOT'):
         app.config['APPLICATION_ROOT'] = app.config['APPLICATION_ROOT']
 
+    # Flask deriva el path de la cookie de sesión de APPLICATION_ROOT. En
+    # desarrollo ese valor es None (y en .env viene como cadena vacía), con lo
+    # cual la cookie sale sin atributo Path y el navegador la limita al
+    # directorio de la petición: se emite en /auth/login y no se envía a
+    # /admin ni /tecnicos, de modo que el login nunca persiste. Fijarlo
+    # explícitamente cubre tanto el despliegue bajo subruta como el local.
+    app.config['SESSION_COOKIE_PATH'] = app.config.get('APPLICATION_ROOT') or '/'
+
     # Configure server-side session storage to handle large session data.
     # The directory is created with 0700 so other accounts on the host cannot
     # read the Keycloak tokens stored in the session files.
