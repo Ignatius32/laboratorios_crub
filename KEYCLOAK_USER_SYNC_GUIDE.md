@@ -14,7 +14,7 @@ El sistema está configurado correctamente con las siguientes variables en `.env
 KEYCLOAK_SERVER_URL=https://huayca.crub.uncoma.edu.ar/keycloak/
 KEYCLOAK_REALM=CRUB
 KEYCLOAK_CLIENT_ID=laboratorios-crub-dev
-KEYCLOAK_CLIENT_SECRET=SECRETO-ROTADO-Y-PURGADO
+KEYCLOAK_CLIENT_SECRET=<valor real en el .env del servidor, no versionar>
 
 # Role Mapping
 KEYCLOAK_ADMIN_ROLE=app_admin
