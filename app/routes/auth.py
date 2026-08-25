@@ -12,9 +12,6 @@ from app.utils.logging_config import get_security_logger, get_audit_logger
 from app.utils.keycloak_auth import keycloak_auth
 from app.integrations.keycloak_oidc import keycloak_oidc
 from werkzeug.security import generate_password_hash
-import json
-import sys
-import json
 
 auth = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -49,6 +46,28 @@ class SetPasswordForm(FlaskForm):
         EqualTo('password', message='Las contraseñas deben coincidir')
     ])
     submit = SubmitField('Guardar contraseña')
+
+def get_safe_redirect_target(user):
+    """Resolve the post-login redirect target.
+
+    Only accepts a `next` parameter that is a path on this host. Anything with a
+    scheme, a netloc, or a leading '//' or '/\\' (which browsers normalise to a
+    protocol-relative URL) falls back to the user's dashboard.
+    """
+    next_page = request.args.get('next')
+
+    if next_page:
+        parsed = url_parse(next_page)
+        looks_protocol_relative = next_page.startswith('//') or next_page.startswith('/\\')
+        if (not parsed.scheme and not parsed.netloc
+                and next_page.startswith('/')
+                and not looks_protocol_relative):
+            return next_page
+
+    if user.rol == 'admin':
+        return url_for('admin.dashboard')
+    return url_for('tecnicos.dashboard')
+
 
 def handle_keycloak_direct_login(form, security_logger):
     """Handle direct Keycloak authentication using username/password"""
@@ -94,13 +113,8 @@ def handle_keycloak_direct_login(form, security_logger):
                                    username=form.username.data)
                 
                 # Handle next parameter
-                next_page = request.args.get('next')
-                if not next_page or url_parse(next_page).netloc != '':
-                    if current_user.rol == 'admin':
-                        next_page = url_for('admin.dashboard')
-                    else:
-                        next_page = url_for('tecnicos.dashboard')
-                
+                next_page = get_safe_redirect_target(current_user)
+
                 flash(f'Bienvenido, {current_user.nombre}!', 'success')
                 return redirect(next_page)
             else:
@@ -140,53 +154,29 @@ def handle_keycloak_direct_login(form, security_logger):
         return redirect(url_for('auth.login'))
 
 def handle_local_login(form, security_logger):
-    """Handle local authentication"""
-    # Check if it's the admin login from environment variables
-    admin_username = current_app.config.get('ADMIN_USERNAME')
-    admin_password = current_app.config.get('ADMIN_PASSWORD')
-    
-    if form.email.data == admin_username and form.password.data == admin_password:
-        # Find admin user or create if not exists
-        admin_user = Usuario.query.filter_by(rol='admin').first()
-        if admin_user:
-            login_user(admin_user, remember=form.remember_me.data)
-            security_logger.info("Login exitoso de administrador", 
-                               user_id=admin_user.idUsuario,
+    """Handle local authentication against the hashed password stored in the DB.
+
+    There is deliberately no environment-variable shortcut here: credentials are
+    only ever checked against Usuario.password_hash.
+    """
+    user = Usuario.query.filter_by(email=form.email.data).first()
+    if user is None or not user.check_password(form.password.data):
+        security_logger.warning("Intento de login fallido",
                                email=form.email.data,
-                               login_type="admin_env_credentials")
-        else:
-            security_logger.error("Intento de login admin sin usuario en BD", 
-                                email=form.email.data)
-            flash('Error: No se encontró un usuario administrador en la base de datos', 'danger')
-            return redirect(url_for('auth.login'))
-            
-        return redirect(url_for('admin.dashboard'))
-    else:            
-        # Try to authenticate as regular user
-        user = Usuario.query.filter_by(email=form.email.data).first()
-        if user is None or not user.check_password(form.password.data):
-            security_logger.warning("Intento de login fallido", 
-                                   email=form.email.data,
-                                   reason="invalid_credentials",
-                                   user_exists=user is not None)
-            flash('Email o contraseña incorrectos', 'danger')
-            return redirect(url_for('auth.login'))
-        
-        login_user(user, remember=form.remember_me.data)
-        security_logger.info("Login exitoso de usuario regular", 
-                           user_id=user.idUsuario,
-                           email=user.email,
-                           role=user.rol,
-                           login_type="regular_user")
-        
-        next_page = request.args.get('next')
-        if not next_page or url_parse(next_page).netloc != '':
-            if user.rol == 'admin':
-                next_page = url_for('admin.dashboard')
-            else:
-                # Redirigir técnicos siempre al Panel de Técnico
-                next_page = url_for('tecnicos.dashboard')
-        return redirect(next_page)
+                               reason="invalid_credentials",
+                               user_exists=user is not None)
+        flash('Email o contraseña incorrectos', 'danger')
+        return redirect(url_for('auth.login'))
+
+    login_user(user, remember=form.remember_me.data)
+    security_logger.info("Login exitoso de usuario regular",
+                       user_id=user.idUsuario,
+                       email=user.email,
+                       role=user.rol,
+                       login_type="regular_user")
+
+    next_page = get_safe_redirect_target(user)
+    return redirect(next_page)
 
 @auth.route('/login', methods=['GET', 'POST'])
 @log_security_event("login_attempt", risk_level="medium")
@@ -472,14 +462,10 @@ def keycloak_login():
                             error=str(e),
                             error_type="AttributeError")
         
-        if current_app.config.get('KEYCLOAK_DEBUG', False):
-            flash(f'Keycloak attribute error: {str(e)}', 'error')
-            session['auth_debug_error'] = f"AttributeError: {str(e)}"
-            return redirect(url_for('auth.auth_debug'))
-        else:
-            flash('Keycloak authentication service error. Contact administrator.', 'error')
-            return redirect(url_for('auth.login'))
-        
+        flash('Keycloak authentication service error. Contact administrator.', 'error')
+        return redirect(url_for('auth.login'))
+
+
     except Exception as e:
         security_logger.error("Error starting Keycloak authentication",
                             operation="keycloak_login_initiate",
@@ -487,16 +473,9 @@ def keycloak_login():
                             error=str(e),
                             error_type=type(e).__name__,
                             config_available=bool(current_app.config.get('KEYCLOAK_SERVER_URL')))
-        
-        # In debug mode, provide more detailed error information
-        if current_app.config.get('KEYCLOAK_DEBUG', False):
-            flash(f'Keycloak authentication error: {str(e)}', 'error')
-            # Store error details for debug page
-            session['auth_debug_error'] = f"Keycloak login error: {type(e).__name__}: {str(e)}"
-            return redirect(url_for('auth.auth_debug'))
-        else:
-            flash('Authentication error. Please try again.', 'error')
-            return redirect(url_for('auth.login'))
+
+        flash('Authentication error. Please try again.', 'error')
+        return redirect(url_for('auth.login'))
 
 @auth.route('/callback')
 @log_security_event("keycloak_callback", risk_level="medium")
@@ -611,13 +590,8 @@ def keycloak_callback():
                                user_authenticated=current_user.is_authenticated)
             
             # Handle next parameter
-            next_page = request.args.get('next')
-            if not next_page or url_parse(next_page).netloc != '':
-                if current_user.rol == 'admin':
-                    next_page = url_for('admin.dashboard')
-                else:
-                    next_page = url_for('tecnicos.dashboard')
-            
+            next_page = get_safe_redirect_target(current_user)
+
             security_logger.info("Redirecting user after successful login",
                                operation="keycloak_callback",
                                component="auth",
@@ -642,12 +616,7 @@ def keycloak_callback():
                             error=str(e),
                             error_type=type(e).__name__,
                             traceback=str(e.__traceback__))
-        
-        # In debug mode, store error details and redirect to debug page
-        if current_app.config.get('KEYCLOAK_DEBUG', False):
-            session['auth_debug_error'] = f"Exception: {type(e).__name__}: {str(e)}"
-            return redirect(url_for('auth.auth_debug'))
-        
+
         flash('Authentication error. Please try again.', 'error')
         return redirect(url_for('auth.login'))
 
@@ -657,122 +626,3 @@ def keycloak_callback():
 def keycloak_logout():
     """Legacy route - redirect to unified logout"""
     return redirect(url_for('auth.logout'))
-
-@auth.route('/debug')
-def auth_debug():
-    """Debug route to show authentication information (only in debug mode)"""
-    from flask import current_app
-    
-    # Only allow in debug mode
-    if not current_app.config.get('KEYCLOAK_DEBUG', False):
-        flash('Debug mode is not enabled.', 'error')
-        return redirect(url_for('auth.login'))
-    
-    error_details = None
-    try:
-        # Try to get any stored error details from session
-        error_details = session.pop('auth_debug_error', None)
-    except:
-        pass
-    
-    return render_template('auth/debug.html', 
-                          title='Authentication Debug',
-                          error_details=error_details)
-
-@auth.route('/test-keycloak-config')
-def test_keycloak_config():
-    """Test Keycloak configuration without initiating OAuth flow"""
-    if not current_app.config.get('KEYCLOAK_DEBUG', False):
-        return redirect(url_for('auth.login'))
-    
-    config_status = {
-        'KEYCLOAK_SERVER_URL': current_app.config.get('KEYCLOAK_SERVER_URL'),
-        'KEYCLOAK_REALM': current_app.config.get('KEYCLOAK_REALM'),
-        'KEYCLOAK_CLIENT_ID': current_app.config.get('KEYCLOAK_CLIENT_ID'),
-        'KEYCLOAK_CLIENT_SECRET': '***' if current_app.config.get('KEYCLOAK_CLIENT_SECRET') else None,
-        'KEYCLOAK_REDIRECT_URI': current_app.config.get('KEYCLOAK_REDIRECT_URI'),
-        'keycloak_oidc_initialized': keycloak_oidc is not None,
-        'keycloak_client_available': keycloak_oidc.keycloak is not None if keycloak_oidc else False
-    }
-    
-    return f"<pre>{json.dumps(config_status, indent=2)}</pre>"
-
-@auth.route('/keycloak-health')
-def keycloak_health():
-    """Simple health check for Keycloak integration"""
-    try:
-        from app.integrations.keycloak_oidc import keycloak_oidc
-        
-        status = {
-            'status': 'ok',
-            'keycloak_oidc_imported': True,
-            'keycloak_oidc_exists': keycloak_oidc is not None,
-            'oauth_client_exists': keycloak_oidc.oauth is not None if keycloak_oidc else False,
-            'keycloak_client_exists': keycloak_oidc.keycloak is not None if keycloak_oidc else False,
-            'config': {
-                'server_url': current_app.config.get('KEYCLOAK_SERVER_URL'),
-                'realm': current_app.config.get('KEYCLOAK_REALM'),
-                'client_id': current_app.config.get('KEYCLOAK_CLIENT_ID'),
-                'redirect_uri': current_app.config.get('KEYCLOAK_REDIRECT_URI')
-            }
-        }
-        
-        return json.dumps(status, indent=2), 200, {'Content-Type': 'application/json'}
-        
-    except Exception as e:
-        error_status = {
-            'status': 'error',
-            'error': str(e),
-            'error_type': type(e).__name__
-        }
-        return json.dumps(error_status, indent=2), 500, {'Content-Type': 'application/json'}
-
-@auth.route('/reinit-keycloak')
-def reinit_keycloak():
-    """Manually reinitialize Keycloak OIDC client (debug mode only)"""
-    if not current_app.config.get('KEYCLOAK_DEBUG', False):
-        flash('Debug mode required for this operation.', 'error')
-        return redirect(url_for('auth.login'))
-    
-    try:
-        from app.integrations.keycloak_oidc import keycloak_oidc
-        
-        # Force reinitialization
-        keycloak_oidc.init_app(current_app)
-        
-        flash('Keycloak OIDC client reinitialized successfully.', 'success')
-        return redirect(url_for('auth.login'))
-        
-    except Exception as e:
-        flash(f'Failed to reinitialize Keycloak: {str(e)}', 'error')
-        return redirect(url_for('auth.login'))
-
-@auth.route('/env-status')
-def env_status():
-    """Show environment status (debug mode only)"""
-    if not current_app.config.get('KEYCLOAK_DEBUG', False):
-        return "Debug mode required", 403
-    
-    import os
-    
-    env_info = {
-        'flask_config': {
-            'FLASK_ENV': current_app.config.get('FLASK_ENV'),
-            'APPLICATION_ROOT': current_app.config.get('APPLICATION_ROOT'),
-            'KEYCLOAK_SERVER_URL': current_app.config.get('KEYCLOAK_SERVER_URL'),
-            'KEYCLOAK_CLIENT_ID': current_app.config.get('KEYCLOAK_CLIENT_ID'),
-            'KEYCLOAK_DEBUG': current_app.config.get('KEYCLOAK_DEBUG'),
-        },
-        'os_environ': {
-            'FLASK_ENV': os.environ.get('FLASK_ENV'),
-            'APPLICATION_ROOT': os.environ.get('APPLICATION_ROOT'),
-            'KEYCLOAK_SERVER_URL': os.environ.get('KEYCLOAK_SERVER_URL'),
-            'KEYCLOAK_CLIENT_ID': os.environ.get('KEYCLOAK_CLIENT_ID'),
-            'KEYCLOAK_DEBUG': os.environ.get('KEYCLOAK_DEBUG'),
-        },
-        'working_directory': os.getcwd(),
-        'env_file_exists': os.path.exists('.env'),
-        'python_path': sys.path[:3]  # First 3 entries
-    }
-    
-    return f"<pre>{json.dumps(env_info, indent=2)}</pre>"

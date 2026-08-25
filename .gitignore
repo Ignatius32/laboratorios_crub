@@ -24,7 +24,16 @@ wheels/
 venv/
 ENV/
 env/
+
+# Secrets: ignore every .env variant. Only the placeholder template is tracked.
+# NUNCA versionar un .env con valores reales: si se filtra hay que rotar TODOS
+# los secretos, no alcanza con borrar el archivo (queda en el historial).
 .env
+.env.*
+!.env.production.template
+
+# Backups sueltos de migraciones anteriores
+*.bak_v22
 
 # Flask
 instance/
@@ -49,8 +58,3 @@ Thumbs.db
 *.log
 logs/
 
-# Local development settings
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local

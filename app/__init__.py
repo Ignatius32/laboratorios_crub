@@ -6,8 +6,9 @@ from flask_session import Session
 from app.models.models import db, Usuario
 from app.utils.logging_config import setup_logging
 from app.utils.request_logging import setup_request_logging
-from config import Config
+from config import Config, INSECURE_SECRET_KEYS
 import os
+import secrets
 import tempfile
 
 login_manager = LoginManager()
@@ -28,14 +29,31 @@ def load_user(user_id):
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
-    
+
+    # Refuse to start in production with a SECRET_KEY that is public knowledge.
+    # Signed session cookies and CSRF tokens are forgeable with a known key.
+    if app.config.get('IS_PRODUCTION') and app.config.get('SECRET_KEY') in INSECURE_SECRET_KEYS:
+        raise RuntimeError(
+            "SECRET_KEY is set to a well-known placeholder value. Generate a new "
+            "one (python -c \"import secrets; print(secrets.token_urlsafe(64))\") "
+            "and set it in the environment before starting in production."
+        )
+
     # Configure APPLICATION_ROOT for Apache deployment
     if app.config.get('APPLICATION_ROOT'):
         app.config['APPLICATION_ROOT'] = app.config['APPLICATION_ROOT']
-    
-    # Configure server-side session storage to handle large session data
+
+    # Configure server-side session storage to handle large session data.
+    # The directory is created with 0700 so other accounts on the host cannot
+    # read the Keycloak tokens stored in the session files.
+    session_dir = os.path.join(tempfile.gettempdir(), 'flask_sessions')
+    os.makedirs(session_dir, mode=0o700, exist_ok=True)
+    try:
+        os.chmod(session_dir, 0o700)
+    except OSError:
+        pass
     app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['SESSION_FILE_DIR'] = os.path.join(tempfile.gettempdir(), 'flask_sessions')
+    app.config['SESSION_FILE_DIR'] = session_dir
     app.config['SESSION_PERMANENT'] = False
     app.config['SESSION_USE_SIGNER'] = True
     app.config['SESSION_KEY_PREFIX'] = 'laboratorios_crub:'
@@ -82,7 +100,7 @@ def create_app(config_class=Config):
     def inject_csrf_token():
         return dict(csrf_token=generate_csrf)
     
-    # Initialize database and create admin user
+    # Initialize database and seed the bootstrap admin user
     with app.app_context():
         db.create_all()
         # Check if admin user exists
@@ -95,11 +113,25 @@ def create_app(config_class=Config):
                 email='admin@crub.edu.ar',
                 rol='admin'
             )
-            admin.set_password(app.config['ADMIN_PASSWORD'])
+            bootstrap_password = app.config.get('ADMIN_PASSWORD')
+            if bootstrap_password:
+                admin.set_password(bootstrap_password)
+                app.logger.info(
+                    "Usuario administrador ADMIN001 creado con la contraseña de ADMIN_PASSWORD"
+                )
+            else:
+                # No bootstrap password configured: create the row with an
+                # unusable random password so the account cannot be logged into
+                # locally. Admin access comes from Keycloak (app_admin role).
+                admin.set_password(secrets.token_urlsafe(64))
+                app.logger.warning(
+                    "Usuario administrador ADMIN001 creado sin contraseña utilizable "
+                    "(ADMIN_PASSWORD no configurada). Acceda con un usuario de "
+                    "Keycloak que tenga el rol de administrador."
+                )
             db.session.add(admin)
             db.session.commit()
-            app.logger.info("Usuario administrador creado: ADMIN001")
-        
+
         app.logger.info("Aplicación CRUB inicializada correctamente")
     
     return app

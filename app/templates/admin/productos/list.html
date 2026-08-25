@@ -116,7 +116,9 @@
                                     </a>
                                     {% if item.producto.urlFichaSeguridad %}
                                     <button type="button" class="btn btn-sm btn-warning" title="Ver ficha de seguridad" 
-                                            onclick="mostrarFichaSeguridadDesdeUrl('{{ item.producto.urlFichaSeguridad }}', '{{ item.producto.nombre }}')">
+                                            data-ficha-url="{{ item.producto.urlFichaSeguridad }}"
+                                            data-ficha-nombre="{{ item.producto.nombre }}"
+                                            data-ficha-modo="drive">
                                         <i class="fas fa-shield-alt"></i>
                                     </button>
                                     {% endif %}

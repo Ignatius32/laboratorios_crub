@@ -125,7 +125,9 @@
                         <div class="col-md-8">
                             {% if producto.urlFichaSeguridad %}
                                 <button type="button" class="btn btn-sm btn-warning" 
-                                        onclick="mostrarFichaSeguridadDesdeUrl('{{ producto.urlFichaSeguridad }}', '{{ producto.nombre }}')">
+                                        data-ficha-url="{{ producto.urlFichaSeguridad }}"
+                                        data-ficha-nombre="{{ producto.nombre }}"
+                                        data-ficha-modo="drive">
                                     <i class="fas fa-shield-alt me-1"></i> Ver Ficha de Seguridad
                                 </button>
                             {% else %}

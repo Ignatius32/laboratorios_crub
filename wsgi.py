@@ -24,16 +24,23 @@ else:
 os.environ.setdefault('FLASK_ENV', 'production')
 os.environ.setdefault('APPLICATION_ROOT', '/laboratorios-crub')
 
-# Debug: Print critical environment variables (remove in production)
-print(f"[WSGI] FLASK_ENV: {os.environ.get('FLASK_ENV')}")
-print(f"[WSGI] KEYCLOAK_SERVER_URL: {os.environ.get('KEYCLOAK_SERVER_URL')}")
-print(f"[WSGI] KEYCLOAK_CLIENT_ID: {os.environ.get('KEYCLOAK_CLIENT_ID')}")
-print(f"[WSGI] APPLICATION_ROOT: {os.environ.get('APPLICATION_ROOT')}")
-
 from app import create_app
+from config import Config, DevelopmentConfig, ProductionConfig
 
-# Create the application instance with default config (will load from environment)
-application = create_app()
+# Select the configuration class explicitly. Calling create_app() without
+# arguments falls back to the base Config, which does NOT set
+# SESSION_COOKIE_SECURE / HTTPONLY / SAMESITE.
+env = os.environ.get('FLASK_ENV', 'production')
+if env == 'development':
+    config_class = DevelopmentConfig
+elif env == 'production':
+    config_class = ProductionConfig
+else:
+    config_class = Config
+
+print(f"[WSGI] FLASK_ENV: {env} -> {config_class.__name__}")
+
+application = create_app(config_class)
 
 if __name__ == "__main__":
     application.run()

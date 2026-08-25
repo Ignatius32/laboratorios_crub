@@ -4,6 +4,15 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# SECRET_KEY values that were committed to the repository at some point and are
+# therefore public knowledge. create_app() refuses to boot in production with
+# any of these.
+INSECURE_SECRET_KEYS = {
+    'fallback-secret-key',
+    'your_secure_secret_key_change_this',
+    'your_secure_secret_key_change_this_in_production',
+}
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-secret-key')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI', 'sqlite:///laboratorios.db')
@@ -20,9 +29,16 @@ class Config:
     SERVER_NAME = os.environ.get('SERVER_NAME', None)
     PREFERRED_URL_SCHEME = os.environ.get('PREFERRED_URL_SCHEME', 'https' if IS_PRODUCTION else 'http')
     
-    # Admin credentials
-    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    # Bootstrap admin password. Only used to seed the initial admin row on an
+    # empty database; there is deliberately no default value. If it is unset the
+    # seed user is created with an unusable random password and access has to go
+    # through Keycloak.
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
+
+    # Session cookie hardening (overridden with stricter values in production)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SECURE = IS_PRODUCTION
     
     # Logging configuration
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')

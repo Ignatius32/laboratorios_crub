@@ -284,90 +284,125 @@
          */
         function cargarDocumentoPorTipo(fileType, previewUrl, previewUrlDirecto, nombreProducto) {
             const viewerContainer = document.getElementById('fichaViewerContainer');
-            const loadingSpinner = document.getElementById('fichaLoadingSpinner');
-            
+
             try {
-                let contenidoVisor = '';
-                
+                let nodoVisor;
+
                 if (['pdf'].includes(fileType)) {
                     // Para PDFs usar iframe con parámetros de embebido y fallback
-                    contenidoVisor = `
-                        <iframe 
-                            src="${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH" 
-                            width="100%" 
-                            height="700px" 
-                            style="border: none; min-height: 700px;"
-                            title="Ficha de Seguridad - ${nombreProducto}"
-                            allow="fullscreen"
-                            onload="ocultarCargaFicha()"
-                            onerror="cargarConFallback('${previewUrlDirecto}', '${nombreProducto}')">
-                            <p>Su navegador no soporta la visualización de PDFs. 
-                               <a href="${previewUrlDirecto}" target="_blank">Haga clic aquí para abrir el documento</a>
-                            </p>
-                        </iframe>
-                    `;
+                    nodoVisor = crearIframeFicha(
+                        `${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH`,
+                        nombreProducto,
+                        () => cargarConFallback(previewUrlDirecto, nombreProducto)
+                    );
                 } else if (['doc', 'docx'].includes(fileType)) {
                     // Para documentos de Word, usar iframe con visualizador y fallback
-                    contenidoVisor = `
-                        <iframe 
-                            src="${previewUrl}" 
-                            width="100%" 
-                            height="700px" 
-                            style="border: none; min-height: 700px;"
-                            title="Ficha de Seguridad - ${nombreProducto}"
-                            onload="ocultarCargaFicha()"
-                            onerror="cargarConFallback('${previewUrlDirecto}', '${nombreProducto}')">
-                            <p>No se puede mostrar el documento. 
-                               <a href="${previewUrlDirecto}" target="_blank">Haga clic aquí para abrir el archivo</a>
-                            </p>
-                        </iframe>
-                    `;
+                    nodoVisor = crearIframeFicha(
+                        previewUrl,
+                        nombreProducto,
+                        () => cargarConFallback(previewUrlDirecto, nombreProducto)
+                    );
                 } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileType)) {
                     // Para imágenes mostrar directamente con fallback
-                    contenidoVisor = `
-                        <div class="text-center p-4">
-                            <img 
-                                src="${previewUrl}" 
-                                class="img-fluid" 
-                                style="max-height: 600px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"
-                                alt="Ficha de Seguridad - ${nombreProducto}"
-                                onload="ocultarCargaFicha()"
-                                onerror="this.src='${previewUrlDirecto}'; if(this.src.includes('ficha_seguridad_directo')) mostrarErrorFicha('Error al cargar la imagen de la ficha de seguridad.');">
-                        </div>
-                    `;
+                    nodoVisor = document.createElement('div');
+                    nodoVisor.className = 'text-center p-4';
+
+                    const imagen = document.createElement('img');
+                    imagen.src = previewUrl;
+                    imagen.className = 'img-fluid';
+                    imagen.style.maxHeight = '600px';
+                    imagen.style.borderRadius = '8px';
+                    imagen.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                    imagen.alt = `Ficha de Seguridad - ${nombreProducto || ''}`;
+                    imagen.addEventListener('load', ocultarCargaFicha);
+                    imagen.addEventListener('error', function manejarError() {
+                        // Primer error: reintentar con la URL directa de Drive.
+                        // Segundo error: ya no hay de dónde cargar.
+                        if (imagen.src.includes('ficha_seguridad_directo')) {
+                            imagen.removeEventListener('error', manejarError);
+                            mostrarErrorFicha('Error al cargar la imagen de la ficha de seguridad.');
+                        } else {
+                            imagen.src = previewUrlDirecto;
+                        }
+                    });
+
+                    nodoVisor.appendChild(imagen);
                 } else {
                     // Para otros tipos de archivo mostrar mensaje con ambas opciones
-                    contenidoVisor = `
-                        <div class="alert alert-info m-4">
-                            <i class="fas fa-file-alt fa-2x mb-3 d-block text-center"></i>
-                            <h5 class="text-center">Archivo no visualizable en línea</h5>
-                            <p class="text-center mb-3">
-                                Este tipo de archivo (${fileType.toUpperCase()}) no puede ser visualizado directamente en el navegador.
-                            </p>
-                            <div class="text-center">
-                                <a href="${previewUrl}" target="_blank" class="btn btn-primary me-2">
-                                    <i class="fas fa-download me-2"></i>Descargar archivo
-                                </a>
-                                <a href="${previewUrlDirecto}" target="_blank" class="btn btn-outline-primary">
-                                    <i class="fas fa-external-link-alt me-2"></i>Abrir en Google Drive
-                                </a>
-                            </div>
-                        </div>
-                    `;
+                    nodoVisor = crearAvisoNoVisualizable(fileType, previewUrl, previewUrlDirecto);
                 }
-                
+
                 // Insertar el contenido y ocultar spinner
-                viewerContainer.innerHTML = contenidoVisor;
-                
+                viewerContainer.replaceChildren(nodoVisor);
+
                 // Si es una imagen o contenido sin iframe, ocultar spinner inmediatamente
                 if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileType) || !['pdf', 'doc', 'docx'].includes(fileType)) {
                     setTimeout(ocultarCargaFicha, 500);
                 }
-                
+
             } catch (error) {
                 console.error('Error al cargar la ficha de seguridad:', error);
                 mostrarErrorFicha('Error técnico al cargar la ficha de seguridad.');
             }
+        }
+
+        /**
+         * Crea el iframe del visor.
+         * Se construye vía DOM (no innerHTML) para que el nombre del producto
+         * nunca se interprete como marcado.
+         * @param {string} src - URL a cargar
+         * @param {string} nombreProducto - Nombre del producto
+         * @param {Function} [alFallar] - Callback opcional ante error de carga
+         * @returns {HTMLIFrameElement}
+         */
+        function crearIframeFicha(src, nombreProducto, alFallar) {
+            const iframe = document.createElement('iframe');
+            iframe.src = src;
+            iframe.width = '100%';
+            iframe.height = '700px';
+            iframe.style.border = 'none';
+            iframe.style.minHeight = '700px';
+            iframe.title = `Ficha de Seguridad - ${nombreProducto || ''}`;
+            iframe.setAttribute('allow', 'fullscreen');
+            iframe.addEventListener('load', ocultarCargaFicha);
+            if (typeof alFallar === 'function') {
+                iframe.addEventListener('error', alFallar);
+            }
+            return iframe;
+        }
+
+        /**
+         * Crea el aviso para tipos de archivo que no se pueden mostrar en línea
+         * @param {string} fileType - Tipo de archivo
+         * @param {string} previewUrl - URL de descarga
+         * @param {string} previewUrlDirecto - URL directa de Google Drive
+         * @returns {HTMLDivElement}
+         */
+        function crearAvisoNoVisualizable(fileType, previewUrl, previewUrlDirecto) {
+            const aviso = document.createElement('div');
+            aviso.className = 'alert alert-info m-4';
+            aviso.innerHTML = `
+                <i class="fas fa-file-alt fa-2x mb-3 d-block text-center"></i>
+                <h5 class="text-center">Archivo no visualizable en línea</h5>
+                <p class="text-center mb-3"></p>
+                <div class="text-center">
+                    <a class="btn btn-primary me-2" target="_blank" rel="noopener">
+                        <i class="fas fa-download me-2"></i>Descargar archivo
+                    </a>
+                    <a class="btn btn-outline-primary" target="_blank" rel="noopener">
+                        <i class="fas fa-external-link-alt me-2"></i>Abrir en Google Drive
+                    </a>
+                </div>
+            `;
+
+            const parrafo = aviso.querySelector('p');
+            parrafo.textContent = `Este tipo de archivo (${(fileType || '').toUpperCase()}) no puede ser visualizado directamente en el navegador.`;
+
+            const enlaces = aviso.querySelectorAll('a');
+            enlaces[0].href = previewUrl;
+            enlaces[1].href = previewUrlDirecto;
+
+            return aviso;
         }
 
         /**
@@ -378,25 +413,12 @@
         function cargarConFallback(fallbackUrl, nombreProducto) {
             console.log('Cargando con fallback URL:', fallbackUrl);
             const viewerContainer = document.getElementById('fichaViewerContainer');
-            
-            const contenidoFallback = `
-                <iframe 
-                    src="${fallbackUrl}" 
-                    width="100%" 
-                    height="700px" 
-                    style="border: none; min-height: 700px;"
-                    title="Ficha de Seguridad - ${nombreProducto}"
-                    allow="fullscreen"
-                    onload="ocultarCargaFicha()">
-                    <p>No se puede mostrar el documento. 
-                       <a href="${fallbackUrl}" target="_blank">Haga clic aquí para abrir el archivo</a>
-                    </p>
-                </iframe>
-            `;
-            
-            viewerContainer.innerHTML = contenidoFallback;
+
+            viewerContainer.replaceChildren(crearIframeFicha(fallbackUrl, nombreProducto));
             setTimeout(ocultarCargaFicha, 1000);
-        }        /**
+        }
+
+        /**
          * Configura los botones de acción del modal
          * @param {string} previewUrl - URL del archivo
          * @param {string} previewUrlDirecto - URL directa de Google Drive
@@ -449,7 +471,7 @@
                 <div class="alert alert-warning m-4">
                     <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block text-center text-warning"></i>
                     <h5 class="text-center">Ficha de Seguridad No Disponible</h5>
-                    <p class="text-center mb-0">${mensaje}</p>
+                    <p class="text-center mb-0" data-mensaje-error></p>
                     <hr>
                     <p class="text-center small text-muted mb-0">
                         <i class="fas fa-info-circle me-1"></i>
@@ -457,6 +479,7 @@
                     </p>
                 </div>
             `;
+            viewerContainer.querySelector('[data-mensaje-error]').textContent = mensaje;
             
             // Ocultar botones si hay error
             openBtn.style.display = 'none';
@@ -480,7 +503,30 @@
             const modal = document.getElementById('fichasSeguridadModal');
             const openBtn = document.getElementById('openFichaNewTabBtn');
             const downloadBtn = document.getElementById('downloadFichaBtn');
-            
+
+            // Apertura de fichas de seguridad por delegación.
+            // Los datos viajan en atributos data-*, nunca dentro de un onclick:
+            // así el nombre del producto jamás se evalúa como código.
+            // Al estar delegado en document también funciona con las filas que
+            // DataTables agrega dinámicamente al paginar.
+            document.addEventListener('click', function(evento) {
+                const disparador = evento.target.closest('[data-ficha-url]');
+                if (!disparador) {
+                    return;
+                }
+
+                evento.preventDefault();
+                const url = disparador.dataset.fichaUrl;
+                const nombre = disparador.dataset.fichaNombre || '';
+
+                if (disparador.dataset.fichaModo === 'temporal'
+                        && typeof mostrarFichaSeguridadTemporal === 'function') {
+                    mostrarFichaSeguridadTemporal(url, nombre);
+                } else {
+                    mostrarFichaSeguridadDesdeUrl(url, nombre);
+                }
+            });
+
             // Limpiar contenido al cerrar el modal
             modal.addEventListener('hidden.bs.modal', function () {
                 document.getElementById('fichaViewerContainer').innerHTML = '';

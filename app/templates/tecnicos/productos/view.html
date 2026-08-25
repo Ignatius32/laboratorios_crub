@@ -124,7 +124,9 @@
                             <strong>Ficha de Seguridad:</strong>
                         </div>                        <div class="col-md-8">
                             <button type="button" class="btn btn-warning" 
-                                    onclick="mostrarFichaSeguridadTemporal('{{ producto.urlFichaSeguridad }}', '{{ producto.nombre }}')">
+                                    data-ficha-url="{{ producto.urlFichaSeguridad }}"
+                                    data-ficha-nombre="{{ producto.nombre }}"
+                                    data-ficha-modo="temporal">
                                 <i class="fas fa-shield-alt me-2"></i> Ver Ficha de Seguridad
                             </button>
                             <small class="d-block text-muted mt-2">
@@ -297,7 +299,9 @@
         // Configurar el modal de ficha de seguridad
         {% if producto.urlFichaSeguridad %}
         $('#fichaSegModal').on('show.bs.modal', function () {
-            const fileId = '{{ producto.urlFichaSeguridad }}';
+            // tojson escapa el valor para contexto JavaScript; interpolarlo
+            // entre comillas simples permitiría romper el string o el <script>.
+            const fileId = {{ producto.urlFichaSeguridad | tojson }};
             let viewUrl;
             if (fileId.startsWith('http')) {
                 viewUrl = fileId;

@@ -156,22 +156,21 @@ function mostrarFichaSeguridadTemporal(urlFicha, nombreProducto) {
     const modalInstance = new bootstrap.Modal(modal);
     modalInstance.show();
     
-    // Cargar contenido después de mostrar el modal
+    // Cargar contenido después de mostrar el modal.
+    // El iframe se construye vía DOM: interpolar nombreProducto dentro de
+    // innerHTML permitiría inyectar marcado desde el nombre del producto.
     setTimeout(() => {
-        viewerContainer.innerHTML = `
-            <iframe 
-                src="${previewUrl}" 
-                width="100%" 
-                height="700px" 
-                style="border: none; min-height: 700px;"
-                title="Ficha de Seguridad - ${nombreProducto}"
-                allow="fullscreen"
-                onload="console.log('Ficha cargada exitosamente')">
-                <p>No se puede mostrar el documento. 
-                   <a href="${previewUrl}" target="_blank">Haga clic aquí para abrir el archivo</a>
-                </p>
-            </iframe>
-        `;
+        const iframe = document.createElement('iframe');
+        iframe.src = previewUrl;
+        iframe.width = '100%';
+        iframe.height = '700px';
+        iframe.style.border = 'none';
+        iframe.style.minHeight = '700px';
+        iframe.title = `Ficha de Seguridad - ${nombreProducto || ''}`;
+        iframe.setAttribute('allow', 'fullscreen');
+        iframe.addEventListener('load', () => console.log('Ficha cargada exitosamente'));
+
+        viewerContainer.replaceChildren(iframe);
     }, 500);
 }
 

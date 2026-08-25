@@ -186,7 +186,9 @@
                     <!-- Botón para ver ficha si existe URL -->
                     <div class="col-md-4 mb-3 d-flex align-items-end">
                         {% if producto and producto.urlFichaSeguridad %}                        <button type="button" class="btn btn-outline-warning w-100" 
-                                onclick="mostrarFichaSeguridadDesdeUrl('{{ producto.urlFichaSeguridad }}', '{{ producto.nombre }}')">
+                                data-ficha-url="{{ producto.urlFichaSeguridad }}"
+                                data-ficha-nombre="{{ producto.nombre }}"
+                                data-ficha-modo="drive">
                             <i class="fas fa-shield-alt me-2"></i> Ver Ficha Actual
                         </button>
                         {% else %}
