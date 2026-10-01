@@ -1360,6 +1360,14 @@ def exportar_reporte_excel():
     # Verificar que todas las columnas existan en el DataFrame
     columnas_existentes = [col for col in columnas_ordenadas if col in df.columns]
     df = df[columnas_existentes]
+
+    # Sólo en la planilla: los códigos con que se informan los movimientos.
+    # El reporte en pantalla sigue mostrando el tipo como se cargó. Lo que no
+    # tiene código (una transferencia) queda con su nombre.
+    codigos_tipo = {'compra': 'CPR', 'ingreso': 'CPR', 'uso': 'USA'}
+    if 'tipo_movimiento' in df.columns:
+        df['tipo_movimiento'] = df['tipo_movimiento'].map(
+            lambda tipo: codigos_tipo.get(str(tipo).strip().lower(), tipo))
       # Renombrar las columnas para el archivo Excel
     columnas_excel = {
         'fecha': 'Fecha',

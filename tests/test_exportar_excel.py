@@ -137,6 +137,15 @@ with app.test_client() as c:
 
     datos = r.data
 
+    with c.session_transaction() as s:
+        filas_despues = s.get('reporte_data_completo', [])
+    r = c.post('/admin/reportes/movimientos', data={
+        'csrf_token': tok, 'fecha_inicial': desde, 'fecha_final': hasta,
+        'laboratorio': '', 'tipo_producto': '', 'control_sedronar': ''})
+    # Sólo la tabla: el resto de la página tiene textos que no vienen al caso.
+    pantalla = r.get_data(as_text=True)
+    pantalla = pantalla[pantalla.find('<tbody'):pantalla.find('</tbody>')]
+
 print('\n--- el archivo abre y tiene los datos ---')
 import openpyxl                                  # noqa: E402
 
@@ -152,7 +161,16 @@ check('último encabezado es CUIT Proveedor',
 
 primera = [c.value for c in hoja[2]]
 check('el producto sale en la fila', primera[1] == 'Etanol', primera[1])
-check('el tipo de movimiento sale', primera[4] == 'ingreso', primera[4])
+# En la planilla el tipo va con su código: compra e ingreso son CPR, uso es
+# USA. Los movimientos cargados son ingreso, uso, ingreso.
+tipos = sorted(fila[4].value for fila in hoja.iter_rows(min_row=2))
+check('en la planilla el tipo va con su código', tipos == ['CPR', 'CPR', 'USA'], tipos)
+check('en pantalla sigue como se cargó',
+      'CPR' not in pantalla and 'USA' not in pantalla
+      and 'Ingreso' in pantalla and 'Uso' in pantalla)
+check('y exportar no cambia los datos del reporte',
+      sorted(f['tipo_movimiento'] for f in filas_despues) == ['ingreso', 'ingreso', 'uso'],
+      [f['tipo_movimiento'] for f in filas_despues])
 check('las celdas vacías quedan vacías, no dicen "nan"',
       all(c.value in (None, '') for c in hoja[2][9:12]),
       [c.value for c in hoja[2][9:12]])
