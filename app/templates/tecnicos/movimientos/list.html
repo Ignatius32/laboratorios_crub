@@ -1,149 +1,112 @@
 {% extends "base.html" %}
 {% from 'macros/pagination.html' import render_pagination %}
+{% from 'macros/ui.html' import page_header, empty_state, lab_breadcrumb,
+                                tipo_movimiento_badge %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Panel de Técnico</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}">{{ laboratorio.nombre }}</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Movimientos</li>
-        </ol>
-    </nav>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 text-gray-800">Movimientos - {{ laboratorio.nombre }}</h1>
-        <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary">
-            <i class="fas fa-plus-circle me-2"></i>Nuevo Movimiento
-        </a>
-    </div>
+{{ lab_breadcrumb(laboratorio, 'Movimientos') }}
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Lista de Movimientos</h6>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="tecnicos-movimientos-table" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Fecha</th>
-                            <th>Tipo</th>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Unidad</th>
-                            <th>Detalles</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for movimiento in movimientos %}
-                        <tr>
-                            <td>{{ movimiento.idMovimiento }}</td>
-                            <td>{{ movimiento.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                            <td>
-                                {% if movimiento.tipoMovimiento == 'ingreso' %}
-                                    <span class="badge bg-success">Ingreso</span>
-                                {% elif movimiento.tipoMovimiento == 'compra' %}
-                                    <span class="badge bg-primary">Compra</span>
-                                {% elif movimiento.tipoMovimiento == 'uso' %}
-                                    <span class="badge bg-warning text-dark">Uso</span>
-                                {% elif movimiento.tipoMovimiento == 'transferencia' %}
-                                    <span class="badge bg-info text-dark">Transferencia</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ movimiento.tipoMovimiento|title }}</span>
+{% call page_header('Movimientos', laboratorio.nombre) %}
+    <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}"
+       class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nuevo movimiento
+    </a>
+{% endcall %}
+
+<div class="card">
+    {% if movimientos %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="tecnicos-movimientos-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Producto</th>
+                    <th class="text-end">Cantidad</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for movimiento in movimientos %}
+                <tr>
+                    <td class="text-muted text-nowrap numeros-tabulares">
+                        {{ movimiento.timestamp.strftime('%d/%m/%Y') }}
+                        <span class="text-tenue">{{ movimiento.timestamp.strftime('%H:%M') }}</span>
+                    </td>
+                    <td>{{ tipo_movimiento_badge(movimiento.tipoMovimiento) }}</td>
+                    <td class="fw-medium">{{ movimiento.producto.nombre }}</td>
+                    <td class="celda-numero text-nowrap">
+                        {{ '%g'|format(movimiento.cantidad) }}
+                        <span class="text-muted">{{ movimiento.unidadMedida }}</span>
+                    </td>
+                    <td>
+                        {% if movimiento.tipoMovimiento == 'compra' %}
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                {% if movimiento.tipoDocumento %}
+                                <span class="text-muted" style="font-size: var(--texto-sm)">
+                                    {{ movimiento.tipoDocumento|capitalize }}
+                                    {% if movimiento.numeroDocumento %}
+                                    <span class="numeros-tabulares">{{ movimiento.numeroDocumento }}</span>
+                                    {% endif %}
+                                </span>
                                 {% endif %}
-                            </td>
-                            <td>{{ movimiento.producto.nombre }}</td>
-                            <td>{{ movimiento.cantidad }}</td>
-                            <td>{{ movimiento.unidadMedida }}</td>
-                            <td>
-                                {% if movimiento.tipoMovimiento == 'compra' %}
-                                    {% if movimiento.tipoDocumento %}
-                                        <span class="badge bg-info">{{ movimiento.tipoDocumento|capitalize }}</span>
-                                        {% if movimiento.numeroDocumento %}
-                                            <span class="badge bg-secondary">{{ movimiento.numeroDocumento }}</span>
-                                        {% endif %}
-                                    {% endif %}
-                                    {% if movimiento.urlDocumento %}
-                                        <a href="{{ movimiento.urlDocumento }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
-                                    {% endif %}
-                                {% elif movimiento.tipoMovimiento == 'transferencia' %}
-                                    {% if movimiento.laboratorioDestino %}
-                                        <span class="badge bg-info">Destino: 
-                                            {% for lab in current_user.laboratorios %}
-                                                {% if lab.idLaboratorio == movimiento.laboratorioDestino %}
-                                                    {{ lab.nombre }}
-                                                {% endif %}
-                                            {% endfor %}
-                                        </span>
-                                    {% endif %}
-                                {% elif movimiento.tipoDocumento == 'transferencia' %}
-                                    <span class="badge bg-info">Origen: 
-                                        {% for lab in current_user.laboratorios %}
-                                            {% if lab.idLaboratorio == movimiento.laboratorioDestino %}
-                                                {{ lab.nombre }}
-                                            {% endif %}
-                                        {% endfor %}
-                                    </span>
+                                {% if movimiento.urlDocumento %}
+                                <a href="{{ movimiento.urlDocumento }}" target="_blank" rel="noopener"
+                                   class="btn btn-sm btn-outline-secondary" title="Ver comprobante">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
                                 {% endif %}
-                            </td>
-                        </tr>
+                                {% if movimiento.proveedor %}
+                                <span class="text-tenue" style="font-size: var(--texto-sm)">
+                                    · {{ movimiento.proveedor.nombre }}
+                                </span>
+                                {% endif %}
+                            </div>
+
+                        {% elif movimiento.tipoMovimiento == 'transferencia' and movimiento.laboratorioDestino %}
+                            {#
+                              El nombre del laboratorio destino lo resuelve la
+                              ruta: antes se buscaba recorriendo los
+                              laboratorios del usuario, así que al administrador
+                              —que no tiene ninguno asignado— le salía vacío.
+                            #}
+                            <span class="text-muted" style="font-size: var(--texto-sm)">
+                                <i class="fas fa-arrow-right me-1 text-tenue" style="font-size:.8em"></i>
+                                {{ nombres_laboratorios.get(movimiento.laboratorioDestino,
+                                                            movimiento.laboratorioDestino) }}
+                            </span>
+
                         {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center">No hay movimientos registrados</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>            </div>
-        </div>
+                            <span class="text-tenue">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    
-    <!-- Paginación -->
-    {% if pagination %}
-    {{ render_pagination(pagination, 'tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio, item_name='movimientos') }}
+
+    {% else %}
+
+    {% call empty_state(
+        'Todavía no hay movimientos en este laboratorio',
+        'Cada ingreso, compra, uso o transferencia queda registrado acá, y es lo que determina el stock.',
+        icono='fa-right-left') %}
+        <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}"
+           class="btn btn-primary">
+            <i class="fas fa-plus"></i> Registrar el primero
+        </a>
+    {% endcall %}
+
     {% endif %}
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    $(document).ready(function() {
-        // Inicializar DataTable para la tabla de movimientos
-        $('#tecnicos-movimientos-table').DataTable({
-            language: {
-                url: '{{ url_for("static", filename="js/Spanish.json") }}'
-            },
-            order: [[1, 'desc']],  // Order by date, most recent first
-            responsive: true,
-            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]]
-        });
-    });
-
-    // Script para mantener los parámetros de paginación si se agregan filtros futuros
-    document.addEventListener('DOMContentLoaded', function() {
-        const formEl = document.querySelector('form');
-        if (formEl) {
-            formEl.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const url = new URL(window.location.href);
-                const formData = new FormData(this);
-                
-                for (const [key, value] of formData.entries()) {
-                    if (value) {
-                        url.searchParams.set(key, value);
-                    } else {
-                        url.searchParams.delete(key);
-                    }
-                }
-                
-                url.searchParams.set('page', '1');
-                window.location.href = url.toString();
-            });
-        }
-    });
-</script>
+{#
+  Acá antes se inicializaba DataTables sobre una tabla que el servidor ya venía
+  paginando: quedaban dos paginadores discrepando, uno sobre las 20 filas de la
+  página y otro sobre el total. La paginación del servidor es la que manda.
+#}
+{{ render_pagination(pagination, 'tecnicos.list_movimientos',
+                     lab_id=laboratorio.idLaboratorio, item_name='movimientos') }}
 {% endblock %}

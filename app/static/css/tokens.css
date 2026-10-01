@@ -1,0 +1,289 @@
+/* ==========================================================================
+   Tokens de diseño — la única fuente de verdad del sistema visual.
+   ==========================================================================
+
+   Antes había dos bloques :root peleando (variables.css y common.css), tres
+   variables que se usaban sin estar definidas (--color-gray, --color-light-gray,
+   --color-primary-light) y ocho hojas redefiniendo los mismos selectores. Todo
+   el color, el espaciado, los radios y las sombras salen ahora de acá.
+
+   Al final del archivo estos tokens se enchufan a las variables --bs-* de
+   Bootstrap 5.3. Eso hace que botones, tarjetas, formularios y tablas tomen el
+   tema solos, sin reescribir sus reglas: es la diferencia entre mantener 200
+   líneas y mantener 2000.
+
+   Tema oscuro: se aplica solo según prefers-color-scheme, y puede forzarse con
+   data-bs-theme="dark" en <html> (el atributo nativo de Bootstrap 5.3).
+   ========================================================================== */
+
+:root {
+    /* --- Escala de grises neutra ------------------------------------------
+       Sin tinte azulado: el gris azulado de Material (#607D8B) hacía que todo
+       pareciera apagado. Un neutro real deja que el color de acento destaque. */
+    --gris-0:   #ffffff;
+    --gris-25:  #fcfcfd;
+    --gris-50:  #f7f7f9;
+    --gris-100: #f0f0f3;
+    --gris-150: #e8e8ec;
+    --gris-200: #dededf;
+    --gris-300: #c7c7cf;
+    --gris-400: #9b9ba6;
+    --gris-500: #70707c;
+    --gris-600: #52525c;
+    --gris-700: #3a3a42;
+    --gris-800: #26262c;
+    --gris-900: #17171b;
+    --gris-950: #0e0e11;
+
+    /* --- Acento ----------------------------------------------------------- */
+    --acento:        #5b5bd6;
+    --acento-fuerte: #4a4ac4;
+    --acento-suave:  #eeeefc;
+    --acento-borde:  #d5d5f5;
+    --acento-texto:  #ffffff;
+
+    /* --- Semánticos ------------------------------------------------------- */
+    --exito:         #16a34a;
+    --exito-suave:   #e8f7ee;
+    --exito-borde:   #bfe8cf;
+    --exito-texto:   #14532d;
+
+    --aviso:         #d97706;
+    --aviso-suave:   #fef4e6;
+    --aviso-borde:   #f6dcb0;
+    --aviso-texto:   #7c3d0a;
+
+    --peligro:       #dc2626;
+    --peligro-suave: #fdecec;
+    --peligro-borde: #f7c9c9;
+    --peligro-texto: #7f1d1d;
+
+    --info:          #0284c7;
+    --info-suave:    #e6f4fc;
+    --info-borde:    #b9dff5;
+    --info-texto:    #0c4a6e;
+
+    /* --- Superficies y texto ---------------------------------------------- */
+    --fondo:            var(--gris-50);
+    --superficie:       var(--gris-0);
+    --superficie-sutil: var(--gris-25);
+    --superficie-hover: var(--gris-50);
+    --borde:            var(--gris-150);
+    --borde-fuerte:     var(--gris-200);
+
+    --texto:        var(--gris-900);
+    --texto-suave:  var(--gris-600);
+    --texto-tenue:  var(--gris-400);
+    --texto-invertido: var(--gris-0);
+
+    /* --- Radios -----------------------------------------------------------
+       El objetivo son bordes claramente redondeados (rounded-xl); --radio-lg
+       es el que usan tarjetas y paneles. */
+    --radio-sm:   6px;
+    --radio:      8px;
+    --radio-md:   10px;
+    --radio-lg:   14px;
+    --radio-xl:   18px;
+    --radio-full: 999px;
+
+    /* --- Sombras ----------------------------------------------------------
+       En capas: una línea de contacto muy tenue más una difusión amplia. Una
+       sola sombra plana se ve barata; dos capas dan profundidad real. */
+    --sombra-xs: 0 1px 2px rgba(16, 16, 24, .04);
+    --sombra-sm: 0 1px 2px rgba(16, 16, 24, .04), 0 1px 3px rgba(16, 16, 24, .06);
+    --sombra:    0 1px 2px rgba(16, 16, 24, .04), 0 4px 12px rgba(16, 16, 24, .06);
+    --sombra-md: 0 2px 4px rgba(16, 16, 24, .04), 0 8px 24px rgba(16, 16, 24, .08);
+    --sombra-lg: 0 4px 8px rgba(16, 16, 24, .05), 0 16px 40px rgba(16, 16, 24, .10);
+    --anillo-foco: 0 0 0 3px rgba(91, 91, 214, .18);
+
+    /* --- Tipografía -------------------------------------------------------
+       El tracking negativo en los títulos es lo que más acerca el resultado a
+       Linear o Vercel: a tamaños grandes, Inter con espaciado por defecto se
+       ve suelto. */
+    --fuente: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+              'Helvetica Neue', Arial, sans-serif;
+    --fuente-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+                   'Liberation Mono', monospace;
+
+    --texto-xs:  .75rem;
+    --texto-sm:  .8125rem;
+    --texto-base: .875rem;
+    --texto-md:  .9375rem;
+    --texto-lg:  1.0625rem;
+    --texto-xl:  1.25rem;
+    --texto-2xl: 1.5rem;
+    --texto-3xl: 1.875rem;
+
+    /* --- Espaciado --------------------------------------------------------- */
+    --esp-1: .25rem;
+    --esp-2: .5rem;
+    --esp-3: .75rem;
+    --esp-4: 1rem;
+    --esp-5: 1.5rem;
+    --esp-6: 2rem;
+    --esp-7: 2.5rem;
+    --esp-8: 3rem;
+
+    /* --- Movimiento --------------------------------------------------------
+       Cortas y con ease-out: la interfaz tiene que sentirse inmediata. */
+    --transicion:       140ms cubic-bezier(.4, 0, .2, 1);
+    --transicion-lenta: 240ms cubic-bezier(.4, 0, .2, 1);
+}
+
+/* --------------------------------------------------------------------------
+   Tema oscuro.
+
+   Sólo se redefinen los tokens: ninguna regla de componente sabe que existe un
+   tema oscuro, así que no hay forma de que uno quede desincronizado del otro.
+   -------------------------------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-bs-theme="light"]) {
+        --acento:        #7c7cf0;
+        --acento-fuerte: #9494f5;
+        --acento-suave:  #1e1e3a;
+        --acento-borde:  #33335c;
+        --acento-texto:  #0e0e11;
+
+        --exito:         #4ade80;
+        --exito-suave:   #10261a;
+        --exito-borde:   #1e4632;
+        --exito-texto:   #a7f3c4;
+
+        --aviso:         #fbbf24;
+        --aviso-suave:   #2a1f0a;
+        --aviso-borde:   #4a3717;
+        --aviso-texto:   #fde3a7;
+
+        --peligro:       #f87171;
+        --peligro-suave: #2d1414;
+        --peligro-borde: #4f2222;
+        --peligro-texto: #fecaca;
+
+        --info:          #38bdf8;
+        --info-suave:    #0c2231;
+        --info-borde:    #16405a;
+        --info-texto:    #bae6fd;
+
+        --fondo:            var(--gris-950);
+        --superficie:       var(--gris-900);
+        --superficie-sutil: #131317;
+        --superficie-hover: var(--gris-800);
+        --borde:            var(--gris-800);
+        --borde-fuerte:     var(--gris-700);
+
+        --texto:        #ededf0;
+        --texto-suave:  #a8a8b4;
+        --texto-tenue:  var(--gris-500);
+        --texto-invertido: var(--gris-950);
+
+        /* Sobre fondo oscuro una sombra negra no se ve: lo que separa las
+           superficies es que sean más claras que el fondo, más un borde. Se
+           bajan las sombras y se sube el contraste del borde. */
+        --sombra-xs: 0 1px 2px rgba(0, 0, 0, .30);
+        --sombra-sm: 0 1px 2px rgba(0, 0, 0, .35), 0 1px 3px rgba(0, 0, 0, .25);
+        --sombra:    0 1px 2px rgba(0, 0, 0, .35), 0 4px 12px rgba(0, 0, 0, .30);
+        --sombra-md: 0 2px 4px rgba(0, 0, 0, .40), 0 8px 24px rgba(0, 0, 0, .35);
+        --sombra-lg: 0 4px 8px rgba(0, 0, 0, .45), 0 16px 40px rgba(0, 0, 0, .45);
+        --anillo-foco: 0 0 0 3px rgba(124, 124, 240, .28);
+    }
+}
+
+/* La misma paleta, pero forzada por el atributo de Bootstrap. Se repite en
+   lugar de compartirse porque una regla no puede tener dos selectores con
+   condiciones distintas de @media. */
+[data-bs-theme="dark"] {
+    --acento:        #7c7cf0;
+    --acento-fuerte: #9494f5;
+    --acento-suave:  #1e1e3a;
+    --acento-borde:  #33335c;
+    --acento-texto:  #0e0e11;
+
+    --exito:         #4ade80;
+    --exito-suave:   #10261a;
+    --exito-borde:   #1e4632;
+    --exito-texto:   #a7f3c4;
+
+    --aviso:         #fbbf24;
+    --aviso-suave:   #2a1f0a;
+    --aviso-borde:   #4a3717;
+    --aviso-texto:   #fde3a7;
+
+    --peligro:       #f87171;
+    --peligro-suave: #2d1414;
+    --peligro-borde: #4f2222;
+    --peligro-texto: #fecaca;
+
+    --info:          #38bdf8;
+    --info-suave:    #0c2231;
+    --info-borde:    #16405a;
+    --info-texto:    #bae6fd;
+
+    --fondo:            var(--gris-950);
+    --superficie:       var(--gris-900);
+    --superficie-sutil: #131317;
+    --superficie-hover: var(--gris-800);
+    --borde:            var(--gris-800);
+    --borde-fuerte:     var(--gris-700);
+
+    --texto:        #ededf0;
+    --texto-suave:  #a8a8b4;
+    --texto-tenue:  var(--gris-500);
+    --texto-invertido: var(--gris-950);
+
+    --sombra-xs: 0 1px 2px rgba(0, 0, 0, .30);
+    --sombra-sm: 0 1px 2px rgba(0, 0, 0, .35), 0 1px 3px rgba(0, 0, 0, .25);
+    --sombra:    0 1px 2px rgba(0, 0, 0, .35), 0 4px 12px rgba(0, 0, 0, .30);
+    --sombra-md: 0 2px 4px rgba(0, 0, 0, .40), 0 8px 24px rgba(0, 0, 0, .35);
+    --sombra-lg: 0 4px 8px rgba(0, 0, 0, .45), 0 16px 40px rgba(0, 0, 0, .45);
+    --anillo-foco: 0 0 0 3px rgba(124, 124, 240, .28);
+}
+
+/* ==========================================================================
+   Puente hacia Bootstrap 5.3
+
+   Bootstrap 5.3 construye sus componentes sobre variables CSS propias. Al
+   reasignarlas acá, todo lo suyo —botones, tarjetas, formularios, tablas,
+   modales, menús— adopta este sistema sin una sola regla adicional.
+   ========================================================================== */
+
+:root,
+[data-bs-theme="light"],
+[data-bs-theme="dark"] {
+    --bs-font-sans-serif: var(--fuente);
+    --bs-font-monospace: var(--fuente-mono);
+    --bs-body-font-size: var(--texto-md);
+    --bs-body-font-weight: 400;
+    --bs-body-line-height: 1.6;
+
+    --bs-body-bg: var(--fondo);
+    --bs-body-color: var(--texto);
+    --bs-emphasis-color: var(--texto);
+    --bs-secondary-color: var(--texto-suave);
+    --bs-tertiary-color: var(--texto-tenue);
+    --bs-secondary-bg: var(--superficie-hover);
+    --bs-tertiary-bg: var(--superficie-sutil);
+
+    --bs-border-color: var(--borde);
+    --bs-border-color-translucent: var(--borde);
+    --bs-border-radius-sm: var(--radio-sm);
+    --bs-border-radius: var(--radio);
+    --bs-border-radius-lg: var(--radio-lg);
+    --bs-border-radius-xl: var(--radio-xl);
+    --bs-border-radius-2xl: var(--radio-xl);
+
+    --bs-primary: var(--acento);
+    --bs-primary-rgb: 91, 91, 214;
+    --bs-link-color: var(--acento);
+    --bs-link-hover-color: var(--acento-fuerte);
+    --bs-link-color-rgb: 91, 91, 214;
+
+    --bs-success: var(--exito);
+    --bs-warning: var(--aviso);
+    --bs-danger: var(--peligro);
+    --bs-info: var(--info);
+
+    --bs-box-shadow-sm: var(--sombra-sm);
+    --bs-box-shadow: var(--sombra);
+    --bs-box-shadow-lg: var(--sombra-lg);
+}

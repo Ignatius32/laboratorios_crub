@@ -1,0 +1,1027 @@
+/* ==========================================================================
+   Estilos de la aplicación.
+
+   Reemplaza a variables.css, helpers.css, common.css, style.css,
+   admin-panel.css, tecnicos.css, filters-responsive.css y
+   datatables-custom.css: ocho hojas que redefinían los mismos selectores en
+   distinto orden (.simple-card estaba en dos, .card-header en diez) y cuyo
+   resultado dependía del orden de los <link>.
+
+   Todos los valores salen de tokens.css. Si acá aparece un color escrito a
+   mano, es un error.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+
+body {
+    font-family: var(--fuente);
+    font-size: var(--texto-md);
+    line-height: 1.6;
+    color: var(--texto);
+    background-color: var(--fondo);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--texto);
+    font-weight: 600;
+    line-height: 1.25;
+    /* El tracking negativo es lo que separa una tipografía "de sistema" de una
+       tipografía de producto. Sólo a partir de cierto tamaño. */
+    letter-spacing: -.017em;
+}
+
+h1, .h1 { font-size: var(--texto-3xl); letter-spacing: -.025em; }
+h2, .h2 { font-size: var(--texto-2xl); letter-spacing: -.021em; }
+h3, .h3 { font-size: var(--texto-xl); }
+h4, .h4 { font-size: var(--texto-lg); }
+h5, .h5 { font-size: var(--texto-md); }
+h6, .h6 { font-size: var(--texto-base); }
+
+a {
+    color: var(--acento);
+    text-decoration: none;
+    transition: color var(--transicion);
+}
+a:hover { color: var(--acento-fuerte); }
+
+code {
+    font-family: var(--fuente-mono);
+    font-size: .875em;
+    color: var(--texto);
+    background: var(--superficie-hover);
+    padding: .1em .35em;
+    border-radius: var(--radio-sm);
+}
+
+hr {
+    border-color: var(--borde);
+    opacity: 1;
+}
+
+/* Foco visible y coherente en todo lo interactivo. Bootstrap lo pinta con su
+   azul propio; acá sigue al acento y respeta el tema. */
+:focus-visible {
+    outline: none;
+    box-shadow: var(--anillo-foco);
+    border-radius: var(--radio-sm);
+}
+
+::selection {
+    background: var(--acento-suave);
+    color: var(--texto);
+}
+
+/* Quien pidió menos movimiento en su sistema no debería recibir animaciones. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Encabezado de página
+   -------------------------------------------------------------------------- */
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--esp-4);
+    margin-bottom: var(--esp-5);
+}
+
+.page-title {
+    font-size: var(--texto-2xl);
+    font-weight: 600;
+    letter-spacing: -.021em;
+    color: var(--texto);
+    margin: 0 0 var(--esp-1);
+}
+
+.page-subtitle {
+    font-size: var(--texto-base);
+    color: var(--texto-suave);
+    margin: 0;
+    max-width: 68ch;
+}
+
+.page-header-acciones {
+    display: flex;
+    gap: var(--esp-2);
+    flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   Barra de navegación
+   -------------------------------------------------------------------------- */
+
+.navbar {
+    background-color: var(--superficie);
+    border-bottom: 1px solid var(--borde);
+    padding: var(--esp-3) 0;
+    /* Sin sombra: en una barra fija la línea de 1px es más limpia y no ensucia
+       el contenido al hacer scroll. */
+    box-shadow: none;
+    backdrop-filter: saturate(180%) blur(8px);
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: var(--texto-md);
+    letter-spacing: -.014em;
+    color: var(--texto);
+    display: flex;
+    align-items: center;
+    gap: var(--esp-2);
+}
+.navbar-brand:hover { color: var(--texto); }
+
+/* El logo institucional es apaisado (≈5:1): a 30px de alto ocupaba demasiado
+   ancho y en pantallas chicas empujaba el nombre de la aplicación. */
+.navbar-brand img { height: 22px; width: auto; }
+
+/* En móvil se queda sólo el logo: el nombre completo no entra al lado del
+   botón del menú. */
+@media (max-width: 400px) {
+    .navbar-brand .separator-symbol,
+    .navbar-brand > span:last-child { display: none; }
+}
+
+/* El logo institucional es azul oscuro sobre transparente: legible en claro,
+   ilegible sobre el fondo casi negro del tema oscuro. Se lo pasa a blanco,
+   que es el tratamiento habitual de una marca sobre fondo oscuro.
+   No hay una versión clara del archivo, así que se resuelve con un filtro. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-bs-theme="light"]) .navbar-brand img,
+    :root:not([data-bs-theme="light"]) footer img {
+        filter: brightness(0) invert(1);
+        opacity: .85;
+    }
+}
+[data-bs-theme="dark"] .navbar-brand img,
+[data-bs-theme="dark"] footer img {
+    filter: brightness(0) invert(1);
+    opacity: .85;
+}
+
+.separator-symbol {
+    color: var(--borde-fuerte);
+    font-weight: 300;
+    user-select: none;
+}
+
+.navbar .nav-link {
+    color: var(--texto-suave);
+    font-size: var(--texto-base);
+    font-weight: 500;
+    padding: var(--esp-2) var(--esp-3);
+    border-radius: var(--radio);
+    transition: color var(--transicion), background-color var(--transicion);
+}
+.navbar .nav-link:hover {
+    color: var(--texto);
+    background-color: var(--superficie-hover);
+}
+.navbar .nav-link.active {
+    color: var(--texto);
+    background-color: var(--superficie-hover);
+    font-weight: 600;
+}
+
+.navbar-toggler {
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: var(--esp-1) var(--esp-2);
+}
+.navbar-toggler:focus { box-shadow: var(--anillo-foco); }
+
+/* Avatar del menú de usuario: iniciales sobre el acento suave. Reemplaza al
+   icono genérico de persona, que no distinguía una cuenta de otra. */
+.avatar-iniciales {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radio-full);
+    background: var(--acento-suave);
+    color: var(--acento);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--texto-xs);
+    font-weight: 600;
+    letter-spacing: .01em;
+    flex-shrink: 0;
+}
+
+.dropdown-menu {
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-lg);
+    box-shadow: var(--sombra-md);
+    padding: var(--esp-1);
+    background: var(--superficie);
+    min-width: 15rem;
+}
+
+.dropdown-item {
+    border-radius: var(--radio);
+    padding: var(--esp-2) var(--esp-3);
+    font-size: var(--texto-base);
+    color: var(--texto);
+}
+.dropdown-item:hover, .dropdown-item:focus {
+    background-color: var(--superficie-hover);
+    color: var(--texto);
+}
+.dropdown-divider { border-color: var(--borde); margin: var(--esp-1) 0; }
+
+/* --------------------------------------------------------------------------
+   Tarjetas
+   -------------------------------------------------------------------------- */
+
+.card {
+    background-color: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-lg);
+    box-shadow: var(--sombra-xs);
+}
+
+.card-header {
+    background-color: transparent;
+    border-bottom: 1px solid var(--borde);
+    padding: var(--esp-4) var(--esp-5);
+    font-weight: 600;
+    font-size: var(--texto-base);
+    color: var(--texto);
+    border-radius: var(--radio-lg) var(--radio-lg) 0 0;
+}
+
+.card-body { padding: var(--esp-5); }
+
+.card-footer {
+    background-color: var(--superficie-sutil);
+    border-top: 1px solid var(--borde);
+    padding: var(--esp-4) var(--esp-5);
+    border-radius: 0 0 var(--radio-lg) var(--radio-lg);
+}
+
+.card-title {
+    font-size: var(--texto-md);
+    font-weight: 600;
+    color: var(--texto);
+}
+
+/* Tarjeta que además es un enlace a una sección. */
+.card-accion {
+    display: block;
+    color: inherit;
+    height: 100%;
+    transition: border-color var(--transicion), box-shadow var(--transicion),
+                transform var(--transicion);
+}
+.card-accion:hover {
+    color: inherit;
+    border-color: var(--borde-fuerte);
+    box-shadow: var(--sombra);
+    transform: translateY(-1px);
+}
+.card-accion .card-accion-icono {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radio-md);
+    background: var(--acento-suave);
+    color: var(--acento);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--texto-md);
+    margin-bottom: var(--esp-3);
+}
+
+/* --------------------------------------------------------------------------
+   Tarjeta de métrica
+   -------------------------------------------------------------------------- */
+
+.stat-tile {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-lg);
+    padding: var(--esp-4) var(--esp-5);
+    box-shadow: var(--sombra-xs);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--esp-2);
+    transition: border-color var(--transicion), box-shadow var(--transicion);
+}
+a.stat-tile { color: inherit; }
+a.stat-tile:hover {
+    border-color: var(--borde-fuerte);
+    box-shadow: var(--sombra-sm);
+}
+
+.stat-tile-cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--esp-2);
+}
+
+.stat-tile-etiqueta {
+    font-size: var(--texto-xs);
+    font-weight: 500;
+    color: var(--texto-suave);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.stat-tile-icono {
+    color: var(--texto-tenue);
+    font-size: var(--texto-base);
+}
+
+/* Las cifras en tabulares para que no bailen los dígitos al actualizarse. */
+.stat-tile-valor {
+    font-size: var(--texto-3xl);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -.025em;
+    color: var(--texto);
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-tile-pie {
+    font-size: var(--texto-xs);
+    color: var(--texto-tenue);
+}
+
+/* --------------------------------------------------------------------------
+   Botones
+   -------------------------------------------------------------------------- */
+
+.btn {
+    font-size: var(--texto-base);
+    font-weight: 500;
+    border-radius: var(--radio);
+    padding: .5rem .875rem;
+    transition: background-color var(--transicion), border-color var(--transicion),
+                color var(--transicion), box-shadow var(--transicion);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--esp-2);
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.btn:focus-visible { box-shadow: var(--anillo-foco); }
+
+.btn-lg { padding: .625rem 1.125rem; font-size: var(--texto-md); border-radius: var(--radio-md); }
+.btn-sm { padding: .3125rem .625rem; font-size: var(--texto-sm); border-radius: var(--radio-sm); }
+
+.btn-primary {
+    background-color: var(--acento);
+    border-color: var(--acento);
+    color: var(--acento-texto);
+    box-shadow: var(--sombra-xs);
+}
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--acento-fuerte);
+    border-color: var(--acento-fuerte);
+    color: var(--acento-texto);
+}
+.btn-primary:disabled, .btn-primary.disabled {
+    background-color: var(--acento);
+    border-color: var(--acento);
+    opacity: .5;
+}
+
+.btn-secondary {
+    background-color: var(--superficie);
+    border-color: var(--borde-fuerte);
+    color: var(--texto);
+}
+.btn-secondary:hover, .btn-secondary:focus {
+    background-color: var(--superficie-hover);
+    border-color: var(--borde-fuerte);
+    color: var(--texto);
+}
+
+.btn-outline-secondary {
+    background-color: transparent;
+    border-color: var(--borde-fuerte);
+    color: var(--texto-suave);
+}
+.btn-outline-secondary:hover, .btn-outline-secondary:focus {
+    background-color: var(--superficie-hover);
+    border-color: var(--borde-fuerte);
+    color: var(--texto);
+}
+
+.btn-outline-primary {
+    background-color: transparent;
+    border-color: var(--acento-borde);
+    color: var(--acento);
+}
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: var(--acento-suave);
+    border-color: var(--acento-borde);
+    color: var(--acento-fuerte);
+}
+
+.btn-success {
+    background-color: var(--exito);
+    border-color: var(--exito);
+    color: #fff;
+}
+.btn-success:hover, .btn-success:focus {
+    background-color: var(--exito);
+    border-color: var(--exito);
+    filter: brightness(.94);
+    color: #fff;
+}
+
+.btn-danger {
+    background-color: var(--peligro);
+    border-color: var(--peligro);
+    color: #fff;
+}
+.btn-danger:hover, .btn-danger:focus {
+    background-color: var(--peligro);
+    border-color: var(--peligro);
+    filter: brightness(.94);
+    color: #fff;
+}
+
+.btn-outline-danger {
+    background-color: transparent;
+    border-color: var(--peligro-borde);
+    color: var(--peligro);
+}
+.btn-outline-danger:hover, .btn-outline-danger:focus {
+    background-color: var(--peligro-suave);
+    border-color: var(--peligro-borde);
+    color: var(--peligro);
+}
+
+.btn-link {
+    color: var(--acento);
+    text-decoration: none;
+    padding: 0;
+    box-shadow: none;
+}
+.btn-link:hover { color: var(--acento-fuerte); text-decoration: underline; }
+
+/* Estado de carga. Lo activa ui.js al enviar un formulario: el botón queda
+   deshabilitado, aparece un spinner y el texto pasa a un verbo en gerundio.
+   Sin esto, importar un Excel o sincronizar Keycloak no daba ninguna señal de
+   que algo estuviera pasando. */
+.btn[data-cargando="true"] {
+    pointer-events: none;
+    opacity: .75;
+}
+.btn[data-cargando="true"] .btn-icono { display: none; }
+
+.btn-spinner {
+    width: .875em;
+    height: .875em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: var(--radio-full);
+    animation: girar .6s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* --------------------------------------------------------------------------
+   Formularios
+   -------------------------------------------------------------------------- */
+
+.form-label {
+    font-size: var(--texto-base);
+    font-weight: 500;
+    color: var(--texto);
+    margin-bottom: var(--esp-2);
+}
+
+.form-control, .form-select {
+    font-size: var(--texto-base);
+    padding: .5rem .75rem;
+    border: 1px solid var(--borde-fuerte);
+    border-radius: var(--radio);
+    background-color: var(--superficie);
+    color: var(--texto);
+    transition: border-color var(--transicion), box-shadow var(--transicion);
+}
+.form-control::placeholder { color: var(--texto-tenue); }
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--acento);
+    box-shadow: var(--anillo-foco);
+    background-color: var(--superficie);
+    color: var(--texto);
+}
+
+.form-control:disabled, .form-select:disabled {
+    background-color: var(--superficie-hover);
+    color: var(--texto-tenue);
+}
+
+.form-control.is-invalid, .form-select.is-invalid {
+    border-color: var(--peligro);
+    background-image: none;
+}
+.form-control.is-invalid:focus, .form-select.is-invalid:focus {
+    box-shadow: 0 0 0 3px var(--peligro-suave);
+}
+
+.invalid-feedback {
+    font-size: var(--texto-sm);
+    color: var(--peligro);
+    margin-top: var(--esp-1);
+}
+
+.form-text, .form-hint {
+    font-size: var(--texto-sm);
+    color: var(--texto-suave);
+    margin-top: var(--esp-1);
+}
+
+.form-check-input {
+    border-color: var(--borde-fuerte);
+    background-color: var(--superficie);
+}
+.form-check-input:checked {
+    background-color: var(--acento);
+    border-color: var(--acento);
+}
+.form-check-input:focus { box-shadow: var(--anillo-foco); border-color: var(--acento); }
+.form-check-label { font-size: var(--texto-base); color: var(--texto); }
+
+/* Agrupa un bloque de campos con su título. */
+.form-section {
+    padding-top: var(--esp-5);
+    margin-top: var(--esp-5);
+    border-top: 1px solid var(--borde);
+}
+.form-section:first-child {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: 0;
+}
+.form-section-title {
+    font-size: var(--texto-base);
+    font-weight: 600;
+    color: var(--texto);
+    margin-bottom: var(--esp-1);
+}
+.form-section-desc {
+    font-size: var(--texto-sm);
+    color: var(--texto-suave);
+    margin-bottom: var(--esp-4);
+}
+
+.form-actions {
+    display: flex;
+    gap: var(--esp-2);
+    justify-content: flex-end;
+    padding-top: var(--esp-5);
+    margin-top: var(--esp-5);
+    border-top: 1px solid var(--borde);
+}
+
+.input-group-text {
+    background-color: var(--superficie-sutil);
+    border-color: var(--borde-fuerte);
+    color: var(--texto-suave);
+    font-size: var(--texto-base);
+}
+
+/* --------------------------------------------------------------------------
+   Filtros de listado
+   -------------------------------------------------------------------------- */
+
+.filters-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--esp-3);
+    align-items: flex-end;
+    padding: var(--esp-4);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-lg);
+    margin-bottom: var(--esp-4);
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--esp-1);
+    flex: 1 1 180px;
+    min-width: 0;
+}
+.filter-group label {
+    font-size: var(--texto-xs);
+    font-weight: 500;
+    color: var(--texto-suave);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.filter-actions {
+    display: flex;
+    gap: var(--esp-2);
+    flex-shrink: 0;
+}
+
+@media (max-width: 767.98px) {
+    .filters-container { flex-direction: column; align-items: stretch; }
+    .filter-group, .filter-actions { flex: 1 1 auto; width: 100%; }
+    .filter-actions .btn { flex: 1; }
+    .mobile-stack { flex-direction: column !important; align-items: stretch !important; }
+    .mobile-full-width { width: 100% !important; }
+}
+
+/* --------------------------------------------------------------------------
+   Tablas
+   -------------------------------------------------------------------------- */
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--texto);
+    font-size: var(--texto-base);
+    margin-bottom: 0;
+    border-color: var(--borde);
+}
+
+.table > thead > tr > th {
+    background-color: var(--superficie-sutil);
+    color: var(--texto-suave);
+    font-size: var(--texto-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: var(--esp-3) var(--esp-4);
+    border-bottom: 1px solid var(--borde);
+    white-space: nowrap;
+}
+
+.table > tbody > tr > td {
+    padding: var(--esp-3) var(--esp-4);
+    border-bottom: 1px solid var(--borde);
+    vertical-align: middle;
+    color: var(--texto);
+}
+
+.table > tbody > tr:last-child > td { border-bottom: 0; }
+
+.table-hover > tbody > tr:hover > td {
+    background-color: var(--superficie-hover);
+}
+
+/* Cifras alineadas a la derecha y en tabulares: una columna de cantidades es
+   ilegible si los dígitos no se apilan. */
+.celda-numero {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Una tabla dentro de una tarjeta llega hasta el borde; el padding lo pone la
+   celda, no el contenedor. */
+.card > .table-responsive { border-radius: 0 0 var(--radio-lg) var(--radio-lg); }
+.card-body > .table-responsive { margin: calc(var(--esp-5) * -1); width: auto; }
+
+.table-acciones {
+    display: flex;
+    gap: var(--esp-1);
+    justify-content: flex-end;
+}
+
+/* --------------------------------------------------------------------------
+   Estado vacío
+
+   Antes esto era, según la pantalla, un <td colspan="8">No hay datos</td> o un
+   alert azul. Un estado vacío tiene que decir qué falta y cómo resolverlo.
+   -------------------------------------------------------------------------- */
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--esp-8) var(--esp-5);
+}
+
+.empty-state-icono {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radio-lg);
+    background: var(--superficie-hover);
+    color: var(--texto-tenue);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--texto-lg);
+    margin-bottom: var(--esp-4);
+}
+
+.empty-state-titulo {
+    font-size: var(--texto-md);
+    font-weight: 600;
+    color: var(--texto);
+    margin-bottom: var(--esp-2);
+}
+
+.empty-state-texto {
+    font-size: var(--texto-base);
+    color: var(--texto-suave);
+    max-width: 44ch;
+    margin: 0 0 var(--esp-4);
+}
+
+.empty-state-acciones {
+    display: flex;
+    gap: var(--esp-2);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   Etiquetas
+   -------------------------------------------------------------------------- */
+
+.badge {
+    font-size: var(--texto-xs);
+    font-weight: 500;
+    padding: .25em .625em;
+    border-radius: var(--radio-sm);
+    letter-spacing: .01em;
+    border: 1px solid transparent;
+}
+
+/* Bootstrap pinta .bg-* de badge con color pleno y texto blanco, que a este
+   tamaño grita. Fondo suave y texto del mismo tono: se lee mejor y no compite
+   con los botones. */
+.badge.bg-primary   { background-color: var(--acento-suave) !important;  color: var(--acento);        border-color: var(--acento-borde); }
+.badge.bg-secondary { background-color: var(--superficie-hover) !important; color: var(--texto-suave); border-color: var(--borde); }
+.badge.bg-success   { background-color: var(--exito-suave) !important;   color: var(--exito-texto);   border-color: var(--exito-borde); }
+.badge.bg-danger    { background-color: var(--peligro-suave) !important; color: var(--peligro-texto); border-color: var(--peligro-borde); }
+.badge.bg-warning   { background-color: var(--aviso-suave) !important;   color: var(--aviso-texto);   border-color: var(--aviso-borde); }
+.badge.bg-info      { background-color: var(--info-suave) !important;    color: var(--info-texto);    border-color: var(--info-borde); }
+.badge.bg-light     { background-color: var(--superficie-hover) !important; color: var(--texto-suave); border-color: var(--borde); }
+
+/* Indicador de stock: un punto de color más la cifra. */
+.stock-indicador {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--esp-2);
+    font-variant-numeric: tabular-nums;
+}
+.stock-indicador::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radio-full);
+    flex-shrink: 0;
+    background: var(--texto-tenue);
+}
+.stock-ok::before      { background: var(--exito); }
+.stock-bajo::before    { background: var(--aviso); }
+.stock-agotado::before { background: var(--peligro); }
+.stock-agotado         { color: var(--texto-suave); }
+
+/* --------------------------------------------------------------------------
+   Avisos
+   -------------------------------------------------------------------------- */
+
+.alert {
+    border-radius: var(--radio-lg);
+    border: 1px solid transparent;
+    padding: var(--esp-3) var(--esp-4);
+    font-size: var(--texto-base);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--esp-3);
+    box-shadow: var(--sombra-xs);
+}
+.alert-success { background: var(--exito-suave);   border-color: var(--exito-borde);   color: var(--exito-texto); }
+.alert-danger,
+.alert-error   { background: var(--peligro-suave); border-color: var(--peligro-borde); color: var(--peligro-texto); }
+.alert-warning { background: var(--aviso-suave);   border-color: var(--aviso-borde);   color: var(--aviso-texto); }
+.alert-info    { background: var(--info-suave);    border-color: var(--info-borde);    color: var(--info-texto); }
+
+/* Bootstrap posiciona el botón de cerrar en absoluto sobre la esquina
+   (.alert-dismissible .btn-close) y reserva 3rem de padding a la derecha. Acá
+   el aviso es un contenedor flex, así que se lo devuelve al flujo: si no, la
+   cruz queda montada sobre el borde redondeado, medio afuera de la caja. */
+.alert-dismissible { padding-right: var(--esp-4); }
+.alert-dismissible .btn-close,
+.alert .btn-close {
+    position: static;
+    margin-left: auto;
+    padding: var(--esp-1);
+    opacity: .5;
+    flex-shrink: 0;
+    align-self: flex-start;
+}
+.alert .btn-close:hover { opacity: 1; }
+
+/* Los mensajes flash se apilan arriba a la derecha y se van solos. Antes
+   empujaban el contenido hacia abajo al aparecer. */
+.flash-contenedor {
+    position: fixed;
+    /* Por debajo de la barra fija: con top: 1rem el aviso quedaba encima del
+       menú y tapaba los enlaces de navegación justo al entrar. */
+    top: 4.75rem;
+    right: var(--esp-4);
+    z-index: 1080;
+    display: flex;
+    flex-direction: column;
+    gap: var(--esp-2);
+    max-width: min(26rem, calc(100vw - var(--esp-6)));
+    pointer-events: none;
+}
+.flash-contenedor .alert {
+    pointer-events: auto;
+    box-shadow: var(--sombra-md);
+    animation: flash-entra var(--transicion-lenta) ease-out;
+    margin: 0;
+}
+.flash-contenedor .alert.saliendo {
+    animation: flash-sale var(--transicion-lenta) ease-in forwards;
+}
+
+@keyframes flash-entra {
+    from { opacity: 0; transform: translateX(12px); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes flash-sale {
+    to { opacity: 0; transform: translateX(12px); }
+}
+
+@media (max-width: 575.98px) {
+    .flash-contenedor {
+        left: var(--esp-3);
+        right: var(--esp-3);
+        max-width: none;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Modales
+   -------------------------------------------------------------------------- */
+
+.modal-content {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-xl);
+    box-shadow: var(--sombra-lg);
+}
+.modal-header {
+    border-bottom: 1px solid var(--borde);
+    padding: var(--esp-4) var(--esp-5);
+}
+.modal-title { font-size: var(--texto-md); font-weight: 600; }
+.modal-body { padding: var(--esp-5); }
+.modal-footer {
+    border-top: 1px solid var(--borde);
+    padding: var(--esp-4) var(--esp-5);
+    background: var(--superficie-sutil);
+    border-radius: 0 0 var(--radio-xl) var(--radio-xl);
+    gap: var(--esp-2);
+}
+.modal-backdrop.show { opacity: .4; }
+
+/* --------------------------------------------------------------------------
+   Panel de laboratorio
+   -------------------------------------------------------------------------- */
+
+.lab-header {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-lg);
+    padding: var(--esp-5);
+    margin-bottom: var(--esp-5);
+    box-shadow: var(--sombra-xs);
+}
+.lab-title {
+    font-size: var(--texto-xl);
+    font-weight: 600;
+    letter-spacing: -.019em;
+    color: var(--texto);
+    margin-bottom: var(--esp-1);
+}
+.lab-subtitle {
+    font-size: var(--texto-base);
+    color: var(--texto-suave);
+    margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Paginación
+   -------------------------------------------------------------------------- */
+
+.pagination { gap: var(--esp-1); margin: 0; }
+
+.page-link {
+    border: 1px solid var(--borde);
+    border-radius: var(--radio) !important;
+    color: var(--texto-suave);
+    font-size: var(--texto-base);
+    padding: .375rem .625rem;
+    background: var(--superficie);
+    transition: background-color var(--transicion), color var(--transicion);
+}
+.page-link:hover {
+    background: var(--superficie-hover);
+    color: var(--texto);
+    border-color: var(--borde-fuerte);
+}
+.page-item.active .page-link {
+    background: var(--acento);
+    border-color: var(--acento);
+    color: var(--acento-texto);
+}
+.page-item.disabled .page-link {
+    background: var(--superficie);
+    color: var(--texto-tenue);
+    border-color: var(--borde);
+}
+
+/* --------------------------------------------------------------------------
+   Portada
+   -------------------------------------------------------------------------- */
+
+.hero-section {
+    padding: var(--esp-8) 0;
+    text-align: center;
+}
+.hero-titulo {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 600;
+    letter-spacing: -.033em;
+    line-height: 1.1;
+    color: var(--texto);
+    margin-bottom: var(--esp-4);
+}
+.hero-texto {
+    font-size: var(--texto-lg);
+    color: var(--texto-suave);
+    max-width: 52ch;
+    margin: 0 auto var(--esp-6);
+}
+
+/* --------------------------------------------------------------------------
+   Pie
+   -------------------------------------------------------------------------- */
+
+footer {
+    border-top: 1px solid var(--borde);
+    background: var(--superficie);
+    padding: var(--esp-5) 0;
+    margin-top: var(--esp-8);
+    flex-shrink: 0;
+}
+footer, footer p { font-size: var(--texto-sm); color: var(--texto-suave); }
+footer img { height: 42px; width: auto; opacity: .85; }
+
+/* --------------------------------------------------------------------------
+   Utilidades
+   -------------------------------------------------------------------------- */
+
+.text-muted { color: var(--texto-suave) !important; }
+.text-tenue { color: var(--texto-tenue) !important; }
+.borde-suave { border-color: var(--borde) !important; }
+.numeros-tabulares { font-variant-numeric: tabular-nums; }
+
+/* Contenedor con scroll horizontal propio: el cuerpo de la página nunca debe
+   desplazarse en horizontal por culpa de una tabla ancha. */
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Enlace para saltar al contenido, visible sólo con el teclado. */
+.saltar-al-contenido {
+    position: absolute;
+    left: -9999px;
+    top: var(--esp-2);
+    z-index: 1090;
+    padding: var(--esp-2) var(--esp-4);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra-md);
+    font-size: var(--texto-base);
+}
+.saltar-al-contenido:focus { left: var(--esp-4); }

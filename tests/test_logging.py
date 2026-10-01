@@ -1,212 +1,208 @@
+"""Verifica el sistema de logging estructurado.
+
+Cubre el hueco que dejaron `test_logging.py` y `test_complete_logging_system.py`
+al retirarse. Lo que se prueba aca no es decorativo: son los comportamientos que
+cambiaron y que hasta ahora nada protegia.
+
+1. Que `context.module/function/line` apunten a quien registro. Era el defecto
+   visible: `StructuredLogger._log()` armaba el LogRecord con makeRecord
+   pasandole ("", 0) como archivo y linea, de modo que esos tres campos salian
+   vacios en todos los registros estructurados con contexto, que son casi todos.
+
+2. Que el nivel del logger se respete. `logger.handle()` escribe sin consultar
+   `isEnabledFor()`. Hoy no cambia lo que sale a disco, porque cada logger y su
+   handler se configuran con el mismo nivel y el handler filtra igual; era una
+   trampa latente: subirle el nivel a un logger —la forma habitual de callarlo—
+   no tenia efecto. Por eso la comprobacion sube SOLO el nivel del logger y deja
+   el handler como esta, que es lo unico que distingue un caso del otro.
+
+3. Que el contexto siga llegando al JSON. El arreglo cambio la via de escritura,
+   asi que hay que confirmar que los kwargs no se perdieron en el camino.
+
+4. Que cada categoria escriba UN solo archivo. Antes eran dos por categoria
+   —JSON y texto plano— y cada evento se serializaba y bajaba a disco dos veces.
 """
-Script de ejemplo para demostrar el uso del sistema de logging estructurado.
-Este archivo puede ejecutarse para verificar que el logging funciona correctamente.
-"""
+import json
+import os
+import shutil
+import sys
+import tempfile
+import warnings
+from pathlib import Path
 
-from app.utils.logging_config import (
-    StructuredLogger,
-    get_audit_logger,
-    get_business_logger,
-    get_security_logger,
-    get_performance_logger,
-    get_database_logger
-)
-from app.utils.logging_decorators import (
-    log_action,
-    audit_user_action,
-    monitor_performance,
-    log_security_event,
-    log_admin_action,
-    log_data_modification
-)
-import time
+warnings.filterwarnings('ignore')
 
-def test_basic_logging():
-    """Prueba el logging básico estructurado."""
-    print("=== Probando logging básico ===")
-    
-    # Logger básico
-    logger = StructuredLogger()
-    logger.info("Mensaje de información básico", 
-                operation="test",
-                component="logging_test")
-    
-    logger.warning("Mensaje de advertencia",
-                   warning_type="test_warning",
-                   details="Esta es una prueba")
-    
-    logger.error("Mensaje de error de prueba",
-                 error_code="TEST_001",
-                 component="test_module")
+RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ))
 
-def test_specialized_loggers():
-    """Prueba los loggers especializados."""
-    print("=== Probando loggers especializados ===")
-    
-    # Logger de auditoría
-    audit_logger = get_audit_logger()
-    audit_logger.info("Acción de auditoría de prueba",
-                     action="test_audit",
-                     entity_type="usuario",
-                     entity_id="TEST_USER")
-    
-    # Logger de seguridad
-    security_logger = get_security_logger()
-    security_logger.warning("Evento de seguridad de prueba",
-                           event_type="test_security_event",
-                           risk_level="medium",
-                           source_ip="127.0.0.1")
-    
-    # Logger de negocio
-    business_logger = get_business_logger()
-    business_logger.info("Operación de negocio completada",
-                        operation="stock_calculation",
-                        laboratory_id="LAB001",
-                        products_processed=50)
-    
-    # Logger de rendimiento
-    perf_logger = get_performance_logger()
-    perf_logger.info("Métrica de rendimiento",
-                    operation="database_query",
-                    duration_ms=1250,
-                    rows_affected=100)
-    
-    # Logger de base de datos
-    db_logger = get_database_logger()
-    db_logger.warning("Consulta lenta detectada",
-                     query_type="SELECT",
-                     table="movimientos",
-                     duration_ms=2500)
+DIR_LOGS = os.path.join(tempfile.gettempdir(), 'labcrub_test_logs')
+shutil.rmtree(DIR_LOGS, ignore_errors=True)
+os.environ['LOG_DIR'] = DIR_LOGS
+os.environ['DATABASE_URI'] = 'sqlite:///' + os.path.join(
+    tempfile.gettempdir(), 'labcrub_test_logging.db')
+_bd = os.environ['DATABASE_URI'].replace('sqlite:///', '')
+if os.path.exists(_bd):
+    os.remove(_bd)
 
-@log_action("operación de prueba", logger_type="business", include_args=True)
-def test_decorated_function(product_id, quantity):
-    """Función de prueba con decorador de logging."""
-    print(f"Procesando producto {product_id} con cantidad {quantity}")
-    time.sleep(0.1)  # Simular trabajo
-    return {"status": "success", "processed": quantity}
+from app import create_app                                        # noqa: E402
+from app.utils.logging_config import StructuredLogger             # noqa: E402
 
-@audit_user_action("creación de producto de prueba", sensitive=True)
-def test_audit_decorated_function(product_name):
-    """Función de prueba con decorador de auditoría."""
-    print(f"Creando producto: {product_name}")
-    return {"product_id": "PROD_TEST_001", "name": product_name}
+app = create_app()
 
-@monitor_performance(threshold_ms=50)
-def test_performance_decorated_function():
-    """Función de prueba con decorador de rendimiento."""
-    time.sleep(0.1)  # Simular trabajo que excede el umbral
-    return "Operación completada"
+fallos = []
 
-@log_security_event("evento de prueba", risk_level="low")
-def test_security_decorated_function():
-    """Función de prueba con decorador de seguridad."""
-    print("Ejecutando operación de seguridad de prueba")
-    return {"security_check": "passed"}
 
-def test_exception_logging():
-    """Prueba el logging de excepciones."""
-    print("=== Probando logging de excepciones ===")
-    
-    logger = StructuredLogger()
-    
+def check(nombre, condicion, extra=''):
+    print(('  OK   ' if condicion else '  FALLA') + ' ' + nombre
+          + (('  -> ' + str(extra)) if not condicion and extra else ''))
+    if not condicion:
+        fallos.append(nombre)
+
+
+def leer(nombre_archivo):
+    """Devuelve los registros JSON de un archivo de log, uno por linea."""
+    ruta = os.path.join(DIR_LOGS, nombre_archivo)
+    if not os.path.exists(ruta):
+        return []
+    registros = []
+    with open(ruta, encoding='utf-8') as f:
+        for linea in f:
+            linea = linea.strip()
+            if linea:
+                registros.append(json.loads(linea))
+    return registros
+
+
+def buscar(nombre_archivo, marca):
+    return [r for r in leer(nombre_archivo) if marca in r.get('message', '')]
+
+
+# --- 1. el nivel configurado se respeta ------------------------------------
+# 'database' esta configurado en WARNING; 'business' y 'audit', en INFO.
+print('--- el nivel configurado manda ---')
+with app.app_context():
+    base = StructuredLogger('database')
+    base.info('MARCA_INFO_DESCARTADA', contexto=1)     # INFO < WARNING: se tira
+    base.info('MARCA_INFO_SIN_KWARGS')                 # la rama sin kwargs
+    base.warning('MARCA_WARNING_ESCRITA', contexto=2)  # WARNING: se escribe
+
+check('un info() con contexto sobre un logger en WARNING no se escribe',
+      not buscar('database_structured.log', 'MARCA_INFO_DESCARTADA'))
+check('un info() sin contexto sobre un logger en WARNING tampoco se escribe',
+      not buscar('database_structured.log', 'MARCA_INFO_SIN_KWARGS'))
+check('un warning() sobre ese mismo logger si se escribe',
+      len(buscar('database_structured.log', 'MARCA_WARNING_ESCRITA')) == 1)
+
+# --- 2. el contexto llega al JSON ------------------------------------------
+print('')
+print('--- el contexto pasado por kwargs llega al JSON ---')
+with app.app_context():
+    StructuredLogger('business').info(
+        'MARCA_CONTEXTO', operacion='crear_movimiento', cantidad=7, lab='LAB001')
+
+reg = buscar('business_structured.log', 'MARCA_CONTEXTO')
+check('el registro se escribio', len(reg) == 1, len(reg))
+if reg:
+    r = reg[0]
+    check('los kwargs aparecen como campos del JSON',
+          r.get('operacion') == 'crear_movimiento' and r.get('cantidad') == 7
+          and r.get('lab') == 'LAB001',
+          dict((k, r.get(k)) for k in ('operacion', 'cantidad', 'lab')))
+    check('el nivel queda registrado', r.get('level') == 'INFO', r.get('level'))
+    check('el mensaje se conserva', r.get('message') == 'MARCA_CONTEXTO')
+
+# --- 3. context apunta a quien registro ------------------------------------
+print('')
+print('--- context identifica al llamador, no al modulo de logging ---')
+
+
+def funcion_que_registra():
+    """El nombre y la linea de ESTA funcion son los que deben quedar."""
+    linea = sys._getframe().f_lineno + 1
+    StructuredLogger('business').info('MARCA_LLAMADOR', dato='x')
+    return linea
+
+
+with app.app_context():
+    linea_esperada = funcion_que_registra()
+
+reg = buscar('business_structured.log', 'MARCA_LLAMADOR')
+check('el registro se escribio', len(reg) == 1, len(reg))
+if reg:
+    ctx = reg[0].get('context', {})
+    check('context.function es la funcion que llamo',
+          ctx.get('function') == 'funcion_que_registra', ctx.get('function'))
+    check('context.module es este archivo de prueba',
+          ctx.get('module') == 'test_logging', ctx.get('module'))
+    check('context.line apunta a la llamada y no es 0',
+          ctx.get('line') == linea_esperada,
+          str(ctx.get('line')) + ' en vez de ' + str(linea_esperada))
+
+# --- 4. una sola escritura por categoria -----------------------------------
+print('')
+print('--- cada categoria escribe un solo archivo ---')
+archivos = sorted(os.listdir(DIR_LOGS))
+check('todos los archivos de log son *_structured.log',
+      all(a.endswith('_structured.log') for a in archivos), archivos)
+for texto_plano in ('app.log', 'security.log', 'audit.log', 'business.log',
+                    'database.log', 'performance.log'):
+    check('no se escribe la copia en texto plano ' + texto_plano,
+          texto_plano not in archivos)
+
+# --- 5. cada categoria en su propio archivo --------------------------------
+print('')
+print('--- cada categoria va a su propio archivo ---')
+with app.app_context():
+    StructuredLogger('audit').info('MARCA_AUDITORIA', accion='alta')
+check('el registro de auditoria esta en audit_structured.log',
+      len(buscar('audit_structured.log', 'MARCA_AUDITORIA')) == 1)
+check('y no se filtro al de negocio',
+      not buscar('business_structured.log', 'MARCA_AUDITORIA'))
+
+# --- 6. el nivel del LOGGER se respeta, no solo el del handler -------------
+# Esta es la comprobacion que aisla el arreglo de _log(). Subir solo el nivel
+# del logger, dejando su handler mas permisivo, es el unico escenario en que
+# handle() y log() difieren: handle() no consulta isEnabledFor() y escribe
+# igual. Verificado contra el codigo anterior: ahi este registro SI se escribia.
+print('')
+print('--- el nivel del logger manda, no solo el del handler ---')
+import logging  # noqa: E402
+
+with app.app_context():
+    lg = logging.getLogger('crub.business')
+    nivel_previo = lg.level
+    niveles_handler = [logging.getLevelName(h.level) for h in lg.handlers]
+    lg.setLevel(logging.ERROR)
     try:
-        # Provocar una excepción
-        result = 1 / 0
-    except Exception as e:
-        logger.error("Error capturado en prueba",
-                    error_type="division_by_zero",
-                    operation="test_exception",
-                    recovery_action="none")
+        StructuredLogger('business').info('MARCA_LOGGER_SILENCIADO', k=1)
+    finally:
+        lg.setLevel(nivel_previo)
+    StructuredLogger('business').info('MARCA_TRAS_RESTAURAR', k=2)
 
-@log_action("operación con error", logger_type="business")
-def test_decorated_function_with_error():
-    """Función decorada que genera un error para probar el logging de errores."""
-    raise ValueError("Error de prueba intencional")
+check('con el logger en ERROR y su handler en ' + '/'.join(niveles_handler)
+      + ', el info() se descarta',
+      not buscar('business_structured.log', 'MARCA_LOGGER_SILENCIADO'))
+check('y al restaurarle el nivel vuelve a registrar',
+      len(buscar('business_structured.log', 'MARCA_TRAS_RESTAURAR')) == 1)
 
-def test_context_logging():
-    """Prueba el logging con contexto adicional."""
-    print("=== Probando logging con contexto ===")
-    
-    logger = StructuredLogger('business')
-    
-    # Simular contexto de una operación compleja
-    operation_context = {
-        "operation_id": "OP_20250529_001",
-        "user_id": "ADMIN001",
-        "laboratory_id": "LAB_QUIMICA",
-        "timestamp": time.time(),
-        "batch_size": 100
-    }
-    
-    logger.info("Iniciando procesamiento por lotes", **operation_context)
-    
-    # Simular procesamiento
-    for i in range(3):
-        item_context = {
-            **operation_context,
-            "item_number": i + 1,
-            "item_status": "processing"
-        }
-        logger.debug(f"Procesando item {i + 1}", **item_context)
-        time.sleep(0.01)
-    
-    final_context = {
-        **operation_context,
-        "status": "completed",
-        "items_processed": 3,
-        "duration_ms": 30
-    }
-    logger.info("Procesamiento por lotes completado", **final_context)
-
-def run_all_tests():
-    """Ejecuta todas las pruebas de logging."""
-    print("🚀 Iniciando pruebas del sistema de logging estructurado\n")
-    
+# --- 7. el JSON es valido linea por linea ----------------------------------
+print('')
+print('--- el formato es una linea JSON por evento ---')
+total = 0
+for archivo in archivos:
     try:
-        test_basic_logging()
-        print("✅ Logging básico - OK\n")
-        
-        test_specialized_loggers()
-        print("✅ Loggers especializados - OK\n")
-        
-        # Probar decoradores
-        result = test_decorated_function("PROD001", 25)
-        print(f"✅ Decorador de acción - OK (resultado: {result})\n")
-        
-        audit_result = test_audit_decorated_function("Producto de Prueba")
-        print(f"✅ Decorador de auditoría - OK (resultado: {audit_result})\n")
-        
-        perf_result = test_performance_decorated_function()
-        print(f"✅ Decorador de rendimiento - OK (resultado: {perf_result})\n")
-        
-        security_result = test_security_decorated_function()
-        print(f"✅ Decorador de seguridad - OK (resultado: {security_result})\n")
-        
-        test_exception_logging()
-        print("✅ Logging de excepciones - OK\n")
-        
-        # Probar decorador con error
-        try:
-            test_decorated_function_with_error()
-        except ValueError:
-            print("✅ Decorador con error - OK (error capturado correctamente)\n")
-        
-        test_context_logging()
-        print("✅ Logging con contexto - OK\n")
-        
-        print("🎉 Todas las pruebas completadas exitosamente!")
-        print("📁 Revisa los archivos en la carpeta 'logs' para ver los resultados:")
-        print("   - app_structured.log")
-        print("   - audit_structured.log")
-        print("   - business_structured.log")
-        print("   - security_structured.log")
-        print("   - performance_structured.log")
-        
-    except Exception as e:
-        print(f"❌ Error durante las pruebas: {e}")
+        total += len(leer(archivo))
+    except json.JSONDecodeError as e:
+        check('JSON valido en ' + archivo, False, e)
+check('las ' + str(total) + ' lineas escritas son JSON valido', total > 0)
+for r in leer('business_structured.log'):
+    check('cada registro trae timestamp, level, logger y message',
+          all(c in r for c in ('timestamp', 'level', 'logger', 'message')),
+          list(r.keys()))
+    break
 
-if __name__ == "__main__":
-    # Este script puede ejecutarse directamente para pruebas
-    print("Este script debe ejecutarse en el contexto de la aplicación Flask.")
-    print("Para probarlo, ejecuta:")
-    print("python -c \"from app import create_app; app = create_app(); from test_logging import run_all_tests; app.app_context().push(); run_all_tests()\"")
+shutil.rmtree(DIR_LOGS, ignore_errors=True)
+print('')
+print('=== TODO OK ===' if not fallos
+      else '=== ' + str(len(fallos)) + ' FALLAS: ' + str(fallos) + ' ===')
+sys.exit(1 if fallos else 0)

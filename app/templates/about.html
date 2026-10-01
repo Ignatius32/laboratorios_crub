@@ -1,46 +1,86 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import page_header %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <h1 class="text-primary mb-4">Acerca del Sistema de Gestión de Laboratorios</h1>
-            
-            <div class="card shadow mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">Centro Regional Universitario Bariloche</h5>
-                    <p class="lead">
-                        El Sistema de Gestión de Laboratorios del CRUB es una herramienta desarrollada para facilitar 
-                        la administración de inventarios, productos y movimientos en los laboratorios de la institución.
-                    </p>
-                    
-                    <hr>
-                    
-                    <h5>Características principales:</h5>
-                    <ul class="mb-4">
-                        <li>Gestión completa de inventarios de productos químicos y materiales</li>
-                        <li>Seguimiento de movimientos de entrada y salida</li>
-                        <li>Control de stock en tiempo real</li>
-                        <li>Administración de usuarios y permisos</li>
-                        <li>Acceso a información de seguridad de productos</li>
-                    </ul>
-                    
-                    <h5>Desarrollado para:</h5>
-                    <p>
-                        <strong>Universidad Nacional del Comahue</strong><br>
-                        Centro Regional Universitario Bariloche<br>
-                        Quintral 1250, San Carlos de Bariloche<br>
-                        Río Negro, Argentina
-                    </p>
-                </div>
-            </div>
-            
-            <div class="text-center mt-4">
-                <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
-                </a>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        {{ page_header('Acerca del sistema',
+                       'Qué hace, quién puede entrar y a quién pedirle acceso.') }}
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title mb-3">Para qué sirve</h2>
+                <p class="text-muted mb-4" style="font-size: var(--texto-base)">
+                    Lleva el inventario de los laboratorios del CRUB: qué productos hay,
+                    cuánto queda de cada uno en cada laboratorio, y qué movimiento
+                    explica cada cambio de cantidad.
+                </p>
+
+                <ul class="list-unstyled mb-0"
+                    style="display:flex; flex-direction:column; gap:.75rem; font-size: var(--texto-base);">
+                    <li class="d-flex gap-3">
+                        <i class="fas fa-circle-check mt-1" style="color: var(--exito)"></i>
+                        <span>Catálogo de reactivos, materiales de vidrio, botiquín, elementos
+                              de seguridad y residuos peligrosos.</span>
+                    </li>
+                    <li class="d-flex gap-3">
+                        <i class="fas fa-circle-check mt-1" style="color: var(--exito)"></i>
+                        <span>Registro de ingresos, compras, usos y transferencias entre laboratorios.</span>
+                    </li>
+                    <li class="d-flex gap-3">
+                        <i class="fas fa-circle-check mt-1" style="color: var(--exito)"></i>
+                        <span>Stock calculado a partir de los movimientos, con aviso cuando
+                              cae por debajo del mínimo.</span>
+                    </li>
+                    <li class="d-flex gap-3">
+                        <i class="fas fa-circle-check mt-1" style="color: var(--exito)"></i>
+                        <span>Fichas de seguridad adjuntas a cada producto.</span>
+                    </li>
+                    <li class="d-flex gap-3">
+                        <i class="fas fa-circle-check mt-1" style="color: var(--exito)"></i>
+                        <span>Reportes por período, exportables a Excel.</span>
+                    </li>
+                </ul>
             </div>
         </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title mb-3">Cómo se entra</h2>
+                <p class="text-muted mb-3" style="font-size: var(--texto-base)">
+                    Con la misma cuenta del CRUB que se usa en Quintral. El sistema no
+                    guarda contraseñas: las administra Keycloak, y restablecerlas se hace
+                    en las pantallas de cuenta de Huayca.
+                </p>
+                <p class="text-muted mb-0" style="font-size: var(--texto-base)">
+                    Tener cuenta no alcanza: además hay que estar habilitado para esta
+                    aplicación. Si tu cuenta funciona pero el sistema dice que no estás
+                    habilitado, o si entrás y no ves ningún laboratorio, pedile al
+                    <strong>administrador de laboratorios</strong> que te dé acceso.
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title mb-3">Quién lo mantiene</h2>
+                <p class="text-muted mb-0" style="font-size: var(--texto-base)">
+                    <strong style="color: var(--texto)">Centro Regional Universitario Bariloche</strong><br>
+                    Universidad Nacional del Comahue<br>
+                    Quintral 1250, San Carlos de Bariloche<br>
+                    Río Negro, Argentina
+                </p>
+            </div>
+        </div>
+
+        {% if not current_user.is_authenticated %}
+        <div class="text-center mt-4">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
+                Ingresar<i class="fas fa-arrow-right ms-1" style="font-size:.75em"></i>
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

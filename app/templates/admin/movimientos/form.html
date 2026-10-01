@@ -1,262 +1,132 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import page_header, field, form_actions %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_movimientos') }}">Movimientos</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Nuevo Movimiento</li>
-        </ol>
-    </nav>
+<div class="row justify-content-center">
+    <div class="col-lg-9">
 
-    <div class="card mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Registrar Nuevo Movimiento</h6>
-            <span class="badge bg-info">Formulario</span>
-        </div>
-        <div class="card-body">
-            <form method="POST" enctype="multipart/form-data" class="admin-form">
-                {{ form.hidden_tag() }}
-                
-                <div class="row">
-                    <!-- Tipo de Movimiento -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.tipoMovimiento.label(class="form-label") }}
-                        {% if form.tipoMovimiento.errors %}
-                            {{ form.tipoMovimiento(class="form-select is-invalid", id="tipoMovimiento") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.tipoMovimiento.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.tipoMovimiento(class="form-select", id="tipoMovimiento") }}
-                        {% endif %}
-                        <small class="form-text text-muted mt-1">
-                            <ul class="ps-3 mb-0">
-                                <li><strong>Ingreso:</strong> Para registrar ingresos regulares</li>
-                                <li><strong>Compra:</strong> Para registrar compras con factura o remito</li>
-                                <li><strong>Uso:</strong> Para registrar consumo de productos</li>
-                                <li><strong>Transferencia:</strong> Para transferir productos entre laboratorios</li>
-                            </ul>
-                        </small>
-                    </div>
-                    
-                    <!-- Laboratorio -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.idLaboratorio.label(class="form-label") }}
-                        {% if form.idLaboratorio.errors %}
-                            {{ form.idLaboratorio(class="form-select is-invalid", id="lab-select") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.idLaboratorio.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.idLaboratorio(class="form-select", id="lab-select") }}
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <!-- Producto -->
-                <div class="mb-3">
-                    {{ form.idProducto.label(class="form-label") }}
-                    {% if form.idProducto.errors %}
-                        {{ form.idProducto(class="form-select is-invalid", id="product-select") }}
-                        <div class="invalid-feedback">
-                            {% for error in form.idProducto.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        {{ form.idProducto(class="form-select", id="product-select") }}
-                    {% endif %}
-                </div>
+        <nav aria-label="Ubicación" class="mb-3">
+            <ol class="breadcrumb mb-0" style="font-size: var(--texto-sm)">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administración</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.list_movimientos') }}">Movimientos</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Nuevo</li>
+            </ol>
+        </nav>
 
-                <div class="row">
-                    <!-- Cantidad -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.cantidad.label(class="form-label") }}
-                        {% if form.cantidad.errors %}
-                            {{ form.cantidad(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.cantidad.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.cantidad(class="form-control") }}
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Unidad de Medida -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.unidadMedida.label(class="form-label") }}
-                        {% if form.unidadMedida.errors %}
-                            {{ form.unidadMedida(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.unidadMedida.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.unidadMedida(class="form-control") }}
-                        {% endif %}
-                    </div>
-                </div>
+        {{ page_header('Nuevo movimiento',
+                       'El stock de cada producto sale de estos registros: no se edita a mano.') }}
 
-                <!-- Campos específicos para Compra -->
-                <div id="compraFields" class="border p-3 mb-3 rounded" style="display: none;">
-                    <h6 class="mb-3">Datos de Compra</h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            {{ form.tipoDocumento.label(class="form-label") }}
-                            {% if form.tipoDocumento.errors %}
-                                {{ form.tipoDocumento(class="form-select is-invalid") }}
-                                <div class="invalid-feedback">
-                                    {% for error in form.tipoDocumento.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                {{ form.tipoDocumento(class="form-select") }}
-                            {% endif %}
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            {{ form.numeroDocumento.label(class="form-label") }}
-                            {% if form.numeroDocumento.errors %}
-                                {{ form.numeroDocumento(class="form-control is-invalid") }}
-                                <div class="invalid-feedback">
-                                    {% for error in form.numeroDocumento.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                {{ form.numeroDocumento(class="form-control") }}
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            {{ form.fechaFactura.label(class="form-label") }}
-                            {% if form.fechaFactura.errors %}
-                                {{ form.fechaFactura(class="form-control is-invalid", type="date") }}
-                                <div class="invalid-feedback">
-                                    {% for error in form.fechaFactura.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                {{ form.fechaFactura(class="form-control", type="date") }}
-                            {% endif %}
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            {{ form.idProveedor.label(class="form-label") }}
-                            {% if form.idProveedor.errors %}
-                                {{ form.idProveedor(class="form-select is-invalid", id="proveedorSelect") }}
-                                <div class="invalid-feedback">
-                                    {% for error in form.idProveedor.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                {{ form.idProveedor(class="form-select", id="proveedorSelect") }}
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.documento.label(class="form-label") }}
-                        {% if form.documento.errors %}
-                            {{ form.documento(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.documento.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.documento(class="form-control") }}
-                        {% endif %}
-                        <small class="form-text text-muted">Sólo se aceptan archivos PDF</small>
-                    </div>
-                </div>
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {{ form.hidden_tag() }}
 
-                <!-- Campos específicos para Transferencia -->
-                <div id="transferenciaFields" class="border p-3 mb-3 rounded" style="display: none;">
-                    <h6 class="mb-3">Datos de Transferencia</h6>
-                    <div class="mb-3">
-                        {{ form.laboratorioDestino.label(class="form-label") }}
-                        {% if form.laboratorioDestino.errors %}
-                            {{ form.laboratorioDestino(class="form-select is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.laboratorioDestino.errors %}
-                                    {{ error }}
-                                {% endfor %}
+                    <div class="form-section">
+                        <p class="form-section-title">Qué se movió</p>
+
+                        <div class="row">
+                            <div class="col-md-6">{{ field(form.tipoMovimiento, id='tipoMovimiento') }}</div>
+                            <div class="col-md-6">{{ field(form.idLaboratorio) }}</div>
+                        </div>
+
+                        {{ field(form.idProducto) }}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ field(form.cantidad, type='number', step='any', min='0') }}
                             </div>
-                        {% else %}
-                            {{ form.laboratorioDestino(class="form-select") }}
-                        {% endif %}
+                            <div class="col-md-6">{{ field(form.unidadMedida) }}</div>
+                        </div>
                     </div>
-                </div>
-                  <div class="mt-4 text-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Guardar
-                    </button>
-                    <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-secondary confirm-action"
-                       data-message="¿Está seguro que desea cancelar?" 
-                       data-warning="Los cambios no guardados se perderán."
-                       data-btn-text="Sí, Cancelar"
-                       data-btn-class="btn-cancel">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </a>
-                </div>
-            </form>
+
+                    {#
+                      Secciones que aparecen según el tipo. Se usa el atributo
+                      hidden en lugar de style.display para que el estado sea
+                      legible desde el HTML y no sólo desde el JavaScript.
+                    #}
+                    <div class="form-section" id="camposCompra" hidden>
+                        <p class="form-section-title">Comprobante de la compra</p>
+                        <p class="form-section-desc">
+                            Obligatorio para las compras: el tipo y el número de documento.
+                        </p>
+
+                        <div class="row">
+                            <div class="col-md-4">{{ field(form.tipoDocumento) }}</div>
+                            <div class="col-md-4">
+                                {{ field(form.numeroDocumento, placeholder='0001-00001234') }}
+                            </div>
+                            <div class="col-md-4">{{ field(form.fechaFactura, type='date') }}</div>
+                        </div>
+
+                        {{ field(form.idProveedor, id='proveedorSelect',
+                                 ayuda='Elegí «Nuevo proveedor…» para cargar uno sin salir de esta pantalla.') }}
+
+                        {{ field(form.documento, accept='.pdf',
+                                 ayuda='La factura o el remito en PDF. Opcional.') }}
+                    </div>
+
+                    <div class="form-section" id="camposTransferencia" hidden>
+                        <p class="form-section-title">Destino de la transferencia</p>
+                        <p class="form-section-desc">
+                            La cantidad se descuenta del laboratorio de origen.
+                        </p>
+
+                        {{ field(form.laboratorioDestino) }}
+                    </div>
+
+                    {{ form_actions(url_for('admin.list_movimientos'), texto='Registrar movimiento',
+                                    cargando='Registrando…') }}
+                </form>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Modal para Nuevo Proveedor -->
-<div class="modal fade" id="nuevoProveedorModal" tabindex="-1" aria-labelledby="nuevoProveedorModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="nuevoProveedorModal" tabindex="-1"
+     aria-labelledby="nuevoProveedorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="nuevoProveedorModalLabel">Nuevo Proveedor</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h2 class="modal-title h5" id="nuevoProveedorModalLabel">Nuevo proveedor</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
-                <form id="nuevoProveedorForm">
-                    <div class="mb-3">
-                        <label for="proveedorNombre" class="form-label">Nombre *</label>
+                <div class="alert alert-danger d-none" id="errorProveedor" role="alert">
+                    <i class="fas fa-circle-exclamation mt-1" aria-hidden="true"></i>
+                    <div data-mensaje-error></div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-7 mb-3">
+                        <label for="proveedorNombre" class="form-label">Nombre</label>
                         <input type="text" class="form-control" id="proveedorNombre" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="proveedorCuit" class="form-label">CUIT *</label>
-                        <input type="text" class="form-control" id="proveedorCuit" required 
-                               pattern="^\d{2}-?\d{8}-?\d{1}$" 
-                               placeholder="XX-XXXXXXXX-X o XXXXXXXXXXX">
-                        <small class="form-text text-muted">Formato: XX-XXXXXXXX-X</small>
+                    <div class="col-md-5 mb-3">
+                        <label for="proveedorCuit" class="form-label">CUIT</label>
+                        <input type="text" class="form-control" id="proveedorCuit"
+                               placeholder="XX-XXXXXXXX-X" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="proveedorDireccion" class="form-label">Dirección</label>
-                        <input type="text" class="form-control" id="proveedorDireccion">
-                    </div>
-                    <div class="mb-3">
+                </div>
+                <div class="mb-3">
+                    <label for="proveedorDireccion" class="form-label">Dirección</label>
+                    <input type="text" class="form-control" id="proveedorDireccion">
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
                         <label for="proveedorTelefono" class="form-label">Teléfono</label>
                         <input type="text" class="form-control" id="proveedorTelefono">
                     </div>
-                    <div class="mb-3">
+                    <div class="col-md-6 mb-3">
                         <label for="proveedorEmail" class="form-label">Email</label>
                         <input type="email" class="form-control" id="proveedorEmail">
                     </div>
-                </form>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="guardarProveedor">Guardar Proveedor</button>
+                <button type="button" class="btn btn-primary" id="guardarProveedor">
+                    <span class="btn-texto">Guardar proveedor</span>
+                </button>
             </div>
         </div>
     </div>
@@ -265,124 +135,95 @@
 
 {% block scripts %}
 <script>
-$(document).ready(function() {
-    // Elements
-    const tipoMovimiento = document.getElementById('tipoMovimiento');
-    const compraFields = document.getElementById('compraFields');
-    const transferenciaFields = document.getElementById('transferenciaFields');
-    
-    // Bandera para controlar cuando el cambio es programático
-    var isSelectingProgrammatically = false;
+document.addEventListener('DOMContentLoaded', function () {
+    const tipo = document.getElementById('tipoMovimiento');
+    const camposCompra = document.getElementById('camposCompra');
+    const camposTransferencia = document.getElementById('camposTransferencia');
 
-    // Función para mostrar/ocultar campos según el tipo de movimiento
-    function updateFields() {
-        const selectedType = tipoMovimiento.value;
-        
-        // Ocultar todos los campos específicos primero
-        compraFields.style.display = 'none';
-        transferenciaFields.style.display = 'none';
-        
-        // Mostrar campos específicos según el tipo seleccionado
-        if (selectedType === 'compra') {
-            compraFields.style.display = 'block';
-        } else if (selectedType === 'transferencia') {
-            transferenciaFields.style.display = 'block';
-        }
+    function actualizarSecciones() {
+        camposCompra.hidden = tipo.value !== 'compra';
+        camposTransferencia.hidden = tipo.value !== 'transferencia';
     }
-    
-    // Ejecutar al cargar la página
-    updateFields();
-    
-    // Añadir listener para cuando cambie el tipo de movimiento
-    tipoMovimiento.addEventListener('change', updateFields);
-    
-    // Manejar selección de "Nuevo proveedor..."
-    $('#proveedorSelect').on('change', function() {
-        var currentValue = $(this).val();
-        
-        // Solo actuar si NO es un cambio programático Y el valor actual es '0'
-        if (!isSelectingProgrammatically && currentValue == '0') {
-            // Mostrar modal para nuevo proveedor
-            $('#nuevoProveedorModal').modal('show');
-            // Resetear a la opción vacía
-            $(this).val('');
+    actualizarSecciones();
+    tipo.addEventListener('change', actualizarSecciones);
+
+    // --- alta rápida de proveedor ------------------------------------------
+    const select = document.getElementById('proveedorSelect');
+    const modalNodo = document.getElementById('nuevoProveedorModal');
+    const modal = new bootstrap.Modal(modalNodo);
+    const boton = document.getElementById('guardarProveedor');
+    const error = document.getElementById('errorProveedor');
+    let seleccionandoPorCodigo = false;
+
+    function mostrarError(texto) {
+        error.querySelector('[data-mensaje-error]').textContent = texto;
+        error.classList.remove('d-none');
+    }
+
+    select.addEventListener('change', function () {
+        if (!seleccionandoPorCodigo && select.value === '0') {
+            error.classList.add('d-none');
+            select.value = '';
+            modal.show();
         }
     });
-    
-    // Guardar nuevo proveedor
-    $('#guardarProveedor').click(function() {
-        const nombre = $('#proveedorNombre').val().trim();
-        const cuit = $('#proveedorCuit').val().trim();
-        const direccion = $('#proveedorDireccion').val().trim();
-        const telefono = $('#proveedorTelefono').val().trim();
-        const email = $('#proveedorEmail').val().trim();
-        
+
+    boton.addEventListener('click', async function () {
+        const nombre = document.getElementById('proveedorNombre').value.trim();
+        const cuit = document.getElementById('proveedorCuit').value.trim();
+
         if (!nombre || !cuit) {
-            alert('El nombre y CUIT son obligatorios');
+            mostrarError('El nombre y el CUIT son obligatorios.');
             return;
         }
-        
-        // Validar formato CUIT
-        const cuitPattern = /^\d{2}-?\d{8}-?\d{1}$/;
-        if (!cuitPattern.test(cuit)) {
-            alert('Formato de CUIT inválido. Use XX-XXXXXXXX-X o XXXXXXXXXXX');
+        if (!/^\d{2}-?\d{8}-?\d{1}$/.test(cuit)) {
+            mostrarError('El CUIT tiene que ser XX-XXXXXXXX-X o once dígitos seguidos.');
             return;
         }
-        
-        // Crear proveedor vía AJAX
-        $.ajax({
-            url: "{{ url_for('admin.new_proveedor') }}",
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                nombre: nombre,
-                cuit: cuit,
-                direccion: direccion,
-                telefono: telefono,
-                email: email
-            }),
-            headers: {
-                'X-CSRFToken': '{{ form.csrf_token._value() }}'
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Marcar que el siguiente cambio es programático
-                    isSelectingProgrammatically = true;
-                    
-                    // Agregar el nuevo proveedor al select
-                    const newOption = `<option value="${response.proveedor.id}" selected>${response.proveedor.nombre} (${response.proveedor.cuit})</option>`;
-                    $('#proveedorSelect option[value="0"]').before(newOption);
-                    $('#proveedorSelect').val(response.proveedor.id);
-                    
-                    // Restaurar la bandera después de un pequeño delay
-                    setTimeout(function() {
-                        isSelectingProgrammatically = false;
-                    }, 100);
-                    
-                    // Limpiar y cerrar modal
-                    $('#nuevoProveedorForm')[0].reset();
-                    $('#nuevoProveedorModal').modal('hide');
-                    
-                    alert('Proveedor creado correctamente');
-                } else {
-                    alert('Error: ' + (response.error || 'No se pudo crear el proveedor'));
-                }
-            },
-            error: function(xhr) {
-                const errorMsg = xhr.responseJSON && xhr.responseJSON.error 
-                    ? xhr.responseJSON.error 
-                    : 'Error al crear el proveedor';
-                alert(errorMsg);
+
+        // Estado de carga: crear el proveedor va contra el servidor y antes no
+        // había ninguna señal mientras tanto.
+        error.classList.add('d-none');
+        boton.disabled = true;
+        boton.querySelector('.btn-texto').textContent = 'Guardando…';
+
+        try {
+            const respuesta = await fetch("{{ url_for('admin.new_proveedor') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ form.csrf_token._value() }}'
+                },
+                body: JSON.stringify({
+                    nombre: nombre,
+                    cuit: cuit,
+                    direccion: document.getElementById('proveedorDireccion').value.trim(),
+                    telefono: document.getElementById('proveedorTelefono').value.trim(),
+                    email: document.getElementById('proveedorEmail').value.trim()
+                })
+            });
+            const datos = await respuesta.json();
+
+            if (!datos.success) {
+                mostrarError(datos.message || 'No se pudo crear el proveedor.');
+                return;
             }
-        });
-    });
-    
-    // Resetear formulario cuando se cierra el modal
-    $('#nuevoProveedorModal').on('hidden.bs.modal', function() {
-        $('#nuevoProveedorForm')[0].reset();
-        // Volver a seleccionar "Nuevo proveedor..." en caso de que se haya cancelado
-        if (!$('#proveedorSelect').val()) {
-            $('#proveedorSelect').val('');
+
+            // Insertar la opción antes de «Nuevo proveedor…» y seleccionarla.
+            seleccionandoPorCodigo = true;
+            const opcion = new Option(
+                datos.proveedor.nombre + ' (' + datos.proveedor.cuit + ')',
+                datos.proveedor.id, true, true);
+            const nuevoProveedor = select.querySelector('option[value="0"]');
+            select.insertBefore(opcion, nuevoProveedor);
+            setTimeout(() => { seleccionandoPorCodigo = false; }, 100);
+
+            modal.hide();
+        } catch (e) {
+            mostrarError('No se pudo contactar el servidor. Probá de nuevo.');
+        } finally {
+            boton.disabled = false;
+            boton.querySelector('.btn-texto').textContent = 'Guardar proveedor';
         }
     });
 });

@@ -1,101 +1,79 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import page_header, empty_state %}
 
 {% block content %}
-<div class="container-fluid">
-    <h1 class="page-title">Panel de Técnico</h1>
-    <p class="page-subtitle">Bienvenido(a), {{ current_user.nombre }} {{ current_user.apellido }}. Gestiona los laboratorios asignados a tu cargo.</p>
-    
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">Información General</h5>
-                    <p>Este es tu panel de control como técnico de laboratorio. Desde aquí puedes:</p>
-                    <div class="row mt-4">
-                        <div class="col-md-4 mb-3 text-center">
-                            <div class="p-3 rounded" style="background-color: var(--color-primary-light);">
-                                <i class="fas fa-flask fa-2x mb-2" style="color: var(--color-primary);"></i>
-                                <h6>Gestionar Inventario</h6>
-                                <p class="small text-muted mb-0">Control completo del stock</p>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3 text-center">
-                            <div class="p-3 rounded" style="background-color: var(--color-success-light);">
-                                <i class="fas fa-exchange-alt fa-2x mb-2" style="color: var(--color-success);"></i>
-                                <h6>Registrar Movimientos</h6>
-                                <p class="small text-muted mb-0">Entradas y salidas</p>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3 text-center">
-                            <div class="p-3 rounded" style="background-color: var(--color-info-light);">
-                                <i class="fas fa-search fa-2x mb-2" style="color: var(--color-info);"></i>
-                                <h6>Consultar Productos</h6>
-                                <p class="small text-muted mb-0">Información detallada</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">Mi Cuenta</h5>
-                    <div class="text-center mb-3">
-                        <div class="avatar mb-3">
-                            <i class="fas fa-user-circle fa-5x" style="color: var(--color-primary);"></i>
-                        </div>
-                        <h5>{{ current_user.nombre }} {{ current_user.apellido }}</h5>
-                        <p class="text-muted">{{ current_user.email }}</p>
-                    </div>
-                    <hr>
-                    <!-- <div class="d-grid"> -->
-                        <!-- <a href="#" class="btn btn-outline-primary"> -->
-                            <!-- <i class="fas fa-cog me-2"></i>Configurar perfil -->
-                        <!-- </a> -->
-                    <!-- </div> -->
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Mis Laboratorios Asignados</h6>
-                </div>
-                <div class="card-body">
-                    {% if laboratorios %}
-                        <div class="row">
-                            {% for lab in laboratorios %}
-                                <div class="col-lg-4 col-md-6 mb-4">
-                                    <div class="card border h-100">
-                                        <div class="card-header bg-light">
-                                            <h5 class="card-title mb-0">{{ lab.nombre }}</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <p><i class="fas fa-map-marker-alt text-muted me-2"></i> {{ lab.direccion }}</p>
-                                            <p><i class="fas fa-phone text-muted me-2"></i> {{ lab.telefono }}</p>
-                                            <p><i class="fas fa-envelope text-muted me-2"></i> {{ lab.email }}</p>
-                                        </div>
-                                        <div class="card-footer bg-white border-top-0">
-                                            <a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=lab.idLaboratorio) }}" class="btn btn-primary w-100">
-                                                <i class="fas fa-sign-in-alt me-2"></i> Acceder al Panel
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="alert alert-info">
-                            No tienes laboratorios asignados. Contacta con el administrador del sistema.
-                        </div>
+
+{{ page_header(
+    'Laboratorios',
+    'Hola, ' ~ current_user.nombre ~ '. ' ~
+    ('Todos los laboratorios del sistema.' if current_user.rol == 'admin'
+     else 'Los laboratorios que tenés a cargo.')) }}
+
+{% if laboratorios %}
+<div class="row g-3">
+    {% for lab in laboratorios %}
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=lab.idLaboratorio) }}"
+           class="card card-accion h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="card-accion-icono"><i class="fas fa-flask"></i></div>
+
+                <h2 class="card-title mb-1">{{ lab.nombre }}</h2>
+                <p class="text-muted mb-3" style="font-size: var(--texto-sm)">
+                    {{ lab.idLaboratorio }}
+                </p>
+
+                <ul class="list-unstyled text-muted mb-4"
+                    style="font-size: var(--texto-sm); display:flex; flex-direction:column; gap:.375rem;">
+                    {% if lab.direccion %}
+                    <li><i class="fas fa-location-dot me-2 text-tenue" style="width:1em"></i>{{ lab.direccion }}</li>
                     {% endif %}
-                </div>
+                    {% if lab.telefono %}
+                    <li><i class="fas fa-phone me-2 text-tenue" style="width:1em"></i>{{ lab.telefono }}</li>
+                    {% endif %}
+                    {% if lab.email %}
+                    <li><i class="fas fa-envelope me-2 text-tenue" style="width:1em"></i>{{ lab.email }}</li>
+                    {% endif %}
+                </ul>
+
+                <span class="btn btn-secondary btn-sm mt-auto align-self-start">
+                    Abrir panel<i class="fas fa-arrow-right ms-1" style="font-size:.75em"></i>
+                </span>
             </div>
-        </div>
+        </a>
     </div>
+    {% endfor %}
 </div>
+
+{% else %}
+
+{#
+  El caso más probable en un sistema recién puesto en marcha: el perfil se crea
+  solo al ingresar, pero los laboratorios los asigna un administrador. Antes
+  esto era un alert azul que decía "contacta con el administrador" y nada más.
+#}
+<div class="card">
+    {% if current_user.rol == 'admin' %}
+        {% call empty_state(
+            'Todavía no hay laboratorios cargados',
+            'Un laboratorio es donde se registran los movimientos de stock. Creá el primero para empezar.',
+            icono='fa-flask') %}
+            <a href="{{ url_for('admin.new_laboratorio') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Crear laboratorio
+            </a>
+        {% endcall %}
+    {% else %}
+        {% call empty_state(
+            'Todavía no tenés laboratorios asignados',
+            'Tu cuenta funciona, pero un administrador tiene que asignarte al menos un laboratorio
+             para que puedas registrar movimientos y consultar stock.',
+            icono='fa-user-clock') %}
+            <a href="{{ url_for('main.about') }}" class="btn btn-secondary">
+                <i class="fas fa-circle-info"></i> Cómo funciona el sistema
+            </a>
+        {% endcall %}
+    {% endif %}
+</div>
+
+{% endif %}
 {% endblock %}

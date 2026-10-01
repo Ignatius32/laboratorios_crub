@@ -1,107 +1,136 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import page_header, field %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_productos') }}">Productos</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Importar Productos</li>
-        </ol>
-    </nav>
+<div class="row justify-content-center">
+    <div class="col-lg-9">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="page-title">Importación de Productos</h1>
-            <p class="page-subtitle">Sube un archivo Excel para importar múltiples productos al sistema</p>
-        </div>
-        <a href="{{ url_for('admin.list_productos') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Volver a Productos
-        </a>
-    </div>
+        <nav aria-label="Ubicación" class="mb-3">
+            <ol class="breadcrumb mb-0" style="font-size: var(--texto-sm)">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administración</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.list_productos') }}">Productos</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Importar</li>
+            </ol>
+        </nav>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="alert alert-info">
-                <h5 class="alert-heading">Instrucciones</h5>
-                <p>Sube un archivo Excel (.xlsx) con los siguientes encabezados en la primera fila:</p>
-                <ul>
-                    <li><strong>ID Producto</strong>: Identificador único del producto (ej: P001)</li>
-                    <li><strong>Nombre</strong>: Nombre del producto</li>
-                    <li><strong>Tipo de Producto</strong>: Botiquín, Droguero, Materiales de vidrio, Elementos de seguridad o Residuos peligrosos</li>
-                    <li><strong>Estado Físico</strong>: Sólido, Líquido o Gaseoso</li>
-                    <li><strong>URL Ficha de Seguridad</strong>: URL a la ficha de seguridad (opcional)</li>
-                    <li><strong>Descripción</strong>: Descripción del producto (opcional)</li>
-                    <li><strong>Control Sedronar</strong>: Sí/No, True/False (opcional, solo aplicable a productos Droguero)</li>
-                </ul>
-                <p>Si un producto con el mismo ID ya existe, se actualizará con los datos del archivo.</p>
-                <p class="mb-0"><a href="#" class="text-primary" id="download-template">Descargar plantilla de ejemplo</a></p>
+        {{ page_header('Importar productos',
+                       'Cargá una planilla de Excel para dar de alta o actualizar varios productos de una vez.') }}
+
+        <div class="card mb-4">
+            <div class="card-header">Cómo tiene que ser la planilla</div>
+            <div class="card-body">
+                <p class="text-muted mb-3" style="font-size: var(--texto-base)">
+                    Un archivo <code>.xlsx</code> con estos encabezados en la primera fila:
+                </p>
+
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr><th>Columna</th><th>Obligatoria</th><th>Contenido</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>ID Producto</code></td>
+                                <td><span class="badge bg-danger">Sí</span></td>
+                                <td class="text-muted">Identificador único, por ejemplo <code>P001</code>.</td>
+                            </tr>
+                            <tr>
+                                <td><code>Nombre</code></td>
+                                <td><span class="badge bg-danger">Sí</span></td>
+                                <td class="text-muted">Nombre del producto.</td>
+                            </tr>
+                            <tr>
+                                <td><code>Tipo de Producto</code></td>
+                                <td><span class="badge bg-danger">Sí</span></td>
+                                <td class="text-muted">
+                                    Botiquín, Droguero, Materiales de vidrio,
+                                    Elementos de seguridad o Residuos peligrosos.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>Estado Físico</code></td>
+                                <td><span class="badge bg-danger">Sí</span></td>
+                                <td class="text-muted">Sólido, Líquido o Gaseoso.</td>
+                            </tr>
+                            <tr>
+                                <td><code>Descripción</code></td>
+                                <td><span class="badge bg-secondary">No</span></td>
+                                <td class="text-muted">Texto libre.</td>
+                            </tr>
+                            <tr>
+                                <td><code>URL Ficha de Seguridad</code></td>
+                                <td><span class="badge bg-secondary">No</span></td>
+                                <td class="text-muted">Enlace de Google Drive a la ficha.</td>
+                            </tr>
+                            <tr>
+                                <td><code>Control Sedronar</code></td>
+                                <td><span class="badge bg-secondary">No</span></td>
+                                <td class="text-muted">Sí/No. Sólo aplica a productos de tipo Droguero.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
+            <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <p class="mb-0 text-muted" style="font-size: var(--texto-sm)">
+                    Si un ID ya existe, ese producto se <strong>actualiza</strong> con los datos de la planilla.
+                </p>
+                <button type="button" class="btn btn-secondary btn-sm" id="descargar-plantilla">
+                    <i class="fas fa-download"></i> Descargar plantilla
+                </button>
+            </div>
+        </div>
 
-            <form method="POST" enctype="multipart/form-data" class="mt-4">
-                {{ form.hidden_tag() }}
-                
-                <div class="mb-3">
-                    {{ form.archivo.label(class="form-label") }}
-                    {% if form.archivo.errors %}
-                        {{ form.archivo(class="form-control is-invalid") }}
-                        <div class="invalid-feedback">
-                            {% for error in form.archivo.errors %}
-                                {{ error }}
-                            {% endfor %}
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    {{ field(form.archivo, ayuda='Sólo archivos .xlsx.', accept='.xlsx') }}
+
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-circle-info mt-1" aria-hidden="true"></i>
+                        <div>
+                            Los productos que se importen quedan disponibles para
+                            <strong>todos los laboratorios</strong>. El stock de cada uno sigue
+                            saliendo de sus movimientos, no de esta planilla.
                         </div>
-                    {% else %}
-                        {{ form.archivo(class="form-control") }}
-                    {% endif %}
-                    <small class="form-text text-muted">Formatos permitidos: .xlsx</small>
-                </div>
-                
-                <div class="alert alert-success">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Productos Globales:</strong> Todos los productos importados serán globales y estarán disponibles para todos los laboratorios.
-                </div>
-                
-                <div class="mt-4 text-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-file-import me-2"></i>Importar Productos
-                    </button>
-                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-cancel confirm-action" data-message="¿Está seguro que desea cancelar? Se perderán los cambios no guardados.">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </a>
-                </div>
-            </form>
+                    </div>
+
+                    {#
+                      Estado de carga: importar una planilla grande tarda varios
+                      segundos y antes no había ninguna señal, así que era normal
+                      apretar dos veces y mandar la importación duplicada.
+                    #}
+                    <div class="form-actions">
+                        <a href="{{ url_for('admin.list_productos') }}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary" data-texto-cargando="Importando…">
+                            <i class="fas fa-file-import btn-icono"></i>
+                            <span class="btn-texto">Importar productos</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Función para generar y descargar la plantilla Excel
-        document.getElementById('download-template').addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Crear un array de datos con los encabezados
-            const data = [
-                ['ID Producto', 'Nombre', 'Tipo de Producto', 'Estado Físico', 'URL Ficha de Seguridad', 'Descripción', 'Control Sedronar'],
-                ['P001', 'Ácido Clorhídrico', 'Droguero', 'Líquido', 'https://ejemplo.com/ficha1', 'Ejemplo de descripción', 'Sí'],
-                ['P002', 'Microscopio', 'Vidrio', 'Sólido', '', 'Microscopio binocular', ''],
-            ];
-            
-            // Crear un libro de trabajo y una hoja
-            const workbook = XLSX.utils.book_new();
-            const worksheet = XLSX.utils.aoa_to_sheet(data);
-            
-            // Añadir la hoja al libro
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Productos');
-            
-            // Generar y descargar el archivo
-            XLSX.writeFile(workbook, 'plantilla_productos.xlsx');
-        });
+    document.getElementById('descargar-plantilla').addEventListener('click', function () {
+        const filas = [
+            ['ID Producto', 'Nombre', 'Tipo de Producto', 'Estado Físico',
+             'Descripción', 'URL Ficha de Seguridad', 'Control Sedronar'],
+            ['P001', 'Ácido clorhídrico', 'Droguero', 'Líquido',
+             'Solución 37%', 'https://drive.google.com/file/d/EJEMPLO/view', 'Sí'],
+            ['P002', 'Microscopio binocular', 'Materiales de vidrio', 'Sólido',
+             'Objetivos 4x, 10x, 40x', '', '']
+        ];
+        const libro = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(libro, XLSX.utils.aoa_to_sheet(filas), 'Productos');
+        XLSX.writeFile(libro, 'plantilla_productos.xlsx');
     });
 </script>
-
-<!-- SheetJS para generar la plantilla Excel -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 {% endblock %}

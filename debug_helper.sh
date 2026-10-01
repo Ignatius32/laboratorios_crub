@@ -1,99 +1,74 @@
 #!/bin/bash
+# Ayudas de diagnostico para Laboratorios CRUB.
+#
+# La version anterior no llegaba a correr: su guarda inicial exigia
+# debug_keycloak_production.py en la raiz, archivo que se movio a
+# scripts/legacy/, asi que abortaba con "must be run from the
+# laboratorios-crub directory" sin importar desde donde se la invocara. Sus
+# opciones ejecutaban ese script y debug_keycloak_callback.py, ambos escritos
+# para el flujo OIDC de redireccion que se reemplazo por el ingreso directo
+# contra el endpoint de token; y probaba la conectividad contra /auth/, la ruta
+# anterior a Keycloak v26 (ahora /keycloak/).
+#
+# Queda solo lo que sigue existiendo.
 
-# Keycloak Authentication Debug Helper Script
-# Run this script to perform various debugging tasks
+set -u
 
-echo "================================"
-echo "KEYCLOAK DEBUG HELPER SCRIPT"
-echo "================================"
-echo
+RAIZ="$(cd "$(dirname "$0")" && pwd)"
+cd "$RAIZ" || exit 1
 
-# Check if we're in the right directory
-if [ ! -f "debug_keycloak_production.py" ]; then
-    echo "❌ Error: This script must be run from the laboratorios-crub directory"
-    echo "   Current directory: $(pwd)"
-    exit 1
+# El venv del servidor es venv/bin (Linux); en una maquina de desarrollo
+# Windows es venv/Scripts. Se prueba el que exista.
+if   [ -x "venv/bin/python" ];        then PY="venv/bin/python"
+elif [ -x "venv/Scripts/python.exe" ]; then PY="venv/Scripts/python.exe"
+elif command -v python3 >/dev/null 2>&1; then PY="python3"
+else PY="python"
 fi
 
-echo "Select debug action:"
-echo "1. Run production Keycloak debug"
-echo "2. Check application logs"
-echo "3. Test Keycloak callback (debug script)"
-echo "4. Check Apache error log"
-echo "5. Tail security logs (real-time)"
-echo "6. Check environment variables"
-echo "7. Test network connectivity"
-echo "8. All tests"
+KEYCLOAK_URL="$(grep -E '^KEYCLOAK_SERVER_URL=' .env 2>/dev/null | cut -d= -f2-)"
+KEYCLOAK_URL="${KEYCLOAK_URL:-https://huayca.crub.uncoma.edu.ar/keycloak/}"
+REALM="$(grep -E '^KEYCLOAK_REALM=' .env 2>/dev/null | cut -d= -f2-)"
+REALM="${REALM:-CRUB}"
+
+echo "================================"
+echo "DIAGNOSTICO - Laboratorios CRUB"
+echo "================================"
+echo "Directorio: $RAIZ"
+echo "Interprete: $PY"
 echo
+echo "1. Variables de entorno (scripts/check_env_vars.py)"
+echo "2. Dependencias instaladas contra requirements.txt"
+echo "3. Ultimas lineas del log de aplicacion"
+echo "4. Ultimas lineas del log de seguridad"
+echo "5. Seguir el log de seguridad en vivo"
+echo "6. Log de errores de Apache"
+echo "7. Conectividad con Keycloak"
+echo "8. Todo lo anterior salvo el seguimiento en vivo"
+echo
+read -r -p "Opcion: " opcion
 
-read -p "Enter choice (1-8): " choice
+log_app()  { tail -n "${1:-20}" logs/app_structured.log      2>/dev/null || echo "  (sin logs/app_structured.log)"; }
+log_seg()  { tail -n "${1:-20}" logs/security_structured.log 2>/dev/null || echo "  (sin logs/security_structured.log)"; }
+conectividad() {
+    echo "=== Documento de descubrimiento OIDC del realm $REALM ==="
+    curl -s -o /dev/null -w "  HTTP %{http_code} en %{time_total}s\n" --max-time 10 \
+        "${KEYCLOAK_URL%/}/realms/${REALM}/.well-known/openid-configuration" \
+        || echo "  no se pudo conectar"
+}
 
-case $choice in
-    1)
-        echo "Running production Keycloak debug..."
-        python3 debug_keycloak_production.py
-        ;;
-    2)
-        echo "Checking application logs..."
-        echo "=== App Log (last 50 lines) ==="
-        tail -n 50 logs/app_structured.log 2>/dev/null || echo "App log not found"
-        echo
-        echo "=== Security Log (last 50 lines) ==="
-        tail -n 50 logs/security_structured.log 2>/dev/null || echo "Security log not found"
-        ;;
-    3)
-        echo "Running Keycloak callback debug..."
-        python3 debug_keycloak_callback.py
-        ;;
-    4)
-        echo "Checking Apache error log..."
-        echo "=== Apache Error Log (last 50 lines) ==="
-        sudo tail -n 50 /var/log/apache2/error.log 2>/dev/null || echo "Apache error log not accessible"
-        ;;
-    5)
-        echo "Tailing security logs (real-time). Press Ctrl+C to stop..."
-        tail -f logs/security_structured.log 2>/dev/null || echo "Security log not found"
-        ;;
-    6)
-        echo "Checking environment variables..."
-        echo "=== Keycloak Configuration ==="
-        echo "KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL:-'Not set'}"
-        echo "KEYCLOAK_REALM: ${KEYCLOAK_REALM:-'Not set'}"
-        echo "KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-'Not set'}"
-        echo "KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:0:5}***"
-        echo "KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI:-'Not set'}"
-        echo "KEYCLOAK_DEBUG: ${KEYCLOAK_DEBUG:-'Not set'}"
-        echo "BROWSER_DEBUG: ${BROWSER_DEBUG:-'Not set'}"
-        ;;
-    7)
-        echo "Testing network connectivity..."
-        echo "=== Ping Keycloak server ==="
-        ping -c 3 huayca.crub.uncoma.edu.ar
-        echo
-        echo "=== Test HTTPS connection ==="
-        curl -I https://huayca.crub.uncoma.edu.ar/auth/ --max-time 10
-        ;;
-    8)
-        echo "Running all tests..."
-        echo
-        echo "1. Production Keycloak debug:"
-        python3 debug_keycloak_production.py
-        echo
-        echo "2. Callback debug:"
-        python3 debug_keycloak_callback.py
-        echo
-        echo "3. Application logs:"
-        tail -n 20 logs/app_structured.log 2>/dev/null || echo "App log not found"
-        echo
-        echo "4. Security logs:"
-        tail -n 20 logs/security_structured.log 2>/dev/null || echo "Security log not found"
-        ;;
-    *)
-        echo "Invalid choice. Please run the script again."
-        ;;
+case "$opcion" in
+    1) $PY scripts/check_env_vars.py ;;
+    2) $PY scripts/check_dependencies.py ;;
+    3) echo "=== logs/app_structured.log ===";      log_app 40 ;;
+    4) echo "=== logs/security_structured.log ==="; log_seg 40 ;;
+    5) echo "=== siguiendo logs/security_structured.log (Ctrl+C para salir) ==="
+       tail -f logs/security_structured.log 2>/dev/null || echo "  (sin archivo)" ;;
+    6) tail -n 40 /var/log/apache2/error.log 2>/dev/null || echo "  (sin acceso al log de Apache)" ;;
+    7) conectividad ;;
+    8) echo "=== Variables de entorno ==="; $PY scripts/check_env_vars.py; echo
+       echo "=== Dependencias ===";         $PY scripts/check_dependencies.py; echo
+       echo "=== Log de aplicacion ===";    log_app 20; echo
+       echo "=== Log de seguridad ===";     log_seg 20; echo
+       conectividad ;;
+    *) echo "Opcion invalida." ; exit 1 ;;
 esac
-
-echo
-echo "================================"
-echo "Debug completed. Check results above."
-echo "================================"

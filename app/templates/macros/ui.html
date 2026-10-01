@@ -1,0 +1,248 @@
+{#
+  Piezas de interfaz reutilizables.
+
+  Es lo que permite que las 30 plantillas queden consistentes sin editarlas una
+  por una para siempre: el encabezado, el estado vacío o el botón con spinner se
+  arreglan acá y cambian en todas.
+
+  Uso:
+      {% from 'macros/ui.html' import page_header, empty_state, stat_tile %}
+#}
+
+
+{# Encabezado de página: título, bajada y acciones a la derecha.
+
+   Las acciones se pasan como bloque:
+
+       {% call page_header('Productos', 'Catálogo del laboratorio') %}
+           <a href="..." class="btn btn-primary">Nuevo</a>
+       {% endcall %}
+
+   o sin acciones:  {{ page_header('Productos', 'Catálogo') }}
+#}
+{% macro page_header(titulo, subtitulo='') %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ titulo }}</h1>
+        {% if subtitulo %}<p class="page-subtitle">{{ subtitulo }}</p>{% endif %}
+    </div>
+    {% if caller %}
+    <div class="page-header-acciones">{{ caller() }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# Estado vacío.
+
+   Un estado vacío tiene que responder tres cosas: qué no hay, por qué, y qué
+   hacer. Por eso el texto es obligatorio y la acción, opcional pero esperada.
+#}
+{% macro empty_state(titulo, texto='', icono='fa-inbox') %}
+<div class="empty-state">
+    <div class="empty-state-icono"><i class="fas {{ icono }}"></i></div>
+    <p class="empty-state-titulo">{{ titulo }}</p>
+    {% if texto %}<p class="empty-state-texto">{{ texto }}</p>{% endif %}
+    {% if caller %}
+    <div class="empty-state-acciones">{{ caller() }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# Tarjeta de métrica. Con `url` se vuelve un enlace a la sección. #}
+{% macro stat_tile(etiqueta, valor, icono='', url='', pie='') %}
+{% if url %}<a href="{{ url }}" class="stat-tile">{% else %}<div class="stat-tile">{% endif %}
+    <div class="stat-tile-cabecera">
+        <span class="stat-tile-etiqueta">{{ etiqueta }}</span>
+        {% if icono %}<i class="fas {{ icono }} stat-tile-icono"></i>{% endif %}
+    </div>
+    <div class="stat-tile-valor">{{ valor }}</div>
+    {% if pie %}<div class="stat-tile-pie">{{ pie }}</div>{% endif %}
+{% if url %}</a>{% else %}</div>{% endif %}
+{% endmacro %}
+
+
+{# Tarjeta de acceso a una sección, para los paneles. #}
+{% macro card_accion(titulo, texto, url, icono='fa-folder', etiqueta_boton='Abrir') %}
+<a href="{{ url }}" class="card card-accion">
+    <div class="card-body">
+        <div class="card-accion-icono"><i class="fas {{ icono }}"></i></div>
+        <h3 class="card-title">{{ titulo }}</h3>
+        <p class="text-muted mb-3" style="font-size: var(--texto-base);">{{ texto }}</p>
+        <span class="btn btn-secondary btn-sm">
+            {{ etiqueta_boton }}<i class="fas fa-arrow-right ms-1" style="font-size:.75em"></i>
+        </span>
+    </div>
+</a>
+{% endmacro %}
+
+
+{# Botón de envío con estado de carga.
+
+   `cargando` es el texto que aparece mientras el formulario viaja. ui.js se
+   encarga de intercambiarlo y de deshabilitar el botón; acá sólo se declara.
+#}
+{% macro submit_button(texto, cargando='Guardando…', clase='btn-primary', icono='') %}
+<button type="submit" class="btn {{ clase }}" data-texto-cargando="{{ cargando }}">
+    {% if icono %}<i class="fas {{ icono }} btn-icono"></i>{% endif %}
+    <span class="btn-texto">{{ texto }}</span>
+</button>
+{% endmacro %}
+
+
+{# Botón que dispara una acción destructiva dentro de un formulario POST.
+   Abre el modal de confirmación en vez del confirm() del navegador. #}
+{% macro delete_button(url, mensaje, aviso='Esta acción no se puede deshacer.',
+                       etiqueta='', csrf='') %}
+<form method="POST" action="{{ url }}" class="d-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf or csrf_token() }}">
+    <button type="submit" class="btn btn-sm btn-outline-danger confirm-action"
+            data-message="{{ mensaje }}"
+            data-warning="{{ aviso }}"
+            data-btn-text="Eliminar"
+            {% if not etiqueta %}title="Eliminar"{% endif %}>
+        <i class="fas fa-trash"></i>{% if etiqueta %} {{ etiqueta }}{% endif %}
+    </button>
+</form>
+{% endmacro %}
+
+
+{# Un campo de formulario completo: etiqueta, control, errores y ayuda.
+
+   Reemplaza al bloque de seis líneas con if/else sobre `campo.errors` que
+   estaba copiado unas cincuenta veces entre las plantillas de formulario. Ese
+   patrón además tenía un defecto: cuando el campo era válido no se renderizaba
+   el contenedor de errores, así que un error de validación agregado después
+   quedaba invisible.
+
+   Los atributos extra del control (placeholder, readonly, rows…) se pasan como
+   argumentos con nombre y llegan por `kwargs`: Jinja no admite `**attrs` en la
+   firma de un macro, pero expone `kwargs` con lo que sobre en cuanto se lo
+   menciona en el cuerpo.
+#}
+{% macro field(campo, ayuda='', clase='', ancho='') %}
+{% set es_check = campo.type in ('BooleanField',) %}
+{% set es_select = campo.type in ('SelectField', 'SelectMultipleField') %}
+{% set base = 'form-check-input' if es_check else ('form-select' if es_select else 'form-control') %}
+
+<div class="{{ ancho or 'mb-3' }} {{ 'form-check' if es_check }}">
+    {% if es_check %}
+        {{ campo(class=base + (' is-invalid' if campo.errors else ''), **kwargs) }}
+        {{ campo.label(class="form-check-label") }}
+    {% else %}
+        {{ campo.label(class="form-label") }}
+        {{ campo(class=(base ~ ' ' ~ clase)|trim + (' is-invalid' if campo.errors else ''), **kwargs) }}
+    {% endif %}
+
+    {% for error in campo.errors %}
+    <div class="invalid-feedback d-block">{{ error }}</div>
+    {% endfor %}
+
+    {% if ayuda %}<div class="form-text">{{ ayuda }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+
+{# Pie de un formulario: guardar a la derecha, cancelar al lado. #}
+{% macro form_actions(url_cancelar, texto='Guardar', cargando='Guardando…') %}
+<div class="form-actions">
+    <a href="{{ url_cancelar }}" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary" data-texto-cargando="{{ cargando }}">
+        <span class="btn-texto">{{ texto }}</span>
+    </button>
+</div>
+{% endmacro %}
+
+
+{# Migas de navegación del panel de un laboratorio.
+
+   `actual` es el nombre de la pantalla donde se está; se muestra sin enlace.
+#}
+{% macro lab_breadcrumb(laboratorio, actual='') %}
+<nav aria-label="Ubicación" class="mb-3">
+    <ol class="breadcrumb mb-0" style="font-size: var(--texto-sm)">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('tecnicos.dashboard') }}">Laboratorios</a>
+        </li>
+        {% if actual %}
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}">{{ laboratorio.nombre }}</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ actual }}</li>
+        {% else %}
+        <li class="breadcrumb-item active" aria-current="page">{{ laboratorio.nombre }}</li>
+        {% endif %}
+    </ol>
+</nav>
+{% endmacro %}
+
+
+{# Etiqueta del tipo de producto.
+
+   Estaba copiada con un if/elif de cinco ramas en list.html, view.html y form
+   de admin y de técnicos: cinco lugares donde cambiar un color o agregar un
+   tipo, y donde un tipo nuevo se veía distinto según la pantalla.
+#}
+{% macro tipo_producto_badge(tipo) %}
+{% set TIPOS = {
+    'botiquin':  ('bg-info',      'Botiquín'),
+    'droguero':  ('bg-warning',   'Droguero'),
+    'vidrio':    ('bg-secondary', 'Materiales de vidrio'),
+    'seguridad': ('bg-success',   'Elementos de seguridad'),
+    'residuos':  ('bg-danger',    'Residuos peligrosos')
+} %}
+{% set t = TIPOS.get(tipo, ('bg-secondary', tipo|title if tipo else 'Sin tipo')) %}
+<span class="badge {{ t[0] }}">{{ t[1] }}</span>
+{% endmacro %}
+
+
+{# Etiqueta del estado físico. #}
+{% macro estado_fisico_badge(estado) %}
+{% set ESTADOS = {
+    'solido':  'Sólido',
+    'liquido': 'Líquido',
+    'gaseoso': 'Gaseoso'
+} %}
+<span class="badge bg-secondary">{{ ESTADOS.get(estado, estado|title if estado else '—') }}</span>
+{% endmacro %}
+
+
+{# Etiqueta del tipo de movimiento. #}
+{% macro tipo_movimiento_badge(tipo) %}
+{% set TIPOS = {
+    'ingreso':       ('bg-success', 'Ingreso',       'fa-arrow-down'),
+    'compra':        ('bg-primary', 'Compra',        'fa-cart-shopping'),
+    'uso':           ('bg-warning', 'Uso',           'fa-arrow-up'),
+    'transferencia': ('bg-info',    'Transferencia', 'fa-right-left')
+} %}
+{% set t = TIPOS.get(tipo, ('bg-secondary', tipo|title if tipo else '—', 'fa-circle')) %}
+<span class="badge {{ t[0] }}"><i class="fas {{ t[2] }} me-1" style="font-size:.85em"></i>{{ t[1] }}</span>
+{% endmacro %}
+
+
+{# Botón que abre la ficha de seguridad de un producto en el modal global. #}
+{% macro ficha_seguridad_btn(producto, clase='btn-sm btn-outline-secondary') %}
+{% if producto.urlFichaSeguridad %}
+<button type="button" class="btn {{ clase }}"
+        title="Ver ficha de seguridad"
+        data-ficha-url="{{ producto.urlFichaSeguridad }}"
+        data-ficha-nombre="{{ producto.nombre }}"
+        data-ficha-modo="drive">
+    <i class="fas fa-shield-halved"></i>
+</button>
+{% endif %}
+{% endmacro %}
+
+
+{# Indicador de stock: punto de color según el nivel más la cantidad. #}
+{% macro stock_badge(cantidad, minimo=0, unidad='') %}
+{% if cantidad <= 0 %}
+    {% set estado = 'stock-agotado' %}
+{% elif minimo and cantidad <= minimo %}
+    {% set estado = 'stock-bajo' %}
+{% else %}
+    {% set estado = 'stock-ok' %}
+{% endif %}
+<span class="stock-indicador {{ estado }}">{{ '%g'|format(cantidad|float) }}{% if unidad %} {{ unidad }}{% endif %}</span>
+{% endmacro %}

@@ -1,5 +1,7 @@
-from flask import Flask
-from flask_login import LoginManager
+from datetime import timedelta
+
+from flask import Flask, flash, redirect, request, url_for
+from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from flask_session import Session
@@ -8,13 +10,16 @@ from app.utils.logging_config import setup_logging
 from app.utils.request_logging import setup_request_logging
 from config import Config, INSECURE_SECRET_KEYS
 import os
-import secrets
 import tempfile
 
 login_manager = LoginManager()
-login_manager.login_view = 'auth.keycloak_login'
+login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Por favor, inicie sesión para acceder a esta página.'
 login_manager.login_message_category = 'info'
+
+# Todo pide sesión salvo lo que aparece acá. Es al revés de poner un decorador
+# en cada vista: si mañana se agrega una pantalla, nace protegida.
+SIN_SESION = {'auth.login', 'auth.logout', 'main.index', 'main.about', 'static'}
 
 # Initialize CSRF protection
 csrf = CSRFProtect()
@@ -39,17 +44,13 @@ def create_app(config_class=Config):
             "and set it in the environment before starting in production."
         )
 
-    # Configure APPLICATION_ROOT for Apache deployment
-    if app.config.get('APPLICATION_ROOT'):
-        app.config['APPLICATION_ROOT'] = app.config['APPLICATION_ROOT']
-
-    # Flask deriva el path de la cookie de sesión de APPLICATION_ROOT. En
-    # desarrollo ese valor es None (y en .env viene como cadena vacía), con lo
-    # cual la cookie sale sin atributo Path y el navegador la limita al
-    # directorio de la petición: se emite en /auth/login y no se envía a
-    # /admin ni /tecnicos, de modo que el login nunca persiste. Fijarlo
-    # explícitamente cubre tanto el despliegue bajo subruta como el local.
-    app.config['SESSION_COOKIE_PATH'] = app.config.get('APPLICATION_ROOT') or '/'
+    # Flask deriva el path de la cookie de sesión de APPLICATION_ROOT, y si no
+    # hay valor la cookie sale sin atributo Path: el navegador la limita al
+    # directorio de la petición, se emite en /auth/login y no se envía a /admin
+    # ni /tecnicos, de modo que el login nunca persiste. Config ya garantiza que
+    # APPLICATION_ROOT sea una cadena ('/' en desarrollo), así que acá alcanza
+    # con copiarlo.
+    app.config['SESSION_COOKIE_PATH'] = app.config['APPLICATION_ROOT']
 
     # Configure server-side session storage to handle large session data.
     # The directory is created with 0700 so other accounts on the host cannot
@@ -62,10 +63,12 @@ def create_app(config_class=Config):
         pass
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['SESSION_FILE_DIR'] = session_dir
-    app.config['SESSION_PERMANENT'] = False
+    app.config['SESSION_PERMANENT'] = True
     app.config['SESSION_USE_SIGNER'] = True
     app.config['SESSION_KEY_PREFIX'] = 'laboratorios_crub:'
-    
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
+        hours=app.config['SESION_HORAS'])
+
     # Initialize logging first
     setup_logging(app)
     
@@ -79,12 +82,12 @@ def create_app(config_class=Config):
     sess.init_app(app)
     migrate = Migrate(app, db)
     
-    # Initialize Keycloak integration
-    from app.integrations.keycloak_oidc import keycloak_oidc
+    # El cliente de administración de Keycloak, que usa el panel para traerse
+    # el padrón de laboratoristas. El ingreso no pasa por acá: va directo al
+    # endpoint de token (app/utils/keycloak_auth.py).
     from app.integrations.keycloak_admin_client import keycloak_admin
-    keycloak_oidc.init_app(app)
     keycloak_admin.init_app(app)
-    
+
     # Register blueprints
     from app.routes.auth import auth as auth_bp
     from app.routes.admin import admin as admin_bp
@@ -95,7 +98,11 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(tecnicos_bp, url_prefix='/tecnicos')
     app.register_blueprint(main_bp)
-    
+
+    # Páginas de error propias, en vez de las crudas de Werkzeug.
+    from app.routes.errors import register_error_handlers
+    register_error_handlers(app)
+
     # Add template context processors
     from datetime import datetime
     from flask_wtf.csrf import generate_csrf
@@ -107,39 +114,31 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_csrf_token():
         return dict(csrf_token=generate_csrf)
-    
-    # Initialize database and seed the bootstrap admin user
+
+    # Nada de sembrar un administrador: no hay contraseñas locales que sembrar.
+    # El primer administrador es la primera persona que entra con un usuario que
+    # esté en USUARIOS_AUTORIZADOS y tenga el rol de administrador en el realm.
+    @app.before_request
+    def exigir_sesion():
+        from app.utils import keycloak_auth
+
+        if request.endpoint in SIN_SESION:
+            return None
+        if current_user.is_authenticated and not keycloak_auth.sesion_vencida():
+            return None
+
+        vencida = current_user.is_authenticated
+        keycloak_auth.cerrar_sesion()
+        # Un endpoint None es una URL que no existe: dejar que siga y conteste
+        # 404 en vez de mandar al formulario de ingreso.
+        if request.endpoint is None:
+            return None
+        flash('Su sesión expiró, vuelva a ingresar.' if vencida
+              else 'Por favor, inicie sesión para acceder a esta página.', 'info')
+        return redirect(url_for('auth.login', next=request.full_path))
+
     with app.app_context():
         db.create_all()
-        # Check if admin user exists
-        admin = Usuario.query.filter_by(rol='admin').first()
-        if not admin:
-            admin = Usuario(
-                idUsuario='ADMIN001',
-                nombre='Administrador',
-                apellido='Sistema',
-                email='admin@crub.edu.ar',
-                rol='admin'
-            )
-            bootstrap_password = app.config.get('ADMIN_PASSWORD')
-            if bootstrap_password:
-                admin.set_password(bootstrap_password)
-                app.logger.info(
-                    "Usuario administrador ADMIN001 creado con la contraseña de ADMIN_PASSWORD"
-                )
-            else:
-                # No bootstrap password configured: create the row with an
-                # unusable random password so the account cannot be logged into
-                # locally. Admin access comes from Keycloak (app_admin role).
-                admin.set_password(secrets.token_urlsafe(64))
-                app.logger.warning(
-                    "Usuario administrador ADMIN001 creado sin contraseña utilizable "
-                    "(ADMIN_PASSWORD no configurada). Acceda con un usuario de "
-                    "Keycloak que tenga el rol de administrador."
-                )
-            db.session.add(admin)
-            db.session.commit()
-
         app.logger.info("Aplicación CRUB inicializada correctamente")
-    
+
     return app

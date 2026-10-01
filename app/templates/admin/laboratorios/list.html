@@ -1,121 +1,77 @@
 {% extends "base.html" %}
 {% from 'macros/pagination.html' import render_pagination %}
+{% from 'macros/ui.html' import page_header, empty_state, delete_button %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="page-title">Gestión de Laboratorios</h1>
-            <p class="page-subtitle">Administra los laboratorios del Centro Regional Universitario Bariloche.</p>
-        </div>
-        <a href="{{ url_for('admin.new_laboratorio') }}" class="btn btn-primary">
-            <i class="fas fa-plus-circle me-2"></i>Nuevo Laboratorio
-        </a>
-    </div>
 
-    <div class="card mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Lista de Laboratorios</h6>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="laboratorios-table" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Dirección</th>
-                            <th>Teléfono</th>
-                            <th>Email</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for laboratorio in laboratorios %}
-                        <tr>
-                            <td>{{ laboratorio.idLaboratorio }}</td>
-                            <td>{{ laboratorio.nombre }}</td>
-                            <td>{{ laboratorio.direccion }}</td>
-                            <td>{{ laboratorio.telefono or '-' }}</td>
-                            <td>{{ laboratorio.email or '-' }}</td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('admin.edit_laboratorio', id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-warning">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ laboratorio.idLaboratorio }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                
-                <!-- Delete Modals for laboratories -->
+{% call page_header('Laboratorios', 'Los laboratorios del CRUB y sus datos de contacto.') %}
+    <a href="{{ url_for('admin.new_laboratorio') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nuevo laboratorio
+    </a>
+{% endcall %}
+
+<div class="card">
+    {% if laboratorios %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Dirección</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
                 {% for laboratorio in laboratorios %}
-                <div class="modal fade" id="deleteModal{{ laboratorio.idLaboratorio }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ laboratorio.idLaboratorio }}" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="deleteModalLabel{{ laboratorio.idLaboratorio }}">Confirmar Eliminación</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                ¿Estás seguro de que deseas eliminar el laboratorio <strong>{{ laboratorio.nombre }}</strong>?
-                                <p class="text-danger mt-2">Esta acción no se puede deshacer.</p>
-                                <p>Nota: No se podrán eliminar laboratorios con productos o movimientos asociados.</p>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                <form action="{{ url_for('admin.delete_laboratorio', id=laboratorio.idLaboratorio) }}" method="POST">
-                                    <button type="submit" class="btn btn-delete">Eliminar</button>
-                                </form>
-                            </div>
+                <tr>
+                    <td class="text-muted">{{ laboratorio.idLaboratorio }}</td>
+                    <td class="fw-medium">{{ laboratorio.nombre }}</td>
+                    <td class="text-muted">{{ laboratorio.direccion or '—' }}</td>
+                    <td class="text-muted">{{ laboratorio.telefono or '—' }}</td>
+                    <td class="text-muted">{{ laboratorio.email or '—' }}</td>
+                    <td>
+                        <div class="table-acciones">
+                            <a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Abrir panel">
+                                <i class="fas fa-arrow-up-right-from-square"></i>
+                            </a>
+                            <a href="{{ url_for('admin.edit_laboratorio', id=laboratorio.idLaboratorio) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Editar">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            {#
+                              Este formulario no llevaba token CSRF, así que el
+                              borrado devolvía 400 y no eliminaba nada. El macro
+                              lo incluye siempre.
+                            #}
+                            {{ delete_button(
+                                url_for('admin.delete_laboratorio', id=laboratorio.idLaboratorio),
+                                '¿Eliminar el laboratorio ' ~ laboratorio.nombre ~ '?',
+                                'No se puede eliminar si tiene movimientos o usuarios asociados.') }}
                         </div>
-                    </div>
-                </div>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center">No hay laboratorios registrados</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>            </div>
-        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <!-- Paginación -->
-    {% if pagination %}
-    {{ render_pagination(pagination, 'admin.list_laboratorios', item_name='laboratorios') }}
+    {% else %}
+
+    {% call empty_state(
+        'Todavía no hay laboratorios',
+        'Un laboratorio es donde se registran los movimientos de stock. Creá el primero para que los técnicos puedan empezar a trabajar.',
+        icono='fa-flask') %}
+        <a href="{{ url_for('admin.new_laboratorio') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Crear laboratorio
+        </a>
+    {% endcall %}
+
     {% endif %}
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    // Script para mantener los parámetros de paginación si se agregan filtros futuros
-    document.addEventListener('DOMContentLoaded', function() {
-        const formEl = document.querySelector('form');
-        if (formEl) {
-            formEl.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const url = new URL(window.location.href);
-                const formData = new FormData(this);
-                
-                for (const [key, value] of formData.entries()) {
-                    if (value) {
-                        url.searchParams.set(key, value);
-                    } else {
-                        url.searchParams.delete(key);
-                    }
-                }
-                
-                url.searchParams.set('page', '1');
-                window.location.href = url.toString();
-            });
-        }
-    });
-</script>
+{{ render_pagination(pagination, 'admin.list_laboratorios', item_name='laboratorios') }}
 {% endblock %}

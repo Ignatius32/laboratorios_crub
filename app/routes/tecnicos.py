@@ -1,166 +1,69 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
-from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor
+from app.models.models import db, Laboratorio, Producto, Movimiento, Proveedor
 from app import csrf
-from flask_wtf import FlaskForm
-from wtforms import SelectField, FloatField, StringField, TextAreaField, BooleanField, FileField, SubmitField
-from wtforms.validators import DataRequired, Length, URL, Optional, Email, Regexp, ValidationError
-from flask_wtf.file import FileAllowed
+from app.forms import (MovimientoTecnicoForm, ProductoTecnicoForm,
+                       ProveedorTecnicoForm)
 import base64
-import os
+import functools
 from werkzeug.utils import secure_filename
+from sqlalchemy.orm import joinedload
 from app.integrations.google_drive import drive_integration
-from app.utils.pagination import ManualPagination
 from app.utils.logging_decorators import (
     log_business_operation, 
     audit_user_action,
     monitor_performance,
     log_data_modification
 )
-from app.utils.logging_config import get_business_logger, get_audit_logger
 from app.utils.stock_service import (
-    get_real_time_stock_for_product_in_lab, 
-    get_real_time_stock_map_for_lab, 
-    get_real_time_global_stock_map,
-    get_real_time_stock_by_lab_map,
-    # Funciones legacy para compatibilidad
-    get_stock_map_for_laboratory, 
-    get_stock_for_product_in_laboratory, 
-    get_stock_map_for_all_laboratories, 
-    get_global_stock_for_products
+    get_stock_for_product_in_lab,
+    get_stock_by_lab_map,
+    consulta_productos_con_stock,
 )
 
 tecnicos = Blueprint('tecnicos', __name__)
 
-# Ensure the user is a technician
 def tecnico_required(f):
+    """Exige ser técnico, o administrador.
+
+    Antes exigía `rol == 'tecnico'` a secas, así que un administrador no podía
+    abrir ninguna pantalla de esta sección: no había forma de mirar el día a día
+    de un laboratorio desde la cuenta que administra el sistema. Quien administra
+    todo también puede ver.
+    """
+    @functools.wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.rol != 'tecnico':
+        if not current_user.is_authenticated or current_user.rol not in ('tecnico', 'admin'):
             flash('Acceso denegado: Se requiere ser técnico para acceder a esta página', 'danger')
-            return redirect(url_for('auth.keycloak_login'))
+            return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
     return decorated_function
 
-# Ensure the technician has access to the specified laboratory
+
 def lab_access_required(f):
+    """Exige que el laboratorio exista y que la persona lo tenga asignado.
+
+    El administrador entra a cualquiera: no se le asignan laboratorios, los
+    administra todos.
+    """
+    @functools.wraps(f)
     def decorated_function(*args, **kwargs):
         lab_id = kwargs.get('lab_id')
         if not lab_id:
             abort(404)
-        
-        # Check if user has access to this lab
+
+        if current_user.rol == 'admin':
+            Laboratorio.query.get_or_404(lab_id)
+            return f(*args, **kwargs)
+
         user_labs = [lab.idLaboratorio for lab in current_user.laboratorios]
         if lab_id not in user_labs:
             flash('No tienes acceso a este laboratorio', 'danger')
             return redirect(url_for('tecnicos.dashboard'))
-        
+
         return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
     return decorated_function
 
-# Forms
-class ProveedorTecnicoForm(FlaskForm):
-    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
-    direccion = StringField('Dirección', validators=[Optional(), Length(max=200)])
-    telefono = StringField('Teléfono', validators=[Optional(), Length(max=50)])
-    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
-    cuit = StringField('CUIT', validators=[
-        DataRequired(), 
-        Length(min=11, max=13),
-        Regexp(r'^\d{2}-?\d{8}-?\d{1}$', message='Formato de CUIT inválido. Use XX-XXXXXXXX-X o XXXXXXXXXXX.')
-    ])
-    submit = SubmitField('Guardar')
-    
-    def validate_cuit(self, cuit):
-        # Limpiar CUIT (remover guiones) antes de verificar unicidad
-        cleaned_cuit = ''.join(filter(str.isdigit, cuit.data))
-        
-        # Verificar si el CUIT ya existe
-        proveedor = Proveedor.query.filter_by(cuit=cleaned_cuit).first()
-        if proveedor:
-            raise ValidationError('Este CUIT ya está registrado.')
-
-class MovimientoTecnicoForm(FlaskForm):
-    tipoMovimiento = SelectField('Tipo de Movimiento', choices=[
-        ('ingreso', 'Ingreso'), 
-        ('compra', 'Compra'), 
-        ('uso', 'Uso'),
-        ('transferencia', 'Transferencia')
-    ])
-    cantidad = FloatField('Cantidad', validators=[DataRequired()])
-    unidadMedida = SelectField('Unidad de Medida', choices=[
-        ('Lt', 'Litros (Lt)'),
-        ('Kg', 'Kilogramos (Kg)')
-    ], validators=[DataRequired()])
-    idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
-    
-    # Campos para movimientos tipo 'compra'    tipoDocumento = SelectField('Tipo de Documento', choices=[
-    tipoDocumento = SelectField('Tipo de Documento', choices=[    
-        ('factura', 'Factura'),
-        ('remito', 'Remito')
-    ], validators=[Optional()])
-    numeroDocumento = StringField('Número de Documento', validators=[Optional(), Length(max=50)])
-    fechaFactura = StringField('Fecha de Factura', validators=[Optional()])
-    idProveedor = SelectField('Proveedor', validators=[Optional()], coerce=int)
-    documento = FileField('Documento (PDF)', validators=[Optional()])
-    
-    # Campo para movimientos tipo 'transferencia'
-    laboratorioDestino = SelectField('Laboratorio Destino', validators=[Optional()], coerce=str)
-    
-    def __init__(self, *args, **kwargs):
-        self.laboratorios = kwargs.pop('laboratorios', [])
-        super(MovimientoTecnicoForm, self).__init__(*args, **kwargs)
-        
-        # Populate product choices with all products
-        productos = Producto.query.all()
-        if productos:
-            self.idProducto.choices = [(p.idProducto, p.nombre) for p in productos]
-        else:
-            self.idProducto.choices = [('', 'No hay productos disponibles')]
-            
-        # Populate laboratory destination choices
-        if self.laboratorios:
-            self.laboratorioDestino.choices = [(lab.idLaboratorio, lab.nombre) for lab in self.laboratorios]
-        else:
-            self.laboratorioDestino.choices = [('', 'No hay laboratorios disponibles')]
-            
-        # Populate provider choices
-        proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
-        self.idProveedor.choices = [(0, 'Nuevo proveedor...')] + [(p.idProveedor, f"{p.nombre} ({p.cuit})") for p in proveedores]
-    def validate(self, **kwargs):
-        if not super().validate(**kwargs):
-            return False
-            
-        if self.tipoMovimiento.data == 'compra':
-            if not self.tipoDocumento.data:
-                self.tipoDocumento.errors.append('Debe seleccionar el tipo de documento para una compra')
-                return False
-            if not self.numeroDocumento.data:
-                self.numeroDocumento.errors.append('Debe ingresar el número de documento para una compra')
-                return False
-                
-        return True
-
-class ProductoTecnicoForm(FlaskForm):
-    idProducto = StringField('ID Producto', validators=[DataRequired(), Length(min=4, max=10)])
-    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
-    descripcion = TextAreaField('Descripción', validators=[Optional()])
-    tipoProducto = SelectField('Tipo de Producto', 
-                              choices=[('botiquin', 'Botiquín'), 
-                                      ('vidrio', 'Materiales de vidrio'), 
-                                      ('seguridad', 'Elementos de seguridad'),
-                                      ('residuos', 'Residuos peligrosos')])
-    estadoFisico = SelectField('Estado Físico', 
-                              choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
-    controlSedronar = BooleanField('Control Sedronar')
-    fichaSeguridad = FileField('Ficha de Seguridad', 
-                              validators=[Optional(), 
-                                        FileAllowed(['pdf', 'jpg', 'jpeg', 'png'], 
-                                                  'Solo se permiten archivos PDF e imágenes (JPG, PNG)')])
-    stockMinimo = FloatField('Stock Mínimo', validators=[Optional()])
-    marca = StringField('Marca', validators=[Optional(), Length(max=100)])
-    submit = SubmitField('Guardar')
 
 
 # Dashboard for technicians
@@ -168,8 +71,12 @@ class ProductoTecnicoForm(FlaskForm):
 @login_required
 @tecnico_required
 def dashboard():
-    laboratorios = current_user.laboratorios
-    return render_template('tecnicos/dashboard.html', 
+    # Al administrador no se le asignan laboratorios: los ve todos.
+    if current_user.rol == 'admin':
+        laboratorios = Laboratorio.query.order_by(Laboratorio.nombre).all()
+    else:
+        laboratorios = current_user.laboratorios
+    return render_template('tecnicos/dashboard.html',
                            title='Panel de Técnico',
                            laboratorios=laboratorios)
 
@@ -180,25 +87,17 @@ def dashboard():
 @lab_access_required
 def panel_laboratorio(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
-    
-    # Obtener todos los productos
-    productos = Producto.query.all()
-    
-    # Calcular stock en tiempo real para todos los productos en este laboratorio
-    product_ids = [p.idProducto for p in productos]
-    productos_stock_map = get_real_time_stock_map_for_lab(lab_id, product_ids)
-    
-    # Para cada producto, usar el stock calculado en tiempo real
-    productos_con_stock = []
-    for producto in productos:
-        stock_en_lab = productos_stock_map.get(producto.idProducto, 0)
-        # Solo mostramos productos que tienen stock en este laboratorio
-        if stock_en_lab > 0:
-            productos_con_stock.append({
-                'producto': producto,
-                'stock': stock_en_lab
-            })
-    
+
+    # El filtro "tiene stock acá" lo resuelve la base. Antes se traía
+    # Producto.query.all(), se calculaba el saldo del catálogo entero en memoria
+    # y se descartaba casi todo: el costo crecía con el catálogo y no con lo que
+    # el panel muestra.
+    consulta, stock = consulta_productos_con_stock(lab_id)
+    productos_con_stock = [
+        {'producto': fila.Producto, 'stock': fila.stock}
+        for fila in consulta.filter(stock > 0)
+    ]
+
     return render_template('tecnicos/panel_laboratorio.html',
                            title=f'Panel - {laboratorio.nombre}',
                            laboratorio=laboratorio,
@@ -211,18 +110,18 @@ def panel_laboratorio(lab_id):
 @lab_access_required
 def list_productos(lab_id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
-    
+
     # Obtener los filtros de los parámetros de consulta
     tipo_producto = request.args.get('tipoProducto', None)
     search_term = request.args.get('search', None)
-    
+
     # Parámetros de paginación
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
-    
+
     # Filtro para mostrar solo productos con stock
     solo_con_stock = request.args.get('con_stock', False, type=lambda v: v.lower() == 'true')
-    
+
     # Definir los tipos de productos para el menú desplegable
     tipos_productos = [
         ('botiquin', 'Botiquín'),
@@ -231,81 +130,38 @@ def list_productos(lab_id):
         ('seguridad', 'Elementos de seguridad'),
         ('residuos', 'Residuos peligrosos')
     ]
-    
-    # Crear la query base
-    productos_query = Producto.query
-    
-    # Aplicar filtro por tipo de producto si se especifica
+
+    # Un solo camino para los dos casos. Antes había dos ramas: sin filtro de
+    # stock se paginaba en SQL, y con filtro se traía todo el catálogo, se
+    # calculaba el saldo en Python, se descartaba y se cortaba una página a mano
+    # con la ManualPagination de app/utils. Ahora el saldo es una columna, así
+    # que "con stock" es un WHERE más y la paginación es siempre la de la base.
+    consulta, stock = consulta_productos_con_stock(lab_id)
+
     if tipo_producto:
-        productos_query = productos_query.filter_by(tipoProducto=tipo_producto)
-    
-    # Aplicar filtro de búsqueda si se especifica
+        consulta = consulta.filter(Producto.tipoProducto == tipo_producto)
+
     if search_term:
-        productos_query = productos_query.filter(
-            Producto.nombre.ilike(f'%{search_term}%')
-        )# Si queremos sólo productos con stock, necesitamos obtenerlos todos para filtrar
+        consulta = consulta.filter(Producto.nombre.ilike(f'%{search_term}%'))
+
     if solo_con_stock:
-        todos_productos = productos_query.all()
-        
-        # Calcular stock en tiempo real para todos los productos
-        product_ids = [p.idProducto for p in todos_productos]
-        productos_stock_map = get_real_time_stock_map_for_lab(lab_id, product_ids)
-        
-        # Filtrar manualmente los que tienen stock en este laboratorio
-        productos_con_stock_positivo = []
-        for producto in todos_productos:
-            stock_en_lab = productos_stock_map.get(producto.idProducto, 0)
-            if stock_en_lab > 0:
-                productos_con_stock_positivo.append({
-                    'producto': producto,
-                    'stock': stock_en_lab
-                })
-          # Paginación manual para productos filtrados
-        total_productos = len(productos_con_stock_positivo)
-        inicio = (page - 1) * per_page
-        fin = min(inicio + per_page, total_productos)
-        productos_paginados = productos_con_stock_positivo[inicio:fin]
-        
-        # Crear un objeto de paginación manual
-        pagination = ManualPagination(productos_paginados, page, per_page, total_productos)
-        
-        return render_template('tecnicos/productos/list.html',
-                              title=f'Productos - {laboratorio.nombre}',
-                              laboratorio=laboratorio,
-                              productos_con_stock=productos_paginados,
-                              tipos_productos=tipos_productos,
-                              selected_tipo=tipo_producto,
-                              search_term=search_term,
-                              pagination=pagination,
-                              total_productos=total_productos)
-    else:        # Obtener conteo total antes de paginar
-        total_productos = productos_query.count()
-        
-        # Aplicar paginación a la consulta original
-        productos_paginados = productos_query.paginate(page=page, per_page=per_page, error_out=False)
-        
-        # Calcular stock en tiempo real para todos los productos en la página actual
-        product_ids = [p.idProducto for p in productos_paginados.items]
-        productos_stock_map = get_real_time_stock_map_for_lab(lab_id, product_ids)
-        
-        # Para cada producto en la página actual, usar el stock calculado en tiempo real
-        productos_con_stock = []
-        for producto in productos_paginados.items:
-            stock_en_lab = productos_stock_map.get(producto.idProducto, 0)
-            productos_con_stock.append({
-                'producto': producto,
-                'stock': stock_en_lab
-            })
-        
-        return render_template('tecnicos/productos/list.html',
-                              title=f'Productos - {laboratorio.nombre}',
-                              laboratorio=laboratorio,
-                              productos_con_stock=productos_con_stock,
-                              tipos_productos=tipos_productos,
-                              selected_tipo=tipo_producto,
-                              search_term=search_term,
-                              pagination=productos_paginados,
-                              total_productos=total_productos)
+        consulta = consulta.filter(stock > 0)
+
+    productos_paginados = consulta.paginate(page=page, per_page=per_page, error_out=False)
+    productos_con_stock = [
+        {'producto': fila.Producto, 'stock': fila.stock}
+        for fila in productos_paginados.items
+    ]
+
+    return render_template('tecnicos/productos/list.html',
+                          title=f'Productos - {laboratorio.nombre}',
+                          laboratorio=laboratorio,
+                          productos_con_stock=productos_con_stock,
+                          tipos_productos=tipos_productos,
+                          selected_tipo=tipo_producto,
+                          search_term=search_term,
+                          pagination=productos_paginados,
+                          total_productos=productos_paginados.total)
 
 @tecnicos.route('/panel/<string:lab_id>/productos/new', methods=['GET', 'POST'])
 @login_required
@@ -453,21 +309,33 @@ def list_movimientos(lab_id):
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     
-    # Crear la query base ordenada por fecha (más recientes primero)
-    query = Movimiento.query.filter_by(idLaboratorio=lab_id).order_by(Movimiento.timestamp.desc())
+    # Mismo motivo que en admin.list_movimientos: la plantilla lee el nombre
+    # del producto y el del proveedor en cada fila, y sin joinedload eso son
+    # dos SELECT por movimiento.
+    query = (Movimiento.query
+             .filter_by(idLaboratorio=lab_id)
+             .options(joinedload(Movimiento.producto),
+                      joinedload(Movimiento.proveedor))
+             .order_by(Movimiento.timestamp.desc()))
     
-    # Obtener conteo total antes de paginar
-    total_movimientos = query.count()
-    
-    # Aplicar paginación
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    total_movimientos = pagination.total
     movimientos = pagination.items
-    
+
+    # El laboratorio destino de una transferencia se guarda como texto, sin
+    # clave foránea, así que hay que resolver el nombre acá. La plantilla lo
+    # buscaba recorriendo current_user.laboratorios: al administrador, que no
+    # tiene laboratorios asignados, le quedaba el destino en blanco.
+    nombres_laboratorios = {
+        lab.idLaboratorio: lab.nombre for lab in Laboratorio.query.all()
+    }
+
     return render_template('tecnicos/movimientos/list.html',
                            title=f'Movimientos - {laboratorio.nombre}',
                            laboratorio=laboratorio,
                            movimientos=movimientos,
                            pagination=pagination,
+                           nombres_laboratorios=nombres_laboratorios,
                            total_movimientos=total_movimientos)
 
 @tecnicos.route('/panel/<string:lab_id>/movimientos/new', methods=['GET', 'POST'])
@@ -527,9 +395,19 @@ def new_movimiento(lab_id):
             # Check if a provider was selected or if we need to create a new one
             id_proveedor = form.idProveedor.data
             if id_proveedor == 0:
-                # Redirect to new provider form with return URL
-                return redirect(url_for('tecnicos.new_proveedor', 
-                    return_to=url_for('tecnicos.new_movimiento', lab_id=lab_id)))
+                # El 0 es la opción "Nuevo proveedor…" del desplegable, que
+                # normalmente intercepta proveedores-modal.js para crearlo sin
+                # salir de esta pantalla (POST a tecnicos.api_nuevo_proveedor).
+                # Llegar acá significa que el JavaScript no corrió; antes se
+                # redirigía a tecnicos.new_proveedor, que se eliminó porque su
+                # plantilla no existía y respondía 500.
+                flash('Para dar de alta un proveedor use la opción "Nuevo '
+                      'proveedor…" del desplegable, que abre el formulario en '
+                      'esta misma pantalla.', 'warning')
+                return render_template('tecnicos/movimientos/form.html',
+                                     title='Nuevo Movimiento',
+                                     form=form,
+                                     laboratorio=laboratorio)
             
             # Check if document was uploaded
             if form.documento.data:
@@ -644,7 +522,7 @@ def new_movimiento(lab_id):
 def view_producto(lab_id, id):
     laboratorio = Laboratorio.query.get_or_404(lab_id)
     producto = Producto.query.get_or_404(id)
-    stock_en_lab = get_real_time_stock_for_product_in_lab(id, lab_id)
+    stock_en_lab = get_stock_for_product_in_lab(id, lab_id)
     
     # Obtener los movimientos de este producto en este laboratorio
     movimientos = Movimiento.query.filter_by(
@@ -659,96 +537,102 @@ def view_producto(lab_id, id):
                           stock_en_lab=stock_en_lab,
                           movimientos=movimientos)
 
+# Stock visualization for technicians
+#
+# Las dos pantallas de stock —la global y la local— eran dos funciones de 85 y
+# 64 líneas que compartían casi todo: los mismos filtros, el mismo armado de
+# diccionarios, la misma paginación a mano. La única diferencia real es contra
+# qué saldo se filtra y ordena (el de todos los laboratorios o el de este) y si
+# se muestra además el desglose por laboratorio. Eso es un parámetro, no una
+# copia del archivo.
+def _vista_stock(lab_id, es_global):
+    laboratorio = Laboratorio.query.get_or_404(lab_id)
+
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Parámetros de filtro
+    search_query = request.args.get('search', '')
+    tipo_filtro = request.args.get('tipo', '')
+    stock_filtro = request.args.get('stock', 'all')
+
+    # El saldo que manda: en la vista global, el de todos los laboratorios; en
+    # la local, sólo el de este. Es también la columna sobre la que filtra el
+    # selector "con stock / sin stock".
+    consulta, stock = consulta_productos_con_stock(None if es_global else lab_id)
+
+    if tipo_filtro:
+        consulta = consulta.filter(Producto.tipoProducto == tipo_filtro)
+
+    if search_query:
+        consulta = consulta.filter(Producto.nombre.ilike(f'%{search_query}%'))
+
+    if stock_filtro == 'inStock':
+        consulta = consulta.filter(stock > 0)
+    elif stock_filtro == 'outOfStock':
+        consulta = consulta.filter(stock <= 0)
+
+    paginado = consulta.paginate(page=page, per_page=per_page, error_out=False)
+
+    # El desglose por laboratorio sólo lo necesita la vista global, y sólo de
+    # los productos de esta página: antes se pedía para el catálogo entero.
+    reparto_por_producto = {}
+    laboratorios = []
+    if es_global:
+        ids_pagina = [fila.Producto.idProducto for fila in paginado.items]
+        if ids_pagina:
+            reparto_por_producto = get_stock_by_lab_map(ids_pagina)
+        laboratorios = Laboratorio.query.all()
+
+    productos = []
+    for fila in paginado.items:
+        producto = fila.Producto
+        datos = {
+            'id': producto.idProducto,
+            'nombre': producto.nombre,
+            'descripcion': producto.descripcion,
+            'tipo': producto.tipoProducto,
+            'estado_fisico': producto.estadoFisico,
+            'control_sedronar': producto.controlSedronar,
+        }
+
+        if es_global:
+            reparto = reparto_por_producto.get(producto.idProducto, {})
+            # Se recorre la lista de laboratorios y no las claves del reparto
+            # para que el orden sea el mismo en todas las filas.
+            datos.update(
+                stock_global=fila.stock,
+                stock_local=reparto.get(lab_id, 0),
+                laboratorios_con_stock=[
+                    {'nombre': lab.nombre, 'id': lab.idLaboratorio,
+                     'stock': reparto[lab.idLaboratorio]}
+                    for lab in laboratorios
+                    if reparto.get(lab.idLaboratorio, 0) > 0
+                ],
+            )
+        else:
+            datos['stock'] = fila.stock
+
+        productos.append(datos)
+
+    return render_template('tecnicos/stock/visualizar.html',
+                          title='Stock Global' if es_global
+                                else f'Stock - {laboratorio.nombre}',
+                          laboratorio=laboratorio,
+                          productos=productos,
+                          pagination=paginado,
+                          total_productos=paginado.total,
+                          es_global=es_global)
+
+
 # Stock visualization for technicians - GLOBAL STOCK
 @tecnicos.route('/panel/<string:lab_id>/stock/global')
 @login_required
 @tecnico_required
 @lab_access_required
 def visualizar_stock_global(lab_id):
-    laboratorio = Laboratorio.query.get_or_404(lab_id)
-    
-    # Parámetros de paginación
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    
-    # Parámetros de filtro
-    search_query = request.args.get('search', '')
-    tipo_filtro = request.args.get('tipo', '')
-    stock_filtro = request.args.get('stock', 'all')
-    
-    # Get all laboratories
-    todos_laboratorios = Laboratorio.query.all()
-    
-    # Crear la query base
-    productos_query = Producto.query
-    
-    # Aplicar filtro por tipo de producto
-    if tipo_filtro:
-        productos_query = productos_query.filter_by(tipoProducto=tipo_filtro)
-    
-    # Aplicar filtro por búsqueda de nombre
-    if search_query:
-        productos_query = productos_query.filter(Producto.nombre.ilike(f'%{search_query}%'))
-      # Obtenemos todos los productos para el filtro de stock
-    todos_productos = productos_query.all()
-    
-    # Obtener stock de todos los productos en todos los laboratorios de una vez
-    product_ids = [p.idProducto for p in todos_productos]
-    stock_map_all_labs = get_stock_map_for_all_laboratories(product_ids)
-    stock_global_map = get_global_stock_for_products(product_ids)
-    
-    # Preparamos la lista de productos con stock
-    productos_con_stock = []
-    for producto in todos_productos:
-        # Para cada producto, usar los mapas optimizados
-        stock_global = stock_global_map.get(producto.idProducto, 0)
-        stock_en_lab = stock_map_all_labs.get(producto.idProducto, {}).get(lab_id, 0)
-        
-        # Aplicar filtro por stock
-        if stock_filtro == 'inStock' and stock_global <= 0:
-            continue
-        elif stock_filtro == 'outOfStock' and stock_global > 0:
-            continue
-        
-        # Obtener laboratorios donde hay stock de este producto
-        laboratorios_con_stock = []
-        producto_stock_en_labs = stock_map_all_labs.get(producto.idProducto, {})
-        for lab in todos_laboratorios:
-            stock_en_este_lab = producto_stock_en_labs.get(lab.idLaboratorio, 0)
-            if stock_en_este_lab > 0:
-                laboratorios_con_stock.append({
-                    'nombre': lab.nombre,
-                    'id': lab.idLaboratorio,
-                    'stock': stock_en_este_lab
-                })
-        
-        productos_con_stock.append({
-            'id': producto.idProducto,
-            'nombre': producto.nombre,
-            'descripcion': producto.descripcion,
-            'tipo': producto.tipoProducto,
-            'estado_fisico': producto.estadoFisico,
-            'stock_global': stock_global,
-            'stock_local': stock_en_lab,
-            'control_sedronar': producto.controlSedronar,
-            'laboratorios_con_stock': laboratorios_con_stock
-        })
-      # Paginación manual para productos filtrados
-    total_productos = len(productos_con_stock)
-    inicio = (page - 1) * per_page
-    fin = min(inicio + per_page, total_productos)
-    productos_paginados = productos_con_stock[inicio:fin]
-    
-    # Crear un objeto de paginación manual
-    pagination = ManualPagination(productos_paginados, page, per_page, total_productos)
-    
-    return render_template('tecnicos/stock/visualizar.html',
-                          title='Stock Global',
-                          laboratorio=laboratorio,
-                          productos=productos_paginados,
-                          pagination=pagination,
-                          total_productos=total_productos,
-                          es_global=True)
+    return _vista_stock(lab_id, es_global=True)
 
 # Stock visualization for technicians - LOCAL STOCK
 @tecnicos.route('/panel/<string:lab_id>/stock/local')
@@ -756,69 +640,7 @@ def visualizar_stock_global(lab_id):
 @tecnico_required
 @lab_access_required
 def visualizar_stock(lab_id):
-    laboratorio = Laboratorio.query.get_or_404(lab_id)
-    
-    # Parámetros de paginación
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    
-    # Parámetros de filtro
-    search_query = request.args.get('search', '')
-    tipo_filtro = request.args.get('tipo', '')
-    stock_filtro = request.args.get('stock', 'all')
-    
-    # Crear la query base
-    productos_query = Producto.query
-    
-    # Aplicar filtro por tipo de producto
-    if tipo_filtro:
-        productos_query = productos_query.filter_by(tipoProducto=tipo_filtro)
-    
-    # Aplicar filtro por búsqueda de nombre
-    if search_query:
-        productos_query = productos_query.filter(Producto.nombre.ilike(f'%{search_query}%'))    # Obtenemos todos los productos
-    todos_productos = productos_query.all()
-    
-    # Obtenemos el stock de todos los productos en el laboratorio de una sola vez
-    product_ids = [p.idProducto for p in todos_productos]
-    productos_stock_map = get_stock_map_for_laboratory(lab_id, product_ids)
-    
-    # Preparamos la lista de productos con stock
-    productos_con_stock = []
-    for producto in todos_productos:
-        stock_en_lab = productos_stock_map.get(producto.idProducto, 0)
-        
-        # Aplicar filtro por stock
-        if stock_filtro == 'inStock' and stock_en_lab <= 0:
-            continue
-        elif stock_filtro == 'outOfStock' and stock_en_lab > 0:
-            continue
-        
-        productos_con_stock.append({
-            'id': producto.idProducto,
-            'nombre': producto.nombre,
-            'descripcion': producto.descripcion,
-            'tipo': producto.tipoProducto,
-            'estado_fisico': producto.estadoFisico,
-            'stock': stock_en_lab,
-            'control_sedronar': producto.controlSedronar
-        })
-      # Paginación manual para productos filtrados
-    total_productos = len(productos_con_stock)
-    inicio = (page - 1) * per_page
-    fin = min(inicio + per_page, total_productos)
-    productos_paginados = productos_con_stock[inicio:fin]
-    
-    # Crear un objeto de paginación manual
-    pagination = ManualPagination(productos_paginados, page, per_page, total_productos)
-    
-    return render_template('tecnicos/stock/visualizar.html',
-                          title=f'Stock - {laboratorio.nombre}',
-                          laboratorio=laboratorio,
-                          productos=productos_paginados,
-                          pagination=pagination,
-                          total_productos=total_productos,
-                          es_global=False)
+    return _vista_stock(lab_id, es_global=False)
 
 # Proveedores management for technicians
 @tecnicos.route('/proveedores')
@@ -832,11 +654,8 @@ def list_proveedores():
     # Crear la query base ordenada por nombre
     query = Proveedor.query.order_by(Proveedor.nombre)
     
-    # Obtener conteo total antes de paginar
-    total_proveedores = query.count()
-    
-    # Aplicar paginación
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    total_proveedores = pagination.total
     proveedores = pagination.items
     
     return render_template('tecnicos/proveedores/list.html', 
@@ -844,58 +663,6 @@ def list_proveedores():
                           proveedores=proveedores,
                           pagination=pagination,
                           total_proveedores=total_proveedores)
-
-@tecnicos.route('/proveedores/new', methods=['GET', 'POST'])
-@login_required
-@tecnico_required
-@log_business_operation("crear proveedor")
-@audit_user_action("supplier_creation")
-def new_proveedor():
-    form = ProveedorTecnicoForm()
-    return_to = request.args.get('return_to')
-    
-    if form.validate_on_submit():
-        # Limpiar CUIT (remover guiones) antes de guardar
-        cleaned_cuit = ''.join(filter(str.isdigit, form.cuit.data))
-        
-        proveedor = Proveedor(
-            nombre=form.nombre.data,
-            direccion=form.direccion.data,
-            telefono=form.telefono.data,
-            email=form.email.data,
-            cuit=cleaned_cuit
-        )
-        
-        db.session.add(proveedor)
-        db.session.commit()
-        flash('Proveedor creado correctamente', 'success')
-          # Si hay una URL de retorno, añadir el ID del proveedor recién creado como parámetro
-        if return_to:
-            # Agregar el ID del proveedor recién creado a la URL de retorno
-            if '?' in return_to:
-                return_url = f"{return_to}&nuevo_proveedor_id={proveedor.idProveedor}"
-            else:
-                return_url = f"{return_to}?nuevo_proveedor_id={proveedor.idProveedor}"
-            return redirect(return_url)
-        return redirect(url_for('tecnicos.list_proveedores'))
-    
-    return render_template('tecnicos/proveedores/form.html', 
-                          title='Nuevo Proveedor', 
-                          form=form)
-
-@tecnicos.route('/proveedores/<int:id>')
-@login_required
-@tecnico_required
-def view_proveedor(id):
-    proveedor = Proveedor.query.get_or_404(id)
-    
-    # Buscar movimientos asociados a este proveedor
-    movimientos = Movimiento.query.filter_by(cuitProveedor=proveedor.cuit).all()
-    
-    return render_template('tecnicos/proveedores/view.html',
-                          title=f'Proveedor: {proveedor.nombre}',
-                          proveedor=proveedor,
-                          movimientos=movimientos)
 
 # API endpoint to create a new provider (for modal)
 @tecnicos.route('/api/nuevo_proveedor', methods=['POST'])

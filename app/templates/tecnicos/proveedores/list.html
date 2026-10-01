@@ -1,89 +1,58 @@
 {% extends "base.html" %}
 {% from 'macros/pagination.html' import render_pagination %}
+{% from 'macros/ui.html' import page_header, empty_state %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Panel de Técnico</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Proveedores</li>
-        </ol>
-    </nav>
-           
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="page-title">Lista de Proveedores</h1>
-            <p class="page-subtitle">Proveedores registrados en el sistema.</p>
-        </div>
+
+<nav aria-label="Ubicación" class="mb-3">
+    <ol class="breadcrumb mb-0" style="font-size: var(--texto-sm)">
+        <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Laboratorios</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Proveedores</li>
+    </ol>
+</nav>
+
+{#
+  Sin botón de alta: los proveedores se crean al registrar una compra, con la
+  opción "Nuevo proveedor…" del formulario de movimiento, que los da de alta
+  sin salir de esa pantalla. La pantalla propia de alta que había acá se quitó
+  porque su plantilla no existía y respondía 500.
+#}
+{{ page_header('Proveedores', 'A quién se le compran los productos. Se comparten entre todos los laboratorios. Se dan de alta al registrar una compra.') }}
+
+<div class="card">
+    {% if proveedores %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="proveedores-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>CUIT</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for proveedor in proveedores %}
+                <tr>
+                    <td class="fw-medium">{{ proveedor.nombre }}</td>
+                    <td class="text-muted numeros-tabulares">{{ proveedor.cuit }}</td>
+                    <td class="text-muted">{{ proveedor.telefono or '—' }}</td>
+                    <td class="text-muted">{{ proveedor.email or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Lista de Proveedores</h6>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="proveedores-table" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>CUIT</th>
-                            <th>Teléfono</th>
-                            <th>Email</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for proveedor in proveedores %}
-                        <tr>
-                            <td>{{ proveedor.idProveedor }}</td>
-                            <td>{{ proveedor.nombre }}</td>
-                            <td>{{ proveedor.cuit }}</td>
-                            <td>{{ proveedor.telefono or '-' }}</td>
-                            <td>{{ proveedor.email or '-' }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center">No hay proveedores registrados</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Paginación -->
-    {% if pagination %}
-    {{ render_pagination(pagination, 'tecnicos.list_proveedores', item_name='proveedores') }}
+    {% else %}
+
+    {{ empty_state(
+        'Todavía no hay proveedores',
+        'Los proveedores se dan de alta al registrar un movimiento de compra, con la opción «Nuevo proveedor…» del formulario.',
+        icono='fa-truck') }}
+
     {% endif %}
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    // Script para mantener los parámetros de paginación si se agregan filtros futuros
-    document.addEventListener('DOMContentLoaded', function() {
-        const formEl = document.querySelector('form');
-        if (formEl) {
-            formEl.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const url = new URL(window.location.href);
-                const formData = new FormData(this);
-                
-                for (const [key, value] of formData.entries()) {
-                    if (value) {
-                        url.searchParams.set(key, value);
-                    } else {
-                        url.searchParams.delete(key);
-                    }
-                }
-                
-                url.searchParams.set('page', '1');
-                window.location.href = url.toString();
-            });
-        }
-    });
-</script>
+{{ render_pagination(pagination, 'tecnicos.list_proveedores', item_name='proveedores') }}
 {% endblock %}

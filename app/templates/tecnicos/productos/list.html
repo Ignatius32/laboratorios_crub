@@ -1,204 +1,149 @@
 {% extends "base.html" %}
 {% from 'macros/pagination.html' import render_pagination %}
+{% from 'macros/ui.html' import page_header, empty_state, lab_breadcrumb,
+                                tipo_producto_badge, estado_fisico_badge,
+                                ficha_seguridad_btn, stock_badge %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Panel de Técnico</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}">{{ laboratorio.nombre }}</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Productos</li>
-        </ol>
-    </nav>    <div class="d-flex justify-content-between align-items-start mb-4 mobile-stack">
-        <h1 class="h3 text-gray-800">Productos - {{ laboratorio.nombre }}</h1>
-        <div class="d-flex mobile-full-width mobile-stack" style="gap: 0.5rem;">
-            <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary">
-                <i class="fas fa-plus-circle me-2"></i>Nuevo Producto
-            </a>
-            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-success">
-                <i class="fas fa-exchange-alt me-2"></i>Nuevo Movimiento
-            </a>
-        </div>
-    </div><div class="card shadow mb-4">        <div class="card-header py-3">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-                <h6 class="m-0 font-weight-bold text-primary">Lista de Productos</h6>
-                <form method="get" action="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="filters-container justify-content-end">
-                    <div class="filter-group">
-                        <label for="search">Buscar:</label>
-                        <input type="text" name="search" id="search" class="form-control form-control-sm" style="min-width: 200px;" 
-                               placeholder="Nombre del producto..." value="{{ search_term or '' }}">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label for="tipoProducto">Tipo:</label>
-                        <select name="tipoProducto" id="tipoProducto" class="form-select form-select-sm" style="min-width: 200px;">
-                            <option value="">Todos los tipos</option>
-                            {% for tipo_id, tipo_nombre in tipos_productos %}
-                            <option value="{{ tipo_id }}" {% if selected_tipo == tipo_id %}selected{% endif %}>
-                                {{ tipo_nombre }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <div class="form-check-switch">
-                            <input class="form-check-input" type="checkbox" id="mostrarTodos" 
-                                   {% if not request.args.get('con_stock') %}checked{% endif %}>
-                            <label class="form-check-label" for="mostrarTodos">Mostrar todos</label>
-                        </div>
-                    </div>
-                    
-                    <div class="filter-actions">
-                        <button type="submit" class="btn btn-sm btn-primary">
-                            <i class="fas fa-filter me-1"></i>Filtrar
-                        </button>
-                        {% if selected_tipo or search_term %}
-                        <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-times me-1"></i>Limpiar
-                        </a>
-                        {% endif %}
-                    </div>
-                </form>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="productos-table" width="100%" cellspacing="0">                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Tipo</th>
-                            <th>Estado Físico</th>
-                            <th>Control Sedronar</th>
-                            <th>Stock en Laboratorio</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in productos_con_stock %}
-                        <tr data-stock="{{ item.stock }}">
-                            <td>{{ item.producto.idProducto }}</td>
-                            <td>{{ item.producto.nombre }}</td>
-                            <td>
-                                {% if item.producto.tipoProducto == 'botiquin' %}
-                                    <span class="badge bg-primary">Botiquín</span>
-                                {% elif item.producto.tipoProducto == 'droguero' %}
-                                    <span class="badge bg-warning">Droguero</span>
-                                {% elif item.producto.tipoProducto == 'vidrio' %}
-                                    <span class="badge bg-info">Materiales de vidrio</span>
-                                {% elif item.producto.tipoProducto == 'seguridad' %}
-                                    <span class="badge bg-success">Elementos de seguridad</span>
-                                {% elif item.producto.tipoProducto == 'residuos' %}
-                                    <span class="badge bg-danger">Residuos peligrosos</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">Otro</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if item.producto.estadoFisico == 'solido' %}
-                                    <span class="badge bg-secondary">Sólido</span>
-                                {% elif item.producto.estadoFisico == 'liquido' %}
-                                    <span class="badge bg-info">Líquido</span>
-                                {% else %}
-                                    <span class="badge bg-warning">Gaseoso</span>
-                                {% endif %}
-                            </td>                            <td>
-                                {% if item.producto.controlSedronar %}
-                                    <span class="badge bg-danger">Sí</span>
-                                {% else %}
-                                    <span class="badge bg-success">No</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ item.stock }}</td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}" class="btn btn-sm btn-info" title="Ver detalles">
-                                        <i class="fas fa-eye"></i>
-                                    </a>                                    {% if item.producto.urlFichaSeguridad %}
-                                    <button type="button" class="btn btn-sm btn-warning" title="Ver ficha de seguridad" 
-                                            data-ficha-url="{{ item.producto.urlFichaSeguridad }}"
-                                            data-ficha-nombre="{{ item.producto.nombre }}"
-                                            data-ficha-modo="temporal">
-                                        <i class="fas fa-shield-alt"></i>
-                                    </button>
-                                    {% endif %}
-                                    <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}?producto={{ item.producto.idProducto }}" class="btn btn-sm btn-success" title="Registrar movimiento">
-                                        <i class="fas fa-exchange-alt"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center">No hay productos registrados</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+
+{{ lab_breadcrumb(laboratorio, 'Productos') }}
+
+{% call page_header('Productos', laboratorio.nombre) %}
+    <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}"
+       class="btn btn-secondary">
+        <i class="fas fa-plus"></i> Nuevo producto
+    </a>
+    <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}"
+       class="btn btn-primary">
+        <i class="fas fa-right-left"></i> Nuevo movimiento
+    </a>
+{% endcall %}
+
+{% set solo_con_stock = request.args.get('con_stock') == 'true' %}
+{% set hay_filtros = selected_tipo or search_term or solo_con_stock %}
+
+<form method="get" class="filters-container" data-sin-carga="true"
+      action="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}">
+    <div class="filter-group">
+        <label for="search">Buscar</label>
+        <input type="search" name="search" id="search" class="form-control"
+               placeholder="Nombre del producto…" value="{{ search_term or '' }}">
+    </div>
+
+    <div class="filter-group">
+        <label for="tipoProducto">Tipo</label>
+        <select name="tipoProducto" id="tipoProducto" class="form-select">
+            <option value="">Todos</option>
+            {% for tipo_id, tipo_nombre in tipos_productos %}
+            <option value="{{ tipo_id }}" {{ 'selected' if selected_tipo == tipo_id }}>{{ tipo_nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="filter-group" style="flex: 0 0 auto;">
+        <label>Stock</label>
+        {#
+          El checkbox anterior se llamaba "Mostrar todos" y no tenía atributo
+          name, así que no enviaba nada: era decorativo. Ahora manda con_stock
+          de verdad, y la etiqueta dice lo que hace.
+        #}
+        <div class="form-check mt-1">
+            <input class="form-check-input" type="checkbox" name="con_stock" value="true"
+                   id="con_stock" {{ 'checked' if solo_con_stock }}>
+            <label class="form-check-label text-nowrap" for="con_stock">Sólo con stock</label>
         </div>
     </div>
-      <!-- Paginación -->
-    {% if pagination %}
-    {{ render_pagination(pagination, 'tecnicos.list_productos', 
-                        lab_id=laboratorio.idLaboratorio,
-                        tipoProducto=selected_tipo,
-                        search=search_term,
-                        con_stock=request.args.get('con_stock')) }}
+
+    <div class="filter-actions">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        {% if hay_filtros %}
+        <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}"
+           class="btn btn-outline-secondary">Limpiar</a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="card">
+    {% if productos_con_stock %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="productos-table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th class="text-end">Stock acá</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in productos_con_stock %}
+                <tr>
+                    <td>
+                        <div class="fw-medium">{{ item.producto.nombre }}</div>
+                        <div class="text-tenue" style="font-size: var(--texto-sm)">
+                            {{ item.producto.idProducto }}
+                            {% if item.producto.marca %} · {{ item.producto.marca }}{% endif %}
+                            {% if item.producto.controlSedronar %}
+                            <span class="badge bg-danger ms-1">Sedronar</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>{{ tipo_producto_badge(item.producto.tipoProducto) }}</td>
+                    <td>{{ estado_fisico_badge(item.producto.estadoFisico) }}</td>
+                    <td class="celda-numero">
+                        {{ stock_badge(item.stock, item.producto.stockMinimo or 0) }}
+                    </td>
+                    <td>
+                        <div class="table-acciones">
+                            <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Ver detalle">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {{ ficha_seguridad_btn(item.producto) }}
+                            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio, producto_id=item.producto.idProducto) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Registrar movimiento">
+                                <i class="fas fa-right-left"></i>
+                            </a>
+                            <a href="{{ url_for('tecnicos.edit_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Editar">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% elif hay_filtros %}
+
+    {% call empty_state(
+        'Ningún producto coincide con el filtro',
+        'Probá con otro término, cambiá el tipo, o destildá «sólo con stock» para ver también los que están en cero.',
+        icono='fa-magnifying-glass') %}
+        <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}"
+           class="btn btn-secondary">Limpiar filtros</a>
+    {% endcall %}
+
+    {% else %}
+
+    {% call empty_state(
+        'Todavía no hay productos',
+        'El catálogo es compartido entre todos los laboratorios. Podés dar de alta uno nuevo desde acá.',
+        icono='fa-vial') %}
+        <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}"
+           class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nuevo producto
+        </a>
+    {% endcall %}
+
     {% endif %}
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    $(document).ready(function() {
-        // Al submitear el formulario, mantener los parámetros de paginación
-        $('form').on('submit', function(e) {
-            e.preventDefault();
-            
-            const url = new URL(window.location.href);
-            const formData = new FormData(this);
-            
-            // Obtener los parámetros del formulario
-            for (const [key, value] of formData.entries()) {
-                if (value) {
-                    url.searchParams.set(key, value);
-                } else {
-                    url.searchParams.delete(key);
-                }
-            }
-            
-            // Agregar el estado del checkbox "mostrar todos"
-            const mostrarTodos = $('#mostrarTodos').is(':checked');
-            if (!mostrarTodos) {
-                url.searchParams.set('con_stock', 'true');
-            } else {
-                url.searchParams.delete('con_stock');
-            }
-            
-            // Reiniciar a la página 1 cuando cambian los filtros
-            url.searchParams.set('page', '1');
-            
-            // Redirigir con los filtros aplicados
-            window.location.href = url.toString();
-        });
-        
-        // Función para filtrar productos con stock solo en la página actual
-        $('#mostrarTodos').change(function() {
-            // Triggerear el submit del formulario cuando cambie el checkbox
-            $('form').submit();
-        });
-        
-        // Permitir búsqueda con Enter
-        $('#search').on('keypress', function(e) {
-            if (e.which === 13) { // Enter key
-                $('form').submit();
-            }
-        });
-        
-        // Establecer el estado del checkbox según la URL actual
-        const urlParams = new URLSearchParams(window.location.search);
-        $('#mostrarTodos').prop('checked', !urlParams.has('con_stock'));
-    });
-</script>
+{{ render_pagination(pagination, 'tecnicos.list_productos',
+                     lab_id=laboratorio.idLaboratorio,
+                     tipoProducto=selected_tipo, search=search_term,
+                     item_name='productos') }}
 {% endblock %}

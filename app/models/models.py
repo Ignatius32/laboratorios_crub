@@ -1,6 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
 db = SQLAlchemy()
@@ -12,58 +11,29 @@ user_laboratorio = db.Table('user_laboratorio',
 )
 
 class Usuario(UserMixin, db.Model):
+    """El perfil local de alguien que entra por Keycloak.
+
+    Deliberadamente no hay contraseña ni token de recuperación: la única forma
+    de entrar es contra Keycloak (ver app/utils/keycloak_auth.py) y las
+    contraseñas las administra Huayca. Esta tabla guarda sólo lo que Keycloak
+    no sabe —qué laboratorios tiene asignados cada técnico— más una copia del
+    nombre y el rol para poder mostrarlos y para las claves foráneas de
+    auditoría.
+    """
     __tablename__ = 'usuario'
     idUsuario = db.Column(db.String(10), primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     apellido = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     telefono = db.Column(db.String(20), nullable=True)
-    password_hash = db.Column(db.String(256), nullable=False)
     rol = db.Column(db.String(20), nullable=False, default='tecnico')  # 'admin' or 'tecnico'
-    password_reset_token = db.Column(db.String(100), nullable=True)
-    password_reset_expiration = db.Column(db.DateTime, nullable=True)
-    
+
     # Relationship with laboratories - many-to-many
-    laboratorios = db.relationship('Laboratorio', secondary=user_laboratorio, 
+    laboratorios = db.relationship('Laboratorio', secondary=user_laboratorio,
                                    backref=db.backref('usuarios', lazy='dynamic'))
-    
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-        # Clear any reset tokens after password set
-        self.password_reset_token = None
-        self.password_reset_expiration = None
-    
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-    
+
     def get_id(self):
         return self.idUsuario
-        
-    def generate_reset_token(self):
-        """Generate a unique token for password reset"""
-        import secrets
-        import datetime
-        
-        # Generate a secure token
-        token = secrets.token_urlsafe(32)
-        self.password_reset_token = token
-        
-        # Set expiration to 24 hours from now
-        self.password_reset_expiration = datetime.datetime.now() + datetime.timedelta(hours=24)
-        
-        return token
-        
-    def is_reset_token_valid(self, token):
-        """Check if the reset token is valid"""
-        import datetime
-        
-        if not self.password_reset_token or self.password_reset_token != token:
-            return False
-            
-        if not self.password_reset_expiration or self.password_reset_expiration < datetime.datetime.now():
-            return False
-            
-        return True
 
 class Laboratorio(db.Model):
     __tablename__ = 'laboratorio'
@@ -160,19 +130,8 @@ class Movimiento(db.Model):
         db.Index('idx_movimiento_tipo_timestamp', 'tipoMovimiento', 'timestamp'),
     )
 
-class Stock(db.Model):
-    __tablename__ = 'stock'
-    idStock = db.Column(db.Integer, primary_key=True)
-    idProducto = db.Column(db.String(10), db.ForeignKey('producto.idProducto'), nullable=False, index=True)
-    idLaboratorio = db.Column(db.String(10), db.ForeignKey('laboratorio.idLaboratorio'), nullable=False, index=True)
-    cantidad = db.Column(db.Float, nullable=False)
-    
-    producto = db.relationship('Producto', backref='stocks')
-    laboratorio = db.relationship('Laboratorio', backref='stocks')
-    
-    # Composite index for common queries
-    __table_args__ = (
-        db.Index('idx_stock_lab_producto', 'idLaboratorio', 'idProducto'),
-        # Unique constraint to prevent duplicate stock entries
-        db.UniqueConstraint('idProducto', 'idLaboratorio', name='unique_producto_laboratorio'),
-    )
+# Acá había un modelo Stock con su tabla, sus índices y su restricción de
+# unicidad. No lo leía ni lo escribía nadie: el stock se deriva de los
+# movimientos en cada consulta (ver app/utils/stock_service.py), así que la
+# tabla era un espejo que nunca se llenaba. Peor que inútil: quien leyera el
+# esquema podía creer que ahí vivía el stock de verdad.

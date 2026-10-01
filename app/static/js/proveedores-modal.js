@@ -74,8 +74,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Obtener los datos del formulario
         const formData = new FormData(this);
-          // Enviar solicitud para crear un nuevo proveedor
-        fetch('/tecnicos/api/nuevo_proveedor', {
+        // Enviar solicitud para crear un nuevo proveedor.
+        // La URL sale de window.APP_URLS (base.html la arma con url_for) y no
+        // escrita a mano: bajo un despliegue en subdirectorio una ruta absoluta
+        // apunta fuera de la aplicación.
+        fetch(window.APP_URLS.nuevoProveedor, {
             method: 'POST',
             body: formData,
             headers: {
@@ -105,31 +108,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     nuevoProveedorModal.hide();
                 }, 0);
                 
-                // Mostrar mensaje de éxito si SweetAlert2 está disponible
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        title: 'Éxito',
-                        text: 'Proveedor creado correctamente',
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                } else {
-                    // Fallback si no está disponible SweetAlert2
-                    alert('Proveedor creado correctamente');
-                }
+                // Antes esto abría un SweetAlert2 traído de un CDN, con
+                // alert() del navegador como respaldo. mostrarAviso usa el
+                // mismo aviso que el resto de la aplicación y no agrega
+                // dependencias.
+                mostrarAviso('Proveedor creado correctamente.', 'success');
             } else {
                 // Mostrar errores
                 if (data.error) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            title: 'Error',
-                            text: data.error,
-                            icon: 'error'
-                        });
-                    } else {
-                        alert('Error: ' + data.error);
-                    }
+                    mostrarAviso(data.error, 'danger');
                     
                     // Marcar campos con error si es necesario
                     if (data.error.includes('CUIT')) {
@@ -141,15 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error:', error);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    title: 'Error',
-                    text: 'Ocurrió un error al procesar la solicitud',
-                    icon: 'error'
-                });
-            } else {
-                alert('Ocurrió un error al procesar la solicitud');
-            }
+            mostrarAviso('Ocurrió un error al procesar la solicitud.', 'danger');
         })
         .finally(() => {
             // Restaurar botón

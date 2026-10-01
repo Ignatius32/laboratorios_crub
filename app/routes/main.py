@@ -1,8 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, Response, request, abort
+from flask import Blueprint, render_template, redirect, url_for, Response, abort
 from flask_login import current_user, login_required
 from datetime import datetime
 import base64
-import io
 from app.integrations.google_drive import drive_integration
 
 main = Blueprint('main', __name__)

@@ -1,128 +1,66 @@
 {% extends 'base.html' %}
 {% from 'macros/pagination.html' import render_pagination %}
+{% from 'macros/ui.html' import page_header, empty_state, delete_button %}
 
 {% block content %}
-<div class="container-fluid">           
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="page-title">Gestión de Proveedores</h1>
-            <p class="page-subtitle">Administra los proveedores registrados en el sistema.</p>
-        </div>
-        <a href="{{ url_for('admin.new_proveedor') }}" class="btn btn-primary">
-            <i class="fas fa-plus-circle me-2"></i> Nuevo Proveedor
-        </a>
-    </div>
 
-    <!-- {% include 'flash_messages.html' %} -->
+{% call page_header('Proveedores', 'Quiénes proveen los productos que entran a los laboratorios.') %}
+    <a href="{{ url_for('admin.new_proveedor') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nuevo proveedor
+    </a>
+{% endcall %}
 
-    <div class="card mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Lista de Proveedores</h6>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="proveedores-table" width="100%" cellspacing="0">
-                    <thead>                <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>CUIT</th>
-                            <th>Teléfono</th>
-                            <th>Email</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for proveedor in proveedores %}
-                        <tr>
-                            <td>{{ proveedor.idProveedor }}</td>
-                            <td>{{ proveedor.nombre }}</td>
-                            <td>{{ proveedor.cuit }}</td>
-                            <td>{{ proveedor.telefono or '-' }}</td>
-                            <td>{{ proveedor.email or '-' }}</td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('admin.edit_proveedor', id=proveedor.idProveedor) }}" class="btn btn-sm btn-warning">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ proveedor.idProveedor }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center">No hay proveedores registrados</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                
-                <!-- Delete Modals for providers -->
-                {% for proveedor in proveedores %}
-                <div class="modal fade" id="deleteModal{{ proveedor.idProveedor }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ proveedor.idProveedor }}" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="deleteModalLabel{{ proveedor.idProveedor }}">Confirmar Eliminación</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                ¿Estás seguro de que deseas eliminar el proveedor <strong>{{ proveedor.nombre }}</strong>?
-                                <p class="text-danger mt-2">Esta acción no se puede deshacer.</p>
-                                <p>Nota: No se podrán eliminar proveedores con productos o movimientos asociados.</p>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                <form action="{{ url_for('admin.delete_proveedor', id=proveedor.idProveedor) }}" method="POST">
-                                    <button type="submit" class="btn btn-delete">Eliminar</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% else %}
+<div class="card">
+    {% if proveedores %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
                 <tr>
-                    <td colspan="6" class="text-center">No hay proveedores registrados</td>
+                    <th>Nombre</th>
+                    <th>CUIT</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th class="text-end">Acciones</th>
                 </tr>
-                {% endfor %}            </div>
-        </div>
+            </thead>
+            <tbody>
+                {% for proveedor in proveedores %}
+                <tr>
+                    <td class="fw-medium">{{ proveedor.nombre }}</td>
+                    <td class="text-muted numeros-tabulares">{{ proveedor.cuit }}</td>
+                    <td class="text-muted">{{ proveedor.telefono or '—' }}</td>
+                    <td class="text-muted">{{ proveedor.email or '—' }}</td>
+                    <td>
+                        <div class="table-acciones">
+                            <a href="{{ url_for('admin.edit_proveedor', id=proveedor.idProveedor) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Editar">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            {{ delete_button(
+                                url_for('admin.delete_proveedor', id=proveedor.idProveedor),
+                                '¿Eliminar el proveedor ' ~ proveedor.nombre ~ '?',
+                                'No se puede eliminar si tiene movimientos asociados.') }}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    
-    <!-- Paginación -->    {% if pagination %}
-    {{ render_pagination(pagination, 'admin.list_proveedores', item_name='proveedores') }}
+
+    {% else %}
+
+    {% call empty_state(
+        'Todavía no hay proveedores',
+        'Los proveedores se asocian a los movimientos de tipo compra, para saber de dónde vino cada ingreso.',
+        icono='fa-truck') %}
+        <a href="{{ url_for('admin.new_proveedor') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Crear proveedor
+        </a>
+    {% endcall %}
+
     {% endif %}
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    // Al submitear el formulario, mantener los parámetros de paginación
-    document.addEventListener('DOMContentLoaded', function() {
-        const formEl = document.querySelector('form');
-        if (formEl) {
-            formEl.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const url = new URL(window.location.href);
-                const formData = new FormData(this);
-                
-                // Obtener los parámetros del formulario
-                for (const [key, value] of formData.entries()) {
-                    if (value) {
-                        url.searchParams.set(key, value);
-                    } else {
-                        url.searchParams.delete(key);
-                    }
-                }
-                
-                // Reiniciar a la página 1 cuando cambian los filtros
-                url.searchParams.set('page', '1');
-                
-                // Redirigir con los filtros aplicados
-                window.location.href = url.toString();
-            });
-        }
-    });
-</script>
+{{ render_pagination(pagination, 'admin.list_proveedores', item_name='proveedores') }}
 {% endblock %}

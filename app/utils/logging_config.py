@@ -8,8 +8,8 @@ import json
 import logging
 import logging.handlers
 from datetime import datetime
-from typing import Dict, Any, Optional
-from flask import request, g, current_app
+from typing import Dict, Any
+from flask import request
 from flask_login import current_user
 import threading
 import traceback
@@ -128,7 +128,11 @@ class LoggerManager:
         # Remover handlers existentes
         app.logger.handlers.clear()
         
-        # Handler para logs estructurados
+        # Un solo handler de archivo, en JSON. Antes había dos —este y una copia
+        # en texto plano— así que cada evento se formateaba y se escribía dos
+        # veces, en disco y sincrónicamente, dentro del request. El JSON tiene
+        # todo lo que tenía el texto y además el contexto de usuario y request,
+        # de modo que la segunda copia sólo duplicaba la E/S.
         structured_handler = logging.handlers.RotatingFileHandler(
             os.path.join(self.log_dir, 'app_structured.log'),
             maxBytes=10485760,  # 10MB
@@ -137,19 +141,6 @@ class LoggerManager:
         )
         structured_handler.setLevel(log_level)
         structured_handler.setFormatter(StructuredJSONFormatter())
-        
-        # Handler para logs tradicionales (backup)
-        traditional_handler = logging.handlers.RotatingFileHandler(
-            os.path.join(self.log_dir, 'app.log'),
-            maxBytes=10485760,
-            backupCount=5,
-            encoding='utf-8'
-        )
-        traditional_handler.setLevel(log_level)
-        traditional_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        traditional_handler.setFormatter(traditional_formatter)
         
         # Handler para consola en desarrollo
         if app.debug:
@@ -163,7 +154,6 @@ class LoggerManager:
         
         # Agregar handlers
         app.logger.addHandler(structured_handler)
-        app.logger.addHandler(traditional_handler)
         app.logger.setLevel(log_level)
         
     def _setup_specialized_loggers(self, log_level):
@@ -171,27 +161,30 @@ class LoggerManager:
         
         specialized_loggers = {
             'security': {
-                'filename': 'security.log',
                 'structured_filename': 'security_structured.log',
+                # OJO: en WARNING, los info() que emite el middleware de
+                # requests (app/utils/request_logging.py) para POST/PUT/DELETE y
+                # para los accesos a /admin y /auth NO se registran: el handler
+                # los filtra. Es el comportamiento que viene de antes, y se deja
+                # como estaba. Subirlo a INFO enciende ese rastro de auditoria a
+                # cambio de bastante mas volumen en disco; es una decision
+                # operativa, no una correccion, asi que conviene tomarla a
+                # proposito y no de pasada.
                 'level': logging.WARNING
             },
-            'audit': {
-                'filename': 'audit.log', 
+            'audit': { 
                 'structured_filename': 'audit_structured.log',
                 'level': logging.INFO
             },
             'business': {
-                'filename': 'business.log',
                 'structured_filename': 'business_structured.log', 
                 'level': logging.INFO
             },
             'database': {
-                'filename': 'database.log',
                 'structured_filename': 'database_structured.log',
                 'level': logging.WARNING
             },
             'performance': {
-                'filename': 'performance.log',
                 'structured_filename': 'performance_structured.log',
                 'level': logging.INFO
             }
@@ -202,7 +195,8 @@ class LoggerManager:
             logger.handlers.clear()
             logger.setLevel(config['level'])
             
-            # Handler estructurado
+            # Un solo handler por categoría, igual que el logger principal: la
+            # copia en texto plano duplicaba escrituras sin agregar información.
             structured_handler = logging.handlers.RotatingFileHandler(
                 os.path.join(self.log_dir, config['structured_filename']),
                 maxBytes=10485760,
@@ -212,21 +206,7 @@ class LoggerManager:
             structured_handler.setLevel(config['level'])
             structured_handler.setFormatter(StructuredJSONFormatter())
             
-            # Handler tradicional
-            traditional_handler = logging.handlers.RotatingFileHandler(
-                os.path.join(self.log_dir, config['filename']),
-                maxBytes=10485760,
-                backupCount=10 if logger_name == 'audit' else 5,
-                encoding='utf-8'
-            )
-            traditional_handler.setLevel(config['level'])
-            traditional_formatter = logging.Formatter(
-                f'%(asctime)s - {logger_name.upper()} - %(levelname)s - %(message)s'
-            )
-            traditional_handler.setFormatter(traditional_formatter)
-            
             logger.addHandler(structured_handler)
-            logger.addHandler(traditional_handler)
             
             self.loggers[logger_name] = logger
             
@@ -277,16 +257,30 @@ class StructuredLogger:
         self._log(logging.CRITICAL, message, **kwargs)
         
     def _log(self, level: int, message: str, **kwargs):
-        """Método interno para logging con contexto adicional."""
+        """Metodo interno para logging con contexto adicional.
+
+        Todo pasa por Logger.log(), tambien cuando hay contexto extra. Antes esa
+        rama armaba el LogRecord a mano y llamaba a logger.handle(), que tiene
+        dos problemas.
+
+        El visible: makeRecord recibia ("", 0) como archivo y linea, asi que
+        `context.module`, `context.function` y `context.line` salian vacios en
+        TODOS los registros estructurados con contexto, que son casi todos.
+        Logger.log() los resuelve solo; stacklevel=3 salta este metodo y el
+        .info()/.warning() que lo llamo, para que apunten a quien registro.
+
+        El latente: handle() escribe sin consultar isEnabledFor(), o sea que
+        ignora el nivel del logger. Hoy no cambia lo que se escribe, porque
+        _setup_specialized_loggers le pone el mismo nivel al logger y a su
+        handler, y el handler filtra igual. Pero dejaba una trampa: subirle el
+        nivel a un logger —la forma habitual de callarlo— no tenia ningun
+        efecto. Verificado: con el logger en ERROR y su handler en INFO, un
+        info() se escribia igual; ahora se descarta.
+        """
         if kwargs:
-            # Crear un LogRecord personalizado con datos extra
-            record = self.logger.makeRecord(
-                self.logger.name, level, "", 0, message, (), None
-            )
-            record.extra_data = kwargs
-            self.logger.handle(record)
+            self.logger.log(level, message, extra={'extra_data': kwargs}, stacklevel=3)
         else:
-            self.logger.log(level, message)
+            self.logger.log(level, message, stacklevel=3)
 
 # Loggers especializados listos para usar
 def get_app_logger() -> StructuredLogger:

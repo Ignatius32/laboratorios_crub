@@ -26,8 +26,13 @@ Facilitan el uso del sistema sin modificar lógica de negocio:
 @log_admin_action("crear usuario")
 @audit_user_action("modificación de producto", sensitive=True)
 @monitor_performance(threshold_ms=1000)
-@log_security_event("cambio de contraseña", risk_level="high")
+@log_business_operation("crear movimiento en laboratorio")
 ```
+
+> `log_security_event` y `log_authentication_event` ya no existen: no los usaba
+> ninguna ruta y se eliminaron. Los eventos de seguridad se registran
+> directamente con `get_security_logger()`, como hacen `app/routes/auth.py` y
+> `app/utils/keycloak_auth.py`.
 
 ### 4. **Middleware de Request Logging**
 - Captura automática de todas las requests HTTP
@@ -201,15 +206,6 @@ class Config:
 Para probar el sistema:
 
 ```bash
-# Ejecutar tests de logging
-python -c "
-from app import create_app
-app = create_app()
-with app.app_context():
-    from test_logging import run_all_tests
-    run_all_tests()
-"
-
 # Verificar logs generados
 ls -la logs/
 tail -f logs/app_structured.log
@@ -241,7 +237,11 @@ El formato JSON estructurado facilita la integración con:
 
 - `app/utils/logging_config.py` - Configuración principal
 - `app/utils/logging_decorators.py` - Decoradores disponibles
-- `test_logging.py` - Ejemplos de uso y tests
+- `app/utils/request_logging.py` - Middleware que registra las requests
+
+> No hay pruebas automatizadas del logging. Las que había
+> (`test_logging.py`, `test_complete_logging_system.py`) no funcionaban y se
+> retiraron; ver `tests/README.md`, que describe qué haría falta cubrir.
 
 ---
 

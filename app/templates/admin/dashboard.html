@@ -1,189 +1,90 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import page_header, stat_tile, card_accion %}
 
 {% block content %}
-<div class="container-fluid">    <h1 class="page-title">Panel de Administración</h1>
-    <p class="page-subtitle">Bienvenido(a), {{ current_user.nombre }} {{ current_user.apellido }}. Gestiona todos los aspectos del sistema desde este panel.</p>
-    
-    <div class="row">
-        <!-- Stats Cards -->
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card admin-dashboard-stats">
-                <div class="card-body py-1">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <div class="text-xs font-weight-bold text-uppercase mb-1">Usuarios</div>
-                            <div class="h3 mb-0 font-weight-bold">{{ usuarios_count }}</div>
-                        </div>
-                        <div>
-                            <i class="fas fa-users fa-lg"></i>
-                        </div>
-                    </div>
-                    <!-- <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
-                </div>
-            </div>
-        </div>
 
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card admin-dashboard-stats">
-                <div class="card-body py-1">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <div class="text-xs font-weight-bold text-uppercase mb-1">Laboratorios</div>
-                            <div class="h3 mb-0 font-weight-bold">{{ laboratorios_count }}</div>
-                        </div>                        <div>
-                            <i class="fas fa-building fa-lg"></i>
-                        </div>
-                    </div>
-                    <!-- <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
-                </div>
-            </div>        </div>
+{{ page_header(
+    'Panel de administración',
+    'Hola, ' ~ current_user.nombre ~ '. Desde acá se administra todo el sistema.') }}
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card admin-dashboard-stats">
-                <div class="card-body py-1">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <div class="text-xs font-weight-bold text-uppercase mb-1">Productos</div>
-                            <div class="h3 mb-0 font-weight-bold">{{ productos_count }}</div>
-                        </div>
-                        <div>
-                            <i class="fas fa-vial fa-lg"></i>
-                        </div>
-                    </div>
-                    <!-- <a href="{{ url_for('admin.list_productos') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
-                </div>
-            </div>
-        </div>
+{# Las métricas enlazan a su sección: un número sin destino obliga a buscarlo
+   de nuevo en el menú. #}
+<div class="row g-3 mb-5">
+    <div class="col-6 col-lg-3">
+        {{ stat_tile('Usuarios', usuarios_count, icono='fa-users',
+                     url=url_for('admin.list_usuarios')) }}
+    </div>
+    <div class="col-6 col-lg-3">
+        {{ stat_tile('Laboratorios', laboratorios_count, icono='fa-flask',
+                     url=url_for('admin.list_laboratorios')) }}
+    </div>
+    <div class="col-6 col-lg-3">
+        {{ stat_tile('Productos', productos_count, icono='fa-vial',
+                     url=url_for('admin.list_productos')) }}
+    </div>
+    <div class="col-6 col-lg-3">
+        {{ stat_tile('Movimientos', movimientos_count, icono='fa-right-left',
+                     url=url_for('admin.list_movimientos')) }}
+    </div>
+</div>
 
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card admin-dashboard-stats">
-                <div class="card-body py-1">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <div class="text-xs font-weight-bold text-uppercase mb-1">Movimientos</div>
-                            <div class="h3 mb-0 font-weight-bold">{{ movimientos_count }}</div>
-                        </div>
-                        <div>
-                            <i class="fas fa-exchange-alt fa-lg"></i>
-                        </div>
-                    </div>
-                    <!-- <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-sm btn-outline-primary w-100">Ver detalles</a> -->
-                </div>
-            </div>
-        </div>    </div>    <h2 class="page-title mt-4 mb-3">Gestión del Sistema</h2>
+<h2 class="h4 mb-3">Gestión</h2>
 
-    <div class="row">
-        <!-- Cards de Acceso -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card admin-panel-card text-center">
-                <div class="card-body">
-                    <i class="fas fa-users"></i>
-                    <h5 class="card-title">Usuarios</h5>
-                    <p class="card-text">Administra y configura cuentas y permisos de usuarios.</p>
-                    <a href="{{ url_for('admin.list_usuarios') }}" class="btn btn-primary">
-                        Gestionar Usuarios
-                    </a>
-                </div>
-            </div>
+<div class="row g-3 mb-5">
+    <div class="col-md-6 col-lg-4">
+        {{ card_accion('Usuarios',
+            'Rol y laboratorios asignados de cada persona.',
+            url_for('admin.list_usuarios'), icono='fa-users', etiqueta_boton='Administrar') }}
+    </div>
+    <div class="col-md-6 col-lg-4">
+        {{ card_accion('Laboratorios',
+            'Datos de contacto y carpetas de cada laboratorio.',
+            url_for('admin.list_laboratorios'), icono='fa-flask', etiqueta_boton='Administrar') }}
+    </div>
+    <div class="col-md-6 col-lg-4">
+        {{ card_accion('Productos',
+            'Catálogo, stock mínimo y fichas de seguridad.',
+            url_for('admin.list_productos'), icono='fa-vial', etiqueta_boton='Administrar') }}
+    </div>
+    <div class="col-md-6 col-lg-4">
+        {{ card_accion('Movimientos',
+            'Ingresos, compras, usos y transferencias.',
+            url_for('admin.list_movimientos'), icono='fa-right-left', etiqueta_boton='Administrar') }}
+    </div>
+    <div class="col-md-6 col-lg-4">
+        {{ card_accion('Proveedores',
+            'Registro de proveedores y sus datos fiscales.',
+            url_for('admin.list_proveedores'), icono='fa-truck', etiqueta_boton='Administrar') }}
+    </div>
+    <div class="col-md-6 col-lg-4">
+        {{ card_accion('Reportes',
+            'Movimientos por período, con exportación a Excel.',
+            url_for('admin.reporte_movimientos'), icono='fa-chart-column', etiqueta_boton='Generar') }}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h3 class="card-title mb-1">Sincronizar con Keycloak</h3>
+            <p class="text-muted mb-0" style="font-size: var(--texto-base); max-width: 60ch;">
+                Trae los usuarios con rol de laboratorista del realm del CRUB y
+                crea o actualiza su perfil local. No hace falta para que alguien
+                entre: el perfil se crea solo en el primer ingreso.
+            </p>
         </div>
-        
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card admin-panel-card text-center">                <div class="card-body">
-                    <i class="fas fa-building"></i>
-                    <h5 class="card-title">Laboratorios</h5>
-                    <p class="card-text">Administra información y configuración de laboratorios.</p>
-                    <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-primary">
-                        Gestionar Laboratorios
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card admin-panel-card text-center">
-                <div class="card-body">
-                    <i class="fas fa-vial"></i>
-                    <h5 class="card-title">Productos</h5>
-                    <p class="card-text">Administra el inventario y catálogo de productos.</p>
-                    <a href="{{ url_for('admin.list_productos') }}" class="btn btn-primary">
-                        Gestionar Productos
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card admin-panel-card text-center">
-                <div class="card-body">
-                    <i class="fas fa-exchange-alt"></i>
-                    <h5 class="card-title">Movimientos</h5>
-                    <p class="card-text">Administra los movimientos de entrada y salida de productos.</p>
-                    <a href="{{ url_for('admin.list_movimientos') }}" class="btn btn-primary">
-                        Gestionar Movimientos
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card admin-panel-card text-center">
-                <div class="card-body">
-                    <i class="fas fa-truck"></i>
-                    <h5 class="card-title">Proveedores</h5>
-                    <p class="card-text">Administra el registro de proveedores y contactos.</p>
-                    <a href="{{ url_for('admin.list_proveedores') }}" class="btn btn-primary">
-                        Gestionar Proveedores
-                    </a>
-                </div>
-            </div>
-        </div>                            <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card admin-panel-card text-center">
-                <div class="card-body">
-                    <i class="fas fa-table"></i>
-                    <h5 class="card-title">Reportes</h5>
-                    <p class="card-text">Genera reportes y análisis de datos del sistema.</p>
-                    <a href="{{ url_for('admin.reporte_movimientos') }}" class="btn btn-primary">
-                        Generar Reportes
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card admin-panel-card text-center border-success">
-                <div class="card-body">
-                    <i class="fas fa-sync text-success"></i>
-                    <h5 class="card-title">Integración Keycloak</h5>
-                    <p class="card-text">Sincroniza usuarios laboratoristas desde Keycloak-CRUB.</p>
-                    <form method="POST" action="{{ url_for('admin.sync_users_from_keycloak') }}" class="d-inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-success" 
-                                onclick="return confirm('¿Sincronizar usuarios desde Keycloak?')">
-                            <i class="fas fa-sync me-2"></i>Sincronizar Ahora
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>    <!-- Información del Sistema -->
-    <div class="row mt-3">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-lg-6">
-                            <h5>Acerca del Sistema</h5>
-                            <p>El Sistema de Gestión de Laboratorios del CRUB es una herramienta para facilitar la administración de inventarios, productos y movimientos en los laboratorios de la institución.</p>
-                        </div>
-                        <div class="col-lg-6">
-                            <h5>Centro Regional Universitario Bariloche</h5>
-                            <p>Universidad Nacional del Comahue<br>Quintral 1250, San Carlos de Bariloche<br>Río Negro, Argentina</p>
-                            <p class="text-muted small">Versión del sistema: 1.0.0</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <form method="POST" action="{{ url_for('admin.sync_users_from_keycloak') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-secondary confirm-action"
+                    data-texto-cargando="Sincronizando…"
+                    data-message="¿Traer los usuarios laboratoristas desde Keycloak?"
+                    data-warning="Se crearán o actualizarán perfiles locales con los datos del realm."
+                    data-btn-text="Sincronizar"
+                    data-btn-class="btn-primary">
+                <i class="fas fa-rotate btn-icono"></i>
+                <span class="btn-texto">Sincronizar ahora</span>
+            </button>
+        </form>
     </div>
 </div>
 {% endblock %}

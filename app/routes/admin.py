@@ -1,14 +1,13 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app, session
-from flask_login import login_required, current_user
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session
+from flask_login import current_user
 from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor
-from werkzeug.security import generate_password_hash
-from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, FloatField, SelectMultipleField, FileField, SubmitField
-from wtforms.validators import DataRequired, Email, Length, ValidationError, URL, Optional, Regexp
+from sqlalchemy.orm import joinedload
+from app.forms import (ExcelUploadForm, LaboratorioForm, MovimientoForm,
+                       ProductoForm, ProveedorForm, ReporteForm, UsuarioForm)
 from app.integrations.google_drive import drive_integration
 from app.integrations.keycloak_admin_client import keycloak_admin
-from app.utils.email_service import EmailService
-from app.utils.stock_service import get_stock_map_for_laboratory, get_global_stock_for_products
+from app.utils.stock_service import get_stock_map_for_lab, get_global_stock_map
+from app.utils.archivos import preparar_ficha_seguridad
 from app.utils.logging_decorators import (
     log_admin_action, 
     log_data_modification, 
@@ -16,7 +15,8 @@ from app.utils.logging_decorators import (
     monitor_performance,
     log_business_operation
 )
-from app.utils.logging_config import get_business_logger, get_audit_logger, get_performance_logger
+from app.utils.logging_config import get_business_logger
+import functools
 import pandas as pd
 import io
 import logging
@@ -25,163 +25,16 @@ admin = Blueprint('admin', __name__)
 
 # Authorization decorator
 def admin_required(f):
+    # functools.wraps y no un __name__ a mano: los decoradores de logging que se
+    # apilan encima leen __doc__ y __module__, y sin esto los ven todos iguales.
+    @functools.wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.rol != 'admin':
             flash('Acceso denegado: Se requiere privilegios de administrador', 'danger')
-            return redirect(url_for('auth.keycloak_login'))
+            return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
     return decorated_function
 
-# Forms
-class ProveedorForm(FlaskForm):
-    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
-    direccion = StringField('Dirección', validators=[Optional(), Length(max=200)])
-    telefono = StringField('Teléfono', validators=[Optional(), Length(max=50)])
-    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
-    cuit = StringField('CUIT', validators=[
-        DataRequired(), 
-        Length(min=11, max=13),
-        Regexp(r'^\d{2}-?\d{8}-?\d{1}$', message='Formato de CUIT inválido. Use XX-XXXXXXXX-X o XXXXXXXXXXX.')
-    ])
-    submit = SubmitField('Guardar')
-
-    def __init__(self, *args, **kwargs):
-        self.proveedor = kwargs.pop('obj', None)
-        super(ProveedorForm, self).__init__(*args, **kwargs)
-
-    def validate_cuit(self, cuit):
-        # Limpiar CUIT (remover guiones) antes de verificar unicidad
-        cleaned_cuit = ''.join(filter(str.isdigit, cuit.data))
-        
-        # Buscar un proveedor con el mismo CUIT
-        proveedor = Proveedor.query.filter_by(cuit=cleaned_cuit).first()
-        
-        # Si estamos editando, excluir el proveedor actual de la validación de unicidad
-        if proveedor and self.proveedor and proveedor.idProveedor != self.proveedor.idProveedor:
-            raise ValidationError('Este CUIT ya está registrado para otro proveedor.')
-        elif proveedor and not self.proveedor:
-            raise ValidationError('Este CUIT ya está registrado.')
-
-class UsuarioForm(FlaskForm):
-    idUsuario = StringField('ID Usuario', validators=[DataRequired(), Length(min=4, max=10)])
-    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
-    apellido = StringField('Apellido', validators=[DataRequired(), Length(max=100)])
-    email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
-    telefono = StringField('Teléfono', validators=[Optional(), Length(max=20)])
-    password = PasswordField('Contraseña (Solo para administradores)', validators=[Optional(), Length(min=6)])
-    rol = SelectField('Rol', choices=[('tecnico', 'Técnico'), ('admin', 'Administrador')])
-    labs_asignados = SelectMultipleField('Laboratorios Asignados', coerce=str)
-
-    def __init__(self, *args, **kwargs):
-        super(UsuarioForm, self).__init__(*args, **kwargs)
-        # Populate labs choices
-        self.labs_asignados.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
-
-class LaboratorioForm(FlaskForm):
-    idLaboratorio = StringField('ID Laboratorio', validators=[DataRequired(), Length(min=4, max=10)])
-    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
-    direccion = StringField('Dirección', validators=[DataRequired(), Length(max=200)])
-    telefono = StringField('Teléfono', validators=[Optional(), Length(max=20)])
-    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
-
-class ProductoForm(FlaskForm):
-    idProducto = StringField('ID Producto', validators=[DataRequired(), Length(min=4, max=10)])
-    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
-    descripcion = TextAreaField('Descripción', validators=[Optional()])
-    tipoProducto = SelectField('Tipo de Producto', 
-                              choices=[('botiquin', 'Botiquín'), 
-                                      ('droguero', 'Droguero'), 
-                                      ('vidrio', 'Materiales de vidrio'), 
-                                      ('seguridad', 'Elementos de seguridad'),
-                                      ('residuos', 'Residuos peligrosos')])
-    estadoFisico = SelectField('Estado Físico', 
-                              choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
-    stockMinimo = FloatField('Stock Mínimo', validators=[Optional()])
-    marca = StringField('Marca', validators=[Optional(), Length(max=100)])
-    controlSedronar = BooleanField('Control Sedronar')
-    urlFichaSeguridad = StringField('URL Ficha de Seguridad', validators=[Optional(), URL(), Length(max=200)])
-    fichaSeguridad = FileField('Ficha de Seguridad (Archivo)', validators=[Optional()])
-
-class MovimientoForm(FlaskForm):
-    tipoMovimiento = SelectField('Tipo de Movimiento', choices=[
-        ('ingreso', 'Ingreso'), 
-        ('compra', 'Compra'), 
-        ('uso', 'Uso'),
-        ('transferencia', 'Transferencia')
-    ])
-    cantidad = FloatField('Cantidad', validators=[DataRequired()])
-    unidadMedida = SelectField('Unidad de Medida', choices=[
-        ('Lt', 'Litros (Lt)'),
-        ('Kg', 'Kilogramos (Kg)')
-    ], validators=[DataRequired()])
-    idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
-    idLaboratorio = SelectField('Laboratorio', validators=[DataRequired()], coerce=str)
-    
-    # Campos para movimientos tipo 'compra'
-    tipoDocumento = SelectField('Tipo de Documento', choices=[
-        ('factura', 'Factura'),
-        ('remito', 'Remito')
-    ], validators=[Optional()])
-    numeroDocumento = StringField('Número de Documento', validators=[Optional(), Length(max=50)])
-    fechaFactura = StringField('Fecha de Factura', validators=[Optional()])
-    idProveedor = SelectField('Proveedor', validators=[Optional()])
-    documento = FileField('Documento (PDF)', validators=[Optional()])
-    
-    # Campo para movimientos tipo 'transferencia'
-    laboratorioDestino = SelectField('Laboratorio Destino', validators=[Optional()], coerce=str)
-    
-    def __init__(self, *args, **kwargs):
-        super(MovimientoForm, self).__init__(*args, **kwargs)
-        # Populate choices
-        self.idLaboratorio.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
-        self.idProducto.choices = [(p.idProducto, p.nombre) for p in Producto.query.all()]
-        self.laboratorioDestino.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
-        
-        # Populate provider choices - Opción vacía al inicio y "Nuevo proveedor..." al final
-        proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
-        self.idProveedor.choices = [('', 'Seleccione un proveedor')] + [(p.idProveedor, f"{p.nombre} ({p.cuit})") for p in proveedores] + [(0, '➕ Nuevo proveedor...')]
-    
-    def validate(self, extra_validators=None):
-        if not super().validate(extra_validators=extra_validators):
-            return False
-            
-        if self.tipoMovimiento.data == 'compra':
-            if not self.tipoDocumento.data:
-                self.tipoDocumento.errors.append('Debe seleccionar el tipo de documento para una compra')
-                return False
-            if not self.numeroDocumento.data:
-                self.numeroDocumento.errors.append('Debe ingresar el número de documento para una compra')
-                return False
-                
-        return True
-
-class ExcelUploadForm(FlaskForm):
-    archivo = FileField('Archivo Excel', validators=[DataRequired()])
-
-class ReporteForm(FlaskForm):
-    fecha_inicial = StringField('Fecha Inicial', validators=[DataRequired()])
-    fecha_final = StringField('Fecha Final', validators=[DataRequired()])
-    tipo_producto = SelectField('Tipo de Producto', choices=[
-        ('', 'Todos'), 
-        ('botiquin', 'Botiquín'), 
-        ('droguero', 'Droguero'), 
-        ('vidrio', 'Materiales de vidrio'), 
-        ('seguridad', 'Elementos de seguridad'),
-        ('residuos', 'Residuos peligrosos')
-    ], validators=[Optional()])
-    laboratorio = SelectField('Laboratorio', validators=[Optional()], coerce=str)
-    control_sedronar = SelectField('Control Sedronar', choices=[
-        ('', 'Todos los productos'),
-        ('true', 'Solo productos Sedronar'),
-        ('false', 'Solo productos NO Sedronar')
-    ], validators=[Optional()])
-    
-    def __init__(self, *args, **kwargs):
-        super(ReporteForm, self).__init__(*args, **kwargs)
-        # Populate lab choices
-        laboratorios = Laboratorio.query.all()
-        self.laboratorio.choices = [('', 'Todos')] + [(lab.idLaboratorio, lab.nombre) for lab in laboratorios]
 
 # Dashboard
 @admin.route('/')
@@ -210,11 +63,11 @@ def list_usuarios():
     # Crear la query base
     query = Usuario.query
     
-    # Obtener conteo total antes de paginar
-    total_usuarios = query.count()
-    
-    # Aplicar paginación
+    # paginate() ya ejecuta su propio COUNT para calcular las páginas, así que
+    # el count() que había acá antes era una segunda consulta de conteo en cada
+    # pantalla, sobre la query ya ordenada. El total sale del propio paginado.
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    total_usuarios = pagination.total
     usuarios = pagination.items
     
     return render_template('admin/usuarios/list.html', 
@@ -228,12 +81,16 @@ def list_usuarios():
 @log_admin_action("crear nuevo usuario")
 @audit_user_action("user_creation")
 def new_usuario():
+    """No se crean usuarios acá.
+
+    Una fila sin cuenta en Keycloak no serviría para entrar, y una con cuenta
+    se crea sola en el primer ingreso. Para dar acceso hay dos pasos, ninguno
+    en esta pantalla: la cuenta la crea Sistemas en el realm, y el DNI se agrega
+    a USUARIOS_AUTORIZADOS en el .env.
     """
-    FUNCIONALIDAD DESHABILITADA:
-    La creación manual de usuarios ha sido deshabilitada.
-    Los usuarios deben sincronizarse desde Keycloak usando la función de sincronización.
-    """
-    flash('La creación manual de usuarios está deshabilitada. Use la función de sincronización con Keycloak.', 'warning')
+    flash('Los usuarios no se crean acá: se dan de alta agregando el DNI a '
+          'USUARIOS_AUTORIZADOS en el .env, y la fila se crea sola en el primer '
+          'ingreso. También puede traerlos con el botón de sincronizar.', 'info')
     return redirect(url_for('admin.list_usuarios'))
 
 @admin.route('/usuarios/edit/<string:id>', methods=['GET', 'POST'])
@@ -261,11 +118,7 @@ def edit_usuario(id):
         usuario.email = form.email.data
         usuario.telefono = form.telefono.data
         usuario.rol = form.rol.data
-        
-        # Update password if provided
-        if form.password.data:
-            usuario.set_password(form.password.data)
-        
+
         # Update laboratory assignments
         usuario.laboratorios = []  # Clear existing assignments
         selected_labs = form.labs_asignados.data
@@ -359,11 +212,8 @@ def list_laboratorios():
     # Crear la query base
     query = Laboratorio.query
     
-    # Obtener conteo total antes de paginar
-    total_laboratorios = query.count()
-    
-    # Aplicar paginación
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    total_laboratorios = pagination.total
     laboratorios = pagination.items
     
     return render_template('admin/laboratorios/list.html', 
@@ -516,20 +366,18 @@ def list_productos():
             Producto.nombre.ilike(f'%{search_term}%')
         )
     
-    # Obtener conteo total antes de paginar
-    total_productos = productos_query.count()
-      # Aplicar paginación
     productos_paginados = productos_query.paginate(page=page, per_page=per_page, error_out=False)
+    total_productos = productos_paginados.total
     
     # Optimizar consultas de stock
     product_ids = [p.idProducto for p in productos_paginados.items]
     
     if lab_id:
         # Obtener stock del laboratorio específico de una vez
-        stock_map = get_stock_map_for_laboratory(lab_id, product_ids)
+        stock_map = get_stock_map_for_lab(lab_id, product_ids)
     else:
         # Obtener stock global de todos los productos de una vez
-        stock_map = get_global_stock_for_products(product_ids)
+        stock_map = get_global_stock_map(product_ids)
     
     # Preparar datos de productos con stock
     productos_con_stock = []
@@ -573,22 +421,12 @@ def new_producto():
         url_ficha = form.urlFichaSeguridad.data
         if form.fichaSeguridad.data:
             try:
-                import base64
-                # Read and encode the file
-                file_data = form.fichaSeguridad.data.read()
-                file_b64 = base64.b64encode(file_data).decode('utf-8')
-                filename = form.fichaSeguridad.data.filename
-                
-                # Validate file extension
-                if not filename or '.' not in filename:
-                    flash('Error: Archivo inválido', 'warning')
+                file_b64, file_extension, error = preparar_ficha_seguridad(
+                    form.fichaSeguridad.data)
+                if error:
+                    flash(error, 'warning')
                     return render_template('admin/productos/form.html', title='Nuevo Producto', form=form)
-                
-                file_extension = filename.rsplit('.', 1)[1].lower()
-                if file_extension not in ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx']:
-                    flash('Error: Tipo de archivo no permitido. Use PDF, JPG, PNG, DOC o DOCX.', 'warning')
-                    return render_template('admin/productos/form.html', title='Nuevo Producto', form=form)
-                
+
                 # Upload file to Google Drive
                 result = drive_integration.upload_ficha_seguridad(
                     form.idProducto.data,
@@ -641,22 +479,12 @@ def edit_producto(id):
         url_ficha = form.urlFichaSeguridad.data
         if form.fichaSeguridad.data:
             try:
-                import base64
-                # Read and encode the file
-                file_data = form.fichaSeguridad.data.read()
-                file_b64 = base64.b64encode(file_data).decode('utf-8')
-                filename = form.fichaSeguridad.data.filename
-                
-                # Validate file extension
-                if not filename or '.' not in filename:
-                    flash('Error: Archivo inválido', 'warning')
+                file_b64, file_extension, error = preparar_ficha_seguridad(
+                    form.fichaSeguridad.data)
+                if error:
+                    flash(error, 'warning')
                     return render_template('admin/productos/form.html', title='Editar Producto', form=form, producto=producto)
-                
-                file_extension = filename.rsplit('.', 1)[1].lower()
-                if file_extension not in ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx']:
-                    flash('Error: Tipo de archivo no permitido. Use PDF, JPG, PNG, DOC o DOCX.', 'warning')
-                    return render_template('admin/productos/form.html', title='Editar Producto', form=form, producto=producto)
-                
+
                 # Upload file to Google Drive
                 result = drive_integration.upload_ficha_seguridad(
                     producto.idProducto,
@@ -970,14 +798,18 @@ def list_movimientos():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     
-    # Crear la query base ordenada por fecha (más recientes primero)
-    query = Movimiento.query.order_by(Movimiento.timestamp.desc())
+    # joinedload y no carga perezosa: la plantilla muestra el nombre del
+    # producto, el del laboratorio y quién lo cargó, o sea tres relaciones por
+    # fila. Sin esto una página de 20 movimientos disparaba ~60 SELECT sueltos
+    # además del principal; así va todo en una sola consulta.
+    query = (Movimiento.query
+             .options(joinedload(Movimiento.producto),
+                      joinedload(Movimiento.laboratorio),
+                      joinedload(Movimiento.creador))
+             .order_by(Movimiento.timestamp.desc()))
     
-    # Obtener conteo total antes de paginar
-    total_movimientos = query.count()
-    
-    # Aplicar paginación
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    total_movimientos = pagination.total
     movimientos = pagination.items
     
     return render_template('admin/movimientos/list.html', 
@@ -1113,7 +945,20 @@ def new_movimiento():
 @admin.route('/api/get_products_by_lab/<string:lab_id>')
 @admin_required
 def get_products_by_lab(lab_id):
-    productos = Producto.query.filter_by(idLaboratorio=lab_id).all()
+    """Los productos que pasaron por un laboratorio.
+
+    Un producto no pertenece a un laboratorio: la relación existe sólo a través
+    de los movimientos. Antes esto filtraba por Producto.idLaboratorio, una
+    columna que no existe, y el endpoint devolvía 500 siempre.
+    """
+    Laboratorio.query.get_or_404(lab_id)
+
+    productos = (Producto.query
+                 .join(Movimiento, Movimiento.idProducto == Producto.idProducto)
+                 .filter(Movimiento.idLaboratorio == lab_id)
+                 .order_by(Producto.nombre)
+                 .distinct()
+                 .all())
     return {'products': [{'id': p.idProducto, 'nombre': p.nombre} for p in productos]}
 
 @admin.route('/api/get_products')
@@ -1144,11 +989,8 @@ def list_proveedores():
     # Crear la query base ordenada por nombre
     query = Proveedor.query.order_by(Proveedor.nombre)
     
-    # Obtener conteo total antes de paginar
-    total_proveedores = query.count()
-    
-    # Aplicar paginación
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    total_proveedores = pagination.total
     proveedores = pagination.items
     
     return render_template('admin/proveedores/list.html', 
@@ -1279,7 +1121,7 @@ def delete_proveedor(id):
 @admin_required
 def reporte_movimientos():
     from datetime import datetime
-    from sqlalchemy import and_, or_
+    from sqlalchemy import and_, case, func
     from app.utils.pagination import ManualPagination
     
     # Limpiar filtros si se solicita
@@ -1334,7 +1176,8 @@ def reporte_movimientos():
                     productos_query = productos_query.filter_by(controlSedronar=False)
             
             productos = productos_query.all()
-            
+            ids_productos = [p.idProducto for p in productos]
+
             # Construir consulta base para movimientos
             movimientos_query = Movimiento.query.filter(
                 and_(
@@ -1342,39 +1185,65 @@ def reporte_movimientos():
                     Movimiento.timestamp <= fecha_final
                 )
             )
-            
+
             # Filtrar por laboratorio si se selecciona uno
             if form.laboratorio.data:
                 movimientos_query = movimientos_query.filter_by(idLaboratorio=form.laboratorio.data)
-            
-            # Para cada producto, obtener sus movimientos y calcular stocks
+
+            # Tres consultas en total, no tres por producto. Antes este bloque
+            # hacia, para CADA producto del catalogo filtrado, dos SUM para el
+            # saldo previo y un SELECT de sus movimientos, mas un SELECT de
+            # proveedor por cada movimiento de compra: con 500 productos eran
+            # mas de mil consultas para armar un reporte.
+            #
+            # OJO con el saldo previo: se calcula SIN filtrar por laboratorio y
+            # contando solo ingreso/compra contra uso/transferencia -a
+            # diferencia de stock_service, que ademas resta 'egreso' y
+            # 'salida'-. Se conserva exactamente asi para no mover los numeros
+            # de los reportes ya emitidos; si algun dia se unifica, hay que
+            # avisarlo, porque cambia el stock inicial de cada fila.
+            saldo_previo = {}
+            movimientos_por_producto = {}
+            if ids_productos:
+                saldo_previo = dict(
+                    db.session.query(
+                        Movimiento.idProducto,
+                        func.coalesce(func.sum(case(
+                            (Movimiento.tipoMovimiento.in_(['ingreso', 'compra']),
+                             Movimiento.cantidad),
+                            (Movimiento.tipoMovimiento.in_(['uso', 'transferencia']),
+                             -Movimiento.cantidad),
+                            else_=0,
+                        )), 0)
+                    )
+                    .filter(Movimiento.idProducto.in_(ids_productos),
+                            Movimiento.timestamp < fecha_inicial)
+                    .group_by(Movimiento.idProducto)
+                )
+
+                # Un solo SELECT para todos los movimientos del periodo. El
+                # orden por (producto, fecha) es lo que permite agruparlos acá
+                # conservando la secuencia temporal que necesita el saldo
+                # corriente.
+                for movimiento in (movimientos_query
+                                   .filter(Movimiento.idProducto.in_(ids_productos))
+                                   .order_by(Movimiento.idProducto, Movimiento.timestamp)):
+                    movimientos_por_producto.setdefault(
+                        movimiento.idProducto, []).append(movimiento)
+
+            cuit_por_proveedor = dict(
+                db.session.query(Proveedor.idProveedor, Proveedor.cuit))
+
+            # Para cada producto, recorrer sus movimientos y calcular stocks
             for producto in productos:
-                # Obtener el stock inicial (justo antes de fecha_inicial)
-                ingresos_antes = db.session.query(db.func.sum(Movimiento.cantidad)).filter(
-                    and_(
-                        Movimiento.idProducto == producto.idProducto,
-                        Movimiento.tipoMovimiento.in_(['ingreso', 'compra']),
-                        Movimiento.timestamp < fecha_inicial
-                    )
-                ).scalar() or 0
-                
-                egresos_antes = db.session.query(db.func.sum(Movimiento.cantidad)).filter(
-                    and_(
-                        Movimiento.idProducto == producto.idProducto,
-                        Movimiento.tipoMovimiento.in_(['uso', 'transferencia']),
-                        Movimiento.timestamp < fecha_inicial
-                    )
-                ).scalar() or 0
-                
-                stock_inicial = ingresos_antes - egresos_antes
-                
-                # Filtrar movimientos de este producto en el período seleccionado
-                movimientos_producto = movimientos_query.filter_by(idProducto=producto.idProducto).order_by(Movimiento.timestamp).all()
-                
+                movimientos_producto = movimientos_por_producto.get(producto.idProducto)
+
                 # Si no hay movimientos para este producto en el período, no lo incluimos en el reporte
                 if not movimientos_producto:
                     continue
-                
+
+                stock_inicial = saldo_previo.get(producto.idProducto, 0)
+
                 # Para cada movimiento del producto, calcular stock antes y después
                 stock_actual = stock_inicial
                 for movimiento in movimientos_producto:
@@ -1383,13 +1252,12 @@ def reporte_movimientos():
                         stock_despues = stock_actual + movimiento.cantidad
                     else:  # uso o transferencia
                         stock_despues = stock_actual - movimiento.cantidad
-                      # Obtener CUIT del proveedor si es un movimiento de compra
+
+                    # Obtener CUIT del proveedor si es un movimiento de compra
                     cuit_proveedor = None
                     if movimiento.tipoMovimiento == 'compra' and movimiento.idProveedor:
-                        proveedor = Proveedor.query.get(movimiento.idProveedor)
-                        if proveedor:
-                            cuit_proveedor = proveedor.cuit
-                    
+                        cuit_proveedor = cuit_por_proveedor.get(movimiento.idProveedor)
+
                     # Agregar a los datos del reporte
                     reporte_data.append({
                         'fecha': movimiento.timestamp,
@@ -1406,7 +1274,7 @@ def reporte_movimientos():
                         'numero_documento': movimiento.numeroDocumento,
                         'cuit_proveedor': cuit_proveedor
                     })
-                    
+
                     # Actualizar stock para el siguiente movimiento
                     stock_actual = stock_despues
             
@@ -1523,12 +1391,21 @@ def exportar_reporte_excel():
         # Aplicar formato a los encabezados
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_format)
-            # Ajustar ancho de columna basado en el contenido
-            max_len = max(
-                df[value].astype(str).map(len).max(),
-                len(str(value))
-            ) + 2
-            worksheet.set_column(col_num, col_num, max_len)
+
+            # Ancho de columna según el contenido más largo.
+            #
+            # Antes era df[value].astype(str).map(len).max(). Una columna que
+            # queda entera vacía —tipo_documento, numero_documento y
+            # cuit_proveedor cuando ningún movimiento del período es una
+            # compra— llega como float64 de NaN, y desde pandas 3.0 astype(str)
+            # ya no convierte NaN a la cadena 'nan': lo deja como float. len()
+            # entonces reventaba con "object of type 'float' has no len()" y la
+            # exportación devolvía 500.
+            largos = df[value].map(lambda v: 0 if pd.isna(v) else len(str(v)))
+            ancho_datos = int(largos.max()) if len(largos) else 0
+            # Un tope: un texto largo suelto no debe dejar una columna gigante.
+            ancho = min(max(ancho_datos, len(str(value))) + 2, 50)
+            worksheet.set_column(col_num, col_num, ancho)
     
     # Preparar el archivo para descarga
     output.seek(0)

@@ -1,18 +1,66 @@
-flask==2.3.3
-flask-sqlalchemy==3.1.1
-flask-login==0.6.2
-flask-wtf==1.1.1
-flask-session==0.5.0
-werkzeug==2.3.7
-python-dotenv==1.0.0
-flask-migrate==4.0.5
-email-validator==2.0.0
-requests==2.31.0
-pandas
-numpy==1.26.4
-openpyxl==3.1.2
+# Dependencias de Laboratorios CRUB.
+#
+# Estos pines son los que instala el despliegue: deploy.sh arma un venv nuevo
+# con `pip install -r requirements.txt` en cada publicación, así que esto es lo
+# que corre en producción. Todos se resuelven en PyPI (verificado con
+# `pip download --no-deps -r requirements.txt`).
+#
+# OJO con el venv/ de desarrollo: puede quedar viejo y no lo avisa nadie. En una
+# auditoría se lo encontró varias versiones atrás del archivo (Flask 2.3.3
+# contra 3.0.3, Werkzeug 2.3.7 contra 3.1.3, pandas 2.2.3 contra 3.0.1) y además
+# con dos docenas de paquetes que el código no importa, restos de etapas
+# anteriores. Si el venv local no coincide, se está probando otra cosa que la
+# que se despliega: rehacerlo desde cero en vez de parchearlo.
+#
+#     rm -rf venv && python -m venv venv && venv/bin/pip install -r requirements.txt
+#
+# Al actualizar una versión acá, rehacer también el entorno local.
 
-# Keycloak Integration
-authlib==1.3.0
-python-keycloak==3.7.0
-PyJWT==2.8.0
+# --- Núcleo web ---
+flask==3.0.3
+werkzeug==3.1.3
+jinja2==3.1.2
+
+# --- Base de datos ---
+flask-sqlalchemy==3.0.5
+SQLAlchemy==2.0.35
+flask-migrate==4.0.7
+alembic==1.13.2
+
+# --- Sesión, formularios y autenticación ---
+flask-login==0.6.3
+flask-session==0.8.0
+flask-wtf==1.2.1
+WTForms==3.2.1
+email-validator==2.2.0
+
+# --- Keycloak ---
+# python-keycloak sólo se usa para el cliente de administración (traer el padrón
+# de laboratoristas). El ingreso va directo al endpoint de token con requests,
+# sin biblioteca de por medio: ver app/utils/keycloak_auth.py.
+python-keycloak==5.8.1
+PyJWT==2.10.1
+requests==2.31.0
+
+# authlib se quitó junto con el flujo OIDC de redirección: ya no hay callback
+# que firmar ni cliente OAuth que registrar.
+
+# --- Importación y exportación de planillas ---
+# openpyxl lee las planillas que se importan; xlsxwriter escribe las que se
+# exportan (admin.exportar_reporte_excel usa engine='xlsxwriter'). xlsxwriter
+# faltaba acá aunque el código lo necesita: en una máquina limpia la
+# exportación fallaba con ModuleNotFoundError.
+pandas==3.0.1
+numpy==2.2.6
+openpyxl==3.1.2
+xlsxwriter==3.2.9
+
+# --- Configuración ---
+python-dotenv==1.0.0
+
+# --- Registro y monitoreo ---
+# psutil lo usa monitor_performance para anotar el uso de memoria del proceso
+# (app/utils/logging_decorators.py). Estaba en el entorno pero no acá, y como se
+# importa dentro de un try/except ImportError, en una máquina limpia la métrica
+# desaparecía en silencio en vez de fallar.
+psutil==5.9.6

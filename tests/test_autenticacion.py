@@ -1,0 +1,198 @@
+"""Prueba del flujo de ingreso con Keycloak simulado."""
+import os, sys, tempfile, json, base64
+from pathlib import Path
+os.environ['USUARIOS_AUTORIZADOS'] = '30111222,40555666'
+os.environ['DATABASE_URI'] = 'sqlite:///' + os.path.join(
+    tempfile.gettempdir(), 'labcrub_test_auth.db')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from app import create_app
+from app.utils import keycloak_auth
+
+_bd = os.environ['DATABASE_URI'].replace('sqlite:///', '')
+if os.path.exists(_bd):
+    os.remove(_bd)
+
+app = create_app()
+app.config['WTF_CSRF_ENABLED'] = False
+
+
+def jwt_falso(roles_realm):
+    def b64(d):
+        return base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b'=').decode()
+    # la firma tiene que ser base64 valido o PyJWT lo rechaza antes de mirar
+    # el payload, aunque no la verifique
+    return f"{b64({'alg':'none'})}.{b64({'realm_access':{'roles':roles_realm}})}.AAAA"
+
+
+class RespuestaFalsa:
+    def __init__(self, cuerpo, status=200):
+        self._cuerpo, self.status_code = cuerpo, status
+        self.ok, self.text = 200 <= status < 300, json.dumps(cuerpo)
+    def json(self): return self._cuerpo
+    def raise_for_status(self):
+        if not self.ok: raise Exception('http ' + str(self.status_code))
+
+
+ESCENARIO = {}
+
+def post_falso(url, data=None, **kw):
+    if data['password'] != ESCENARIO['password_correcta']:
+        return RespuestaFalsa({'error': 'invalid_grant'}, 400)
+    return RespuestaFalsa({'access_token': jwt_falso(ESCENARIO['roles'])})
+
+def get_falso(url, **kw):
+    return RespuestaFalsa(ESCENARIO['userinfo'])
+
+keycloak_auth.requests.post = post_falso
+keycloak_auth.requests.get = get_falso
+
+fallos = []
+def check(nombre, cond, extra=''):
+    print(('  OK   ' if cond else '  FALLA') + ' ' + nombre + ('  ' + extra if extra and not cond else ''))
+    if not cond: fallos.append(nombre)
+
+
+with app.app_context():
+    from app.models.models import db, Usuario, Laboratorio
+    db.create_all()
+
+print('\n--- 1. Todo pide sesion (deny-by-default) ---')
+with app.test_client() as c:
+    for ruta in ('/admin/', '/admin/usuarios', '/tecnicos/', '/admin/productos'):
+        r = c.get(ruta)
+        check(f'{ruta} redirige al login', r.status_code == 302 and '/auth/login' in r.headers.get('Location', ''),
+              f'{r.status_code} {r.headers.get("Location")}')
+    r = c.get('/')
+    check('/ es publica', r.status_code == 200, str(r.status_code))
+
+print('\n--- 2. Contrasena mal ---')
+ESCENARIO.update(password_correcta='buena', roles=['laboratorista'],
+                 userinfo={'preferred_username': '30111222', 'given_name': 'Ana',
+                           'family_name': 'Perez', 'email': 'ana@crub.edu.ar', 'sub': 'kc-1'})
+with app.test_client() as c:
+    r = c.post('/auth/login', data={'usuario': '30111222', 'contrasena': 'mala'}, follow_redirects=True)
+    check('rechaza y muestra el mensaje', 'no son correctos' in r.get_data(as_text=True))
+
+print('\n--- 3. Freno por fuerza bruta ---')
+with app.test_client() as c:
+    for i in range(app.config['INTENTOS_MAX']):
+        c.post('/auth/login', data={'usuario': '30111222', 'contrasena': 'mala'})
+    r = c.post('/auth/login', data={'usuario': '30111222', 'contrasena': 'buena'}, follow_redirects=True)
+    texto = r.get_data(as_text=True)
+    check('frena aun con la contrasena correcta', 'Demasiados intentos' in texto)
+keycloak_auth._intentos.clear()
+
+print('\n--- 4. Cuenta valida pero fuera de la lista ---')
+ESCENARIO['userinfo'] = {'preferred_username': '99999999', 'given_name': 'Juan',
+                         'family_name': 'Intruso', 'email': 'juan@crub.edu.ar', 'sub': 'kc-9'}
+with app.test_client() as c:
+    r = c.post('/auth/login', data={'usuario': '99999999', 'contrasena': 'buena'}, follow_redirects=True)
+    texto = r.get_data(as_text=True)
+    check('no entra', 'no esta habilitado' in texto or 'no está habilitado' in texto)
+with app.app_context():
+    check('no se creo fila local', Usuario.query.filter_by(idUsuario='99999999').first() is None)
+keycloak_auth._intentos.clear()
+
+print('\n--- 5. Tecnico entra ---')
+ESCENARIO.update(roles=['laboratorista'],
+                 userinfo={'preferred_username': '30111222', 'given_name': 'Ana',
+                           'family_name': 'Perez', 'email': 'ana@crub.edu.ar', 'sub': 'kc-1'})
+with app.test_client() as c:
+    r = c.post('/auth/login', data={'usuario': '30111222', 'contrasena': 'buena'})
+    check('redirige al panel de tecnico', r.status_code == 302 and '/tecnicos/' in r.headers.get('Location',''),
+          str(r.headers.get('Location')))
+    r = c.get('/tecnicos/', follow_redirects=True)
+    check('el panel de tecnico ya abre', r.status_code == 200, str(r.status_code))
+    r = c.get('/admin/usuarios')
+    check('no puede entrar al panel de admin', r.status_code == 302, str(r.status_code))
+with app.app_context():
+    u = Usuario.query.filter_by(idUsuario='30111222').first()
+    check('fila local creada', u is not None)
+    check('rol tecnico', u and u.rol == 'tecnico', u.rol if u else '')
+    check('sin columna de contrasena', not hasattr(u, 'password_hash'))
+
+print('\n--- 6. Admin entra y el rol se actualiza ---')
+ESCENARIO.update(roles=['app_admin'],
+                 userinfo={'preferred_username': '40555666', 'given_name': 'Bea',
+                           'family_name': 'Jefa', 'email': 'bea@crub.edu.ar', 'sub': 'kc-2'})
+with app.test_client() as c:
+    r = c.post('/auth/login', data={'usuario': '40555666', 'contrasena': 'buena'})
+    check('redirige al panel de admin', '/admin/' in r.headers.get('Location',''), str(r.headers.get('Location')))
+    r = c.get('/admin/usuarios')
+    check('el panel de admin abre', r.status_code == 200, str(r.status_code))
+    r = c.get('/auth/logout', follow_redirects=True)
+    check('logout vuelve al login', '/auth/login' in r.request.path or 'Ingresar' in r.get_data(as_text=True))
+    r = c.get('/admin/usuarios')
+    check('despues del logout ya no entra', r.status_code == 302)
+
+print('\n--- 6b. Keycloak manda sobre el rol y los datos ---')
+with app.app_context():
+    b = Usuario.query.filter_by(idUsuario='40555666').first()
+    check('rol admin tomado del realm', b and b.rol == 'admin', b.rol if b else '')
+# a Ana la ascienden a admin en el realm
+ESCENARIO.update(roles=['app_admin'],
+                 userinfo={'preferred_username': '30111222', 'given_name': 'Ana Maria',
+                           'family_name': 'Perez', 'email': 'ana@crub.edu.ar', 'sub': 'kc-1'})
+with app.test_client() as c:
+    c.post('/auth/login', data={'usuario': '30111222', 'contrasena': 'buena'})
+with app.app_context():
+    a = Usuario.query.filter_by(idUsuario='30111222').first()
+    check('el ascenso en el realm se refleja', a.rol == 'admin', a.rol)
+    check('el nombre se actualiza', a.nombre == 'Ana Maria', a.nombre)
+# y el rol vuelve a tecnico si se lo sacan
+ESCENARIO['roles'] = ['laboratorista']
+with app.test_client() as c:
+    c.post('/auth/login', data={'usuario': '30111222', 'contrasena': 'buena'})
+with app.app_context():
+    a = Usuario.query.filter_by(idUsuario='30111222').first()
+    check('quitar el rol en el realm baja a tecnico', a.rol == 'tecnico', a.rol)
+
+print('\n--- 6c. Sin ninguno de los dos roles entra como tecnico ---')
+ESCENARIO.update(roles=['offline_access'],
+                 userinfo={'preferred_username': '40555666', 'given_name': 'Bea',
+                           'family_name': 'Jefa', 'email': 'bea@crub.edu.ar', 'sub': 'kc-2'})
+with app.test_client() as c:
+    r = c.post('/auth/login', data={'usuario': '40555666', 'contrasena': 'buena'})
+    check('no lo manda al panel de admin', '/tecnicos/' in r.headers.get('Location',''),
+          r.headers.get('Location',''))
+
+print('\n--- 7. Redirect abierto en next ---')
+ESCENARIO.update(roles=['app_admin'],
+                 userinfo={'preferred_username': '40555666', 'given_name': 'Bea',
+                           'family_name': 'Jefa', 'email': 'bea@crub.edu.ar', 'sub': 'kc-2'})
+ESCENARIO.update(roles=['app_admin'])
+for malicioso in ('//evil.com', '/\\evil.com', 'https://evil.com'):
+    with app.test_client() as c:
+        r = c.post('/auth/login?next=' + malicioso, data={'usuario': '40555666', 'contrasena': 'buena'})
+        destino = r.headers.get('Location', '')
+        check(f'ignora next={malicioso}', 'evil.com' not in destino, destino)
+with app.test_client() as c:
+    r = c.post('/auth/login?next=/admin/productos', data={'usuario': '40555666', 'contrasena': 'buena'})
+    check('respeta un next interno', r.headers.get('Location','').endswith('/admin/productos'), r.headers.get('Location',''))
+
+print('\n--- 8. Tope duro de sesion ---')
+import time
+with app.test_client() as c:
+    c.post('/auth/login', data={'usuario': '40555666', 'contrasena': 'buena'})
+    with c.session_transaction() as s:
+        s['desde'] = int(time.time()) - (app.config['SESION_HORAS'] * 3600 + 60)
+    r = c.get('/admin/usuarios', follow_redirects=True)
+    check('sesion vencida obliga a reingresar', 'expir' in r.get_data(as_text=True))
+
+print('\n--- 9. Rutas de contrasena eliminadas ---')
+with app.test_client() as c:
+    for ruta in ('/auth/forgot-password', '/auth/callback', '/auth/keycloak-login',
+                 '/auth/set-password/1/abc', '/auth/keycloak-logout'):
+        r = c.get(ruta)
+        check(f'{ruta} ya no existe', r.status_code == 404, str(r.status_code))
+
+print('\n--- 10. La lista se relee sin reiniciar ---')
+with app.app_context():
+    os.environ['USUARIOS_AUTORIZADOS'] = '40555666'
+    check('30111222 ya no esta autorizado', '30111222' not in keycloak_auth.usuarios_autorizados())
+    os.environ['USUARIOS_AUTORIZADOS'] = '30111222,40555666'
+    check('vuelve a estarlo al reponerlo', '30111222' in keycloak_auth.usuarios_autorizados())
+
+print('\n' + ('=== TODO OK ===' if not fallos else f'=== {len(fallos)} FALLAS: {fallos} ==='))
+sys.exit(1 if fallos else 0)

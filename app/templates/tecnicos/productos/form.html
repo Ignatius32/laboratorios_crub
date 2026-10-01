@@ -1,207 +1,77 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import page_header, field, form_actions, lab_breadcrumb %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Panel de Técnico</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.panel_laboratorio', lab_id=laboratorio.idLaboratorio) }}">{{ laboratorio.nombre }}</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}">Productos</a></li>
-            <li class="breadcrumb-item active" aria-current="page">{{ 'Editar Producto' if producto else 'Nuevo Producto' }}</li>
-        </ol>
-    </nav>
+<div class="row justify-content-center">
+    <div class="col-lg-9">
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">{{ 'Editar Producto' if producto else 'Nuevo Producto' }} - {{ laboratorio.nombre }}</h6>
-        </div>        <div class="card-body">
-            <form method="POST" enctype="multipart/form-data">
-                {{ form.hidden_tag() }}
-                
-                <div class="row">
-                    <!-- ID Producto -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.idProducto.label(class="form-label") }}
-                        {% if producto %}
-                            {{ form.idProducto(class="form-control", readonly=True) }}
-                        {% else %}
-                            {% if form.idProducto.errors %}
-                                {{ form.idProducto(class="form-control is-invalid") }}
-                                <div class="invalid-feedback">
-                                    {% for error in form.idProducto.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                {{ form.idProducto(class="form-control") }}
-                            {% endif %}
-                        {% endif %}
-                        <small class="form-text text-muted">Identificador único del producto (ej: P001)</small>
-                    </div>
-                    
-                    <!-- Nombre -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.nombre.label(class="form-label") }}
-                        {% if form.nombre.errors %}
-                            {{ form.nombre(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.nombre.errors %}
-                                    {{ error }}
-                                {% endfor %}
+        {{ lab_breadcrumb(laboratorio, 'Nuevo producto' if not producto else 'Editar producto') }}
+
+        {{ page_header(
+            'Editar producto' if producto else 'Nuevo producto',
+            producto.nombre if producto
+            else 'El producto queda disponible para todos los laboratorios, no sólo para ' ~ laboratorio.nombre ~ '.') }}
+
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="form-section">
+                        <p class="form-section-title">Identificación</p>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ field(form.idProducto, ayuda='Único, por ejemplo P001.',
+                                         readonly=(producto is not none)) }}
                             </div>
-                        {% else %}
-                            {{ form.nombre(class="form-control") }}
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <!-- Tipo Producto -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.tipoProducto.label(class="form-label") }}
-                        {% if form.tipoProducto.errors %}
-                            {{ form.tipoProducto(class="form-select is-invalid", id="tipoProducto") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.tipoProducto.errors %}
-                                    {{ error }}
-                                {% endfor %}
+                            <div class="col-md-8">
+                                {{ field(form.nombre, placeholder='Ácido clorhídrico') }}
                             </div>
-                        {% else %}
-                            {{ form.tipoProducto(class="form-select", id="tipoProducto") }}
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Estado Físico -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.estadoFisico.label(class="form-label") }}
-                        {% if form.estadoFisico.errors %}
-                            {{ form.estadoFisico(class="form-select is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.estadoFisico.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.estadoFisico(class="form-select") }}
-                        {% endif %}
-                    </div>                </div>
-                
-                <div class="row">
-                    <!-- Stock Mínimo -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.stockMinimo.label(class="form-label") }}
-                        {% if form.stockMinimo.errors %}
-                            {{ form.stockMinimo(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.stockMinimo.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.stockMinimo(class="form-control") }}
-                        {% endif %}
-                        <small class="form-text text-muted">Cantidad mínima requerida en stock</small>
-                    </div>
-                    
-                    <!-- Marca -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.marca.label(class="form-label") }}
-                        {% if form.marca.errors %}
-                            {{ form.marca(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.marca.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.marca(class="form-control") }}
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <!-- Ficha de Seguridad -->
-                <div class="mb-3">
-                    {{ form.fichaSeguridad.label(class="form-label") }}
-                    {% if form.fichaSeguridad.errors %}
-                        {{ form.fichaSeguridad(class="form-control is-invalid") }}
-                        <div class="invalid-feedback">
-                            {% for error in form.fichaSeguridad.errors %}
-                                {{ error }}
-                            {% endfor %}
                         </div>
-                    {% else %}
-                        {{ form.fichaSeguridad(class="form-control") }}
-                    {% endif %}
-                    <small class="form-text text-muted">Subir archivo PDF o imagen (JPG, PNG) con la ficha de seguridad del producto</small>
-                </div>
-                
-                <!-- Descripción -->
-                <div class="mb-3">
-                    {{ form.descripcion.label(class="form-label") }}
-                    {% if form.descripcion.errors %}
-                        {{ form.descripcion(class="form-control is-invalid", rows=4) }}
-                        <div class="invalid-feedback">
-                            {% for error in form.descripcion.errors %}
-                                {{ error }}
-                            {% endfor %}
+
+                        {{ field(form.descripcion, rows=3,
+                                 placeholder='Concentración, presentación, observaciones…') }}
+                    </div>
+
+                    <div class="form-section">
+                        <p class="form-section-title">Clasificación</p>
+
+                        <div class="row">
+                            <div class="col-md-6">{{ field(form.tipoProducto, id='tipoProducto') }}</div>
+                            <div class="col-md-6">{{ field(form.estadoFisico) }}</div>
                         </div>
-                    {% else %}
-                        {{ form.descripcion(class="form-control", rows=4) }}
-                    {% endif %}
-                </div>
-                
-                <!-- Control Sedronar -->
-                <div class="mb-3 form-check" id="controlSedronarContainer">
-                    {{ form.controlSedronar(class="form-check-input") }}
-                    {{ form.controlSedronar.label(class="form-check-label") }}
-                    {% if form.controlSedronar.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.controlSedronar.errors %}
-                                {{ error }}
-                            {% endfor %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ field(form.stockMinimo, type='number', step='any', min='0',
+                                         ayuda='Por debajo de este valor el stock se marca en amarillo.') }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ field(form.marca, placeholder='Anedra, Merck, Sintorgan…') }}
+                            </div>
                         </div>
-                    {% endif %}
-                </div>
-                  <div class="mt-4 text-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Guardar
-                    </button>
-                    <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-secondary confirm-action"
-                       data-message="¿Está seguro que desea cancelar?" 
-                       data-warning="Los cambios no guardados se perderán."
-                       data-btn-text="Sí, Cancelar"
-                       data-btn-class="btn-cancel">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </a>
-                </div>
-            </form>
+
+                        {#
+                          En este formulario el tipo "droguero" no está entre las
+                          opciones, así que el control Sedronar nunca aplica: se
+                          deja el campo pero sin la lógica de mostrar/ocultar que
+                          tiene el formulario de administración.
+                        #}
+                        {{ field(form.controlSedronar) }}
+                    </div>
+
+                    <div class="form-section">
+                        <p class="form-section-title">Ficha de seguridad</p>
+                        <p class="form-section-desc">Opcional. PDF o imagen.</p>
+
+                        {{ field(form.fichaSeguridad, accept='.pdf,.jpg,.jpeg,.png') }}
+                    </div>
+
+                    {{ form_actions(url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio)) }}
+                </form>
+            </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const tipoProducto = document.getElementById('tipoProducto');
-        const controlSedronarContainer = document.getElementById('controlSedronarContainer');
-        
-        // Función para mostrar/ocultar el campo de control SEDRONAR
-        function updateSedronarField() {
-            if (tipoProducto.value === 'droguero') {
-                controlSedronarContainer.style.display = 'block';
-            } else {
-                controlSedronarContainer.style.display = 'none';
-                // Si no es droguero, desmarcamos el checkbox
-                document.querySelector('#controlSedronarContainer input').checked = false;
-            }
-        }
-        
-        // Ejecutar al cargar la página
-        updateSedronarField();
-        
-        // Añadir listener para cuando cambie el tipo de producto
-        tipoProducto.addEventListener('change', updateSedronarField);
-    });
-</script>
 {% endblock %}

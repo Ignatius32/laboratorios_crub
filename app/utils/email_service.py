@@ -1,10 +1,15 @@
 import os
-from flask import current_app, url_for
+from flask import current_app
 from app.integrations.google_drive import drive_integration
 
 class EmailService:
-    """Service for sending emails"""
-    
+    """Service for sending emails.
+
+    Ya no manda mails de contraseña: esta aplicación no las administra. Quien
+    la olvidó la restablece en las pantallas de cuenta de Huayca
+    (URL_RESET_PASSWORD), que es donde viven de verdad.
+    """
+
     @staticmethod
     def send_email(to, subject, html_content):
         """
@@ -42,54 +47,3 @@ class EmailService:
         except Exception as e:
             current_app.logger.error(f"Failed to send email: {str(e)}")
             return False
-    
-    @staticmethod
-    def send_password_reset_email(user, token, is_new_user=False):
-        """
-        Send a password reset email to a user
-        
-        Args:
-            user (Usuario): The user to send the email to
-            token (str): The password reset token
-            is_new_user (bool): True if this is a new user, False for password reset
-            
-        Returns:
-            bool: True if email was sent successfully, False otherwise
-        """
-        # Generate password reset URL
-        reset_url = url_for('auth.set_password', token=token, user_id=user.idUsuario, _external=True)
-        
-        # Set subject and content based on whether this is a new user or password reset
-        if is_new_user:
-            subject = "Bienvenido al Sistema de Gestión de Laboratorios CRUB"
-            html_content = f"""
-            <html>
-                <body>
-                    <h2>Bienvenido, {user.nombre} {user.apellido}!</h2>
-                    <p>Se ha creado una cuenta para ti en el Sistema de Gestión de Laboratorios CRUB.</p>
-                    <p>Por favor, establece tu contraseña haciendo clic en el siguiente enlace:</p>
-                    <p><a href="{reset_url}">Establecer contraseña</a></p>
-                    <p>Este enlace expirará en 24 horas.</p>
-                    <p>Si no has solicitado esta cuenta, por favor ignora este mensaje.</p>
-                    <p>Saludos,<br>El equipo del Sistema de Gestión de Laboratorios CRUB</p>
-                </body>
-            </html>
-            """
-        else:
-            subject = "Restablecimiento de contraseña - Sistema de Gestión de Laboratorios CRUB"
-            html_content = f"""
-            <html>
-                <body>
-                    <h2>Hola, {user.nombre} {user.apellido}!</h2>
-                    <p>Has solicitado restablecer tu contraseña para el Sistema de Gestión de Laboratorios CRUB.</p>
-                    <p>Por favor, haz clic en el siguiente enlace para establecer una nueva contraseña:</p>
-                    <p><a href="{reset_url}">Restablecer contraseña</a></p>
-                    <p>Este enlace expirará en 24 horas.</p>
-                    <p>Si no has solicitado este restablecimiento, por favor ignora este mensaje.</p>
-                    <p>Saludos,<br>El equipo del Sistema de Gestión de Laboratorios CRUB</p>
-                </body>
-            </html>
-            """
-        
-        # Send the email
-        return EmailService.send_email(user.email, subject, html_content)

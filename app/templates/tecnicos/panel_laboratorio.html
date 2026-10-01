@@ -1,190 +1,163 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import empty_state, stat_tile, tipo_producto_badge,
+                                stock_badge, ficha_seguridad_btn %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('tecnicos.dashboard') }}">Panel de Técnico</a></li>
-            <li class="breadcrumb-item active" aria-current="page">{{ laboratorio.nombre }}</li>
-        </ol>
-    </nav>
 
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-8">
-            <h1 class="page-title">{{ laboratorio.nombre }}</h1>
-            <p class="page-subtitle">Gestión y administración de productos, inventario y movimientos del laboratorio</p>
+<nav aria-label="Ubicación" class="mb-3">
+    <ol class="breadcrumb mb-0" style="font-size: var(--texto-sm)">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('tecnicos.dashboard') }}">Laboratorios</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ laboratorio.nombre }}</li>
+    </ol>
+</nav>
+
+<div class="lab-header">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <h1 class="lab-title">{{ laboratorio.nombre }}</h1>
+            <p class="lab-subtitle">
+                {{ laboratorio.idLaboratorio }}
+                {% if laboratorio.direccion %} · {{ laboratorio.direccion }}{% endif %}
+            </p>
         </div>
-        <div class="col-md-4 text-md-end">
-            <a href="{{ url_for('tecnicos.dashboard') }}" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-2"></i> Volver al Panel
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}"
+               class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nuevo movimiento
+            </a>
+            <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}"
+               class="btn btn-secondary">
+                <i class="fas fa-plus"></i> Nuevo producto
             </a>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-lg-4">            <!-- Laboratory Info Card -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <div class="text-center mb-3"><i class="fas fa-building fa-3x" style="color: var(--color-primary);"></i>
-                        
-                        <h4 class="mb-0">{{ laboratorio.nombre }}</h4>
-                        <p class="text-muted small mb-3">ID: {{ laboratorio.idLaboratorio }}</p>
-                    </div>
-                    <hr>
-                    <ul class="list-unstyled">
-                        <li class="mb-3">
-                            <div class="d-flex align-items-center">
-                                <div class="rounded-circle bg-light p-2 me-3">
-                                    <i class="fas fa-map-marker-alt text-primary"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Dirección</div>
-                                    <div>{{ laboratorio.direccion }}</div>
-                                </div>
-                            </div>
-                        </li>
-                        <li class="mb-3">
-                            <div class="d-flex align-items-center">
-                                <div class="rounded-circle bg-light p-2 me-3">
-                                    <i class="fas fa-phone text-primary"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Teléfono</div>
-                                    <div>{{ laboratorio.telefono }}</div>
-                                </div>
-                            </div>
-                        </li>
-                        <li>
-                            <div class="d-flex align-items-center">
-                                <div class="rounded-circle bg-light p-2 me-3">
-                                    <i class="fas fa-envelope text-primary"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Email</div>
-                                    <div>{{ laboratorio.email }}</div>
-                                </div>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-8">
-            <!-- Quick Actions -->
-            <div class="card mb-4">
-                <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold">Gestión del Laboratorio</h6>
-                    <span class="badge bg-primary">Acciones</span>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary w-100">
-                                <i class="fas fa-vial me-2"></i> Gestionar Productos
-                            </a>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-success w-100">
-                                <i class="fas fa-exchange-alt me-2"></i> Gestionar Movimientos
-                            </a>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('tecnicos.visualizar_stock', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-info w-100">
-                                <i class="fas fa-clipboard-list me-2"></i> Visualizar Stock Local
-                            </a>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('tecnicos.visualizar_stock_global', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-primary w-100">
-                                <i class="fas fa-globe me-2"></i> Visualizar Stock Global
-                            </a>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-info w-100">
-                                <i class="fas fa-plus-circle me-2"></i> Nuevo Producto
-                            </a>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-warning w-100">
-                                <i class="fas fa-plus-circle me-2"></i> Nuevo Movimiento
-                            </a>
-                        </div>
-                    </div>
-                </div>            </div>
-
-            <!-- Latest Products -->
-            <div class="card mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold">Productos Recientes</h6>
-                    <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-outline-primary">
-                        Ver Todos <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover admin-table">
-                            <thead>
-                                <tr>
-                                    <th width="10%">ID</th>
-                                    <th>Nombre</th>
-                                    <th width="15%">Tipo</th>
-                                    <th width="15%">Stock</th>
-                                    <th width="15%">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>                                {% for item in productos_con_stock[:5] %}
-                                <tr>
-                                    <td>{{ item.producto.idProducto }}</td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="ms-2">
-                                                <div class="fw-bold">{{ item.producto.nombre }}</div>
-                                                <div class="text-muted small">{{ item.producto.marca }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-light text-dark">{{ item.producto.tipoProducto }}</span>
-                                    </td>                                    <td>
-                                        {% if item.stock <= 0 %}
-                                            <span class="badge bg-danger">Sin stock</span>
-                                        {% elif item.producto.stockMinimo is not none and item.stock <= item.producto.stockMinimo %}
-                                            <span class="badge bg-warning text-dark">{{ item.stock }} (Bajo)</span>
-                                        {% else %}
-                                            <span class="badge bg-success">{{ item.stock }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="table-action-buttons">
-                                            <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Ver detalles">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio, producto_id=item.producto.idProducto) }}" class="btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Nuevo movimiento">
-                                                <i class="fas fa-plus-circle"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="5">
-                                        <div class="empty-state py-4">
-                                            <i class="fas fa-box-open"></i>
-                                            <h5 class="mt-3">No hay productos con stock</h5>
-                                            <p class="text-muted mb-3">No se encontraron productos con stock en este laboratorio</p>
-                                            <a href="{{ url_for('tecnicos.new_producto', lab_id=laboratorio.idLaboratorio) }}" class="btn btn-sm btn-primary">
-                                                <i class="fas fa-plus-circle me-1"></i> Agregar Producto
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+    {% if laboratorio.telefono or laboratorio.email %}
+    <div class="d-flex flex-wrap gap-4 mt-3 pt-3 text-muted"
+         style="border-top: 1px solid var(--borde); font-size: var(--texto-sm)">
+        {% if laboratorio.telefono %}
+        <span><i class="fas fa-phone me-2 text-tenue"></i>{{ laboratorio.telefono }}</span>
+        {% endif %}
+        {% if laboratorio.email %}
+        <span><i class="fas fa-envelope me-2 text-tenue"></i>{{ laboratorio.email }}</span>
+        {% endif %}
     </div>
+    {% endif %}
+</div>
+
+{# Accesos directos como tarjetas de navegación. Antes eran seis botones de
+   colores distintos apilados, que competían entre sí por atención. #}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}"
+           class="card card-accion h-100">
+            <div class="card-body">
+                <div class="card-accion-icono"><i class="fas fa-vial"></i></div>
+                <div class="fw-semibold">Productos</div>
+                <div class="text-muted" style="font-size: var(--texto-sm)">Catálogo del laboratorio</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="{{ url_for('tecnicos.list_movimientos', lab_id=laboratorio.idLaboratorio) }}"
+           class="card card-accion h-100">
+            <div class="card-body">
+                <div class="card-accion-icono"><i class="fas fa-right-left"></i></div>
+                <div class="fw-semibold">Movimientos</div>
+                <div class="text-muted" style="font-size: var(--texto-sm)">Historial de este lab</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="{{ url_for('tecnicos.visualizar_stock', lab_id=laboratorio.idLaboratorio) }}"
+           class="card card-accion h-100">
+            <div class="card-body">
+                <div class="card-accion-icono"><i class="fas fa-clipboard-list"></i></div>
+                <div class="fw-semibold">Stock local</div>
+                <div class="text-muted" style="font-size: var(--texto-sm)">Lo que hay acá</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="{{ url_for('tecnicos.visualizar_stock_global', lab_id=laboratorio.idLaboratorio) }}"
+           class="card card-accion h-100">
+            <div class="card-body">
+                <div class="card-accion-icono"><i class="fas fa-globe"></i></div>
+                <div class="fw-semibold">Stock global</div>
+                <div class="text-muted" style="font-size: var(--texto-sm)">En todos los labs</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Productos con stock en este laboratorio</span>
+        {% if productos_con_stock %}
+        <a href="{{ url_for('tecnicos.list_productos', lab_id=laboratorio.idLaboratorio) }}"
+           class="btn btn-sm btn-outline-secondary">
+            Ver todos<i class="fas fa-arrow-right ms-1" style="font-size:.75em"></i>
+        </a>
+        {% endif %}
+    </div>
+
+    {% if productos_con_stock %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Tipo</th>
+                    <th class="text-end">Stock</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in productos_con_stock[:8] %}
+                <tr>
+                    <td>
+                        <div class="fw-medium">{{ item.producto.nombre }}</div>
+                        {% if item.producto.marca %}
+                        <div class="text-tenue" style="font-size: var(--texto-sm)">{{ item.producto.marca }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ tipo_producto_badge(item.producto.tipoProducto) }}</td>
+                    <td class="celda-numero">
+                        {{ stock_badge(item.stock, item.producto.stockMinimo or 0) }}
+                    </td>
+                    <td>
+                        <div class="table-acciones">
+                            <a href="{{ url_for('tecnicos.view_producto', lab_id=laboratorio.idLaboratorio, id=item.producto.idProducto) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Ver detalle">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {{ ficha_seguridad_btn(item.producto) }}
+                            <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio, producto_id=item.producto.idProducto) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Registrar movimiento">
+                                <i class="fas fa-right-left"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% else %}
+
+    {% call empty_state(
+        'Todavía no hay stock en este laboratorio',
+        'El stock aparece cuando se registra el primer movimiento de ingreso o compra de un producto.',
+        icono='fa-box-open') %}
+        <a href="{{ url_for('tecnicos.new_movimiento', lab_id=laboratorio.idLaboratorio) }}"
+           class="btn btn-primary">
+            <i class="fas fa-plus"></i> Registrar ingreso
+        </a>
+    {% endcall %}
+
+    {% endif %}
 </div>
 {% endblock %}

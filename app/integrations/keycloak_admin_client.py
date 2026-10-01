@@ -4,7 +4,6 @@ Handles administrative operations like user creation, role assignment, etc.
 """
 from keycloak import KeycloakAdmin
 from flask import current_app
-import requests
 from app.utils.logging_config import get_security_logger, get_audit_logger
 
 class KeycloakAdminClient:
@@ -75,22 +74,6 @@ class KeycloakAdminClient:
                                      operation="get_user",
                                      component="keycloak_admin",
                                      username=username,
-                                     error=str(e))
-            return None
-    
-    def get_user_by_email(self, email):
-        """Get user by email"""
-        try:
-            users = self.admin_client.get_users({"email": email})
-            if users:
-                return users[0]
-            return None
-            
-        except Exception as e:
-            self.security_logger.error("Failed to get user by email",
-                                     operation="get_user",
-                                     component="keycloak_admin",
-                                     email=email,
                                      error=str(e))
             return None
     
@@ -165,37 +148,6 @@ class KeycloakAdminClient:
                                      error=str(e))
             return False
     
-    def remove_client_role(self, user_id, role_name):
-        """Remove client role from user"""
-        try:
-            client_id = current_app.config['KEYCLOAK_CLIENT_ID']
-            
-            # Get client
-            client = self.admin_client.get_client_id(client_id)
-            
-            # Get role
-            role = self.admin_client.get_client_role(client, role_name)
-            
-            # Remove role
-            self.admin_client.delete_client_role_from_user(user_id, client, role)
-            
-            self.audit_logger.info("Client role removed from user",
-                                 operation="remove_role",
-                                 component="keycloak_admin",
-                                 user_id=user_id,
-                                 role_name=role_name)
-            
-            return True
-            
-        except Exception as e:
-            self.security_logger.error("Failed to remove client role",
-                                     operation="remove_role",
-                                     component="keycloak_admin",
-                                     user_id=user_id,
-                                     role_name=role_name,
-                                     error=str(e))
-            return False
-    
     def get_user_roles(self, user_id):
         """Get all roles assigned to user"""
         try:
@@ -233,26 +185,11 @@ class KeycloakAdminClient:
                                      error=str(e))
             return []
     
-    def set_user_password(self, user_id, password, temporary=True):
-        """Set user password"""
-        try:
-            self.admin_client.set_user_password(user_id, password, temporary)
-            
-            self.audit_logger.info("User password set",
-                                 operation="set_password",
-                                 component="keycloak_admin",
-                                 user_id=user_id,
-                                 temporary=temporary)
-            
-            return True
-            
-        except Exception as e:
-            self.security_logger.error("Failed to set user password",
-                                     operation="set_password",
-                                     component="keycloak_admin",
-                                     user_id=user_id,
-                                     error=str(e))
-            return False
+    # Acá había un set_user_password() que cambiaba la contraseña de una persona
+    # en Keycloak a través de la API de administración. No lo llamaba nadie, y
+    # esta aplicación no administra contraseñas: eso es de las pantallas de
+    # cuenta de Huayca. Se quitó para que el alcance del cliente de
+    # administración sea sólo de lectura del padrón.
 
     def get_all_users(self):
         """Get all users from Keycloak"""
@@ -447,10 +384,9 @@ class KeycloakAdminClient:
                             email=email,
                             rol=primary_role
                         )
-                        
-                        # Set a temporary password - user will use Keycloak for authentication
-                        new_user.set_password('keycloak_managed')
-                        
+
+                        # Sin contraseña: la fila local es un perfil, no una
+                        # credencial. Entrar sigue siendo asunto de Keycloak.
                         db.session.add(new_user)
                         sync_stats['created'] += 1
                         

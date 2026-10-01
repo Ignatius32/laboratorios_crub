@@ -85,7 +85,7 @@ echo "   sudo a2enmod wsgi headers expires"
 echo "4. Restart Apache:"
 echo "   sudo systemctl restart apache2"
 echo "5. Check logs for any issues:"
-echo "   tail -f ${APACHE_DIR}/logs/app.log"
+echo "   tail -f ${APACHE_DIR}/logs/app_structured.log"
 echo "   tail -f /var/log/apache2/error.log"
 
 echo -e "${GREEN}🎉 Your application will be available at: https://your-domain.com/laboratorios-crub${NC}"

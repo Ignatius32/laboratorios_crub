@@ -132,9 +132,16 @@ SECRET_KEY=your-super-secret-production-key-here
 # Database
 DATABASE_URI=sqlite:///instance/laboratorios.db
 
-# Admin Credentials
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=your-secure-admin-password
+# Quién puede entrar: los DNI habilitados, separados por coma. Keycloak dice si
+# la persona es quien dice ser; esta lista dice si además puede usar esta
+# aplicación. Se relee en cada ingreso, sin reiniciar el servicio.
+# No hay credenciales de administrador acá: no existen contraseñas locales.
+USUARIOS_AUTORIZADOS=12345678,23456789
+
+# Sesión y freno a los intentos fallidos
+SESION_HORAS=12
+INTENTOS_MAX=8
+ESPERA_SEGUNDOS=300
 
 # Keycloak Configuration
 KEYCLOAK_SERVER_URL=https://your-keycloak-server.com
@@ -151,7 +158,7 @@ KEYCLOAK_TECNICO_ROLE=laboratorista
 
 ### 1. Run Deployment Tests
 ```bash
-python test_deployment.py
+python scripts/test_deployment.py
 ```
 
 ### 2. Check Application Access
@@ -159,8 +166,15 @@ Visit: `https://your-domain.com/laboratorios-crub`
 
 ### 3. Monitor Logs
 ```bash
-# Application logs
-tail -f /var/www/laboratorios-crub/logs/app.log
+# Application logs (una linea JSON por evento; con jq se leen comodos)
+tail -f /var/www/laboratorios-crub/logs/app_structured.log
+
+# Solo el mensaje y el nivel, si no hace falta el contexto completo:
+tail -f /var/www/laboratorios-crub/logs/app_structured.log | jq -r '"\(.level) \(.message)"'
+
+# Rastro de auditoria (quien hizo que) y eventos de seguridad:
+tail -f /var/www/laboratorios-crub/logs/audit_structured.log
+tail -f /var/www/laboratorios-crub/logs/security_structured.log
 
 # Apache error logs
 tail -f /var/log/apache2/error.log
@@ -203,30 +217,65 @@ tail -f /var/log/apache2/access.log
 
 ## Security Considerations
 
-- Change default admin password
-- Use strong SECRET_KEY
+- Use strong SECRET_KEY (la app se niega a arrancar en producción con un placeholder)
+- Mantener `USUARIOS_AUTORIZADOS` al día: sacar a quien ya no corresponda
 - Enable HTTPS in production
 - Regularly update dependencies
 - Monitor logs for security issues
 - Backup database regularly
 
+No hay contraseña de administrador que cambiar: la aplicación no guarda ninguna
+credencial. Todo el acceso pasa por Keycloak.
+
 ## Keycloak Integration
 
-The application supports Keycloak SSO. The redirect URIs are automatically configured based on your domain:
+La aplicación pide usuario y contraseña en su propio formulario y los cambia por
+un token en Keycloak (`grant_type=password`), igual que Reportes DAE. **No hay
+flujo de redirección OIDC**, así que no hay que configurar redirect URIs ni
+post-logout URIs en el cliente de Keycloak.
 
-- Redirect URI: `https://your-domain.com/laboratorios-crub/auth/callback`
-- Post-logout URI: `https://your-domain.com/laboratorios-crub/`
+Lo que sí tiene que estar en el cliente del realm:
 
-Configure these URIs in your Keycloak client settings.
+- **Direct access grants** habilitado (es el `grant_type=password`).
+- El `KEYCLOAK_CLIENT_SECRET` correspondiente, si el cliente es confidencial.
+- Los roles `app_admin` y `laboratorista` asignados a quien corresponda: el rol
+  del realm es el que decide si alguien entra como administrador o como técnico.
+  Quien no tenga ninguno de los dos entra como técnico.
+
+Dar acceso son dos pasos: que la persona tenga cuenta en el realm del CRUB, y
+que su DNI esté en `USUARIOS_AUTORIZADOS`.
+
+Las contraseñas no se administran acá. Quien la olvidó la restablece en las
+pantallas de cuenta de Huayca (`URL_RESET_PASSWORD`).
 
 ## Maintenance
 
 ### Updating the Application
-1. Backup database and .env file
-2. Pull new code to deployment directory
-3. Update dependencies if needed
-4. Restart Apache
-5. Test functionality
+
+`deploy.sh` es para instalar de cero. Sobre una instalación que ya tiene datos
+se usa `scripts/actualizar_servidor.sh`, desde un clon del repositorio en el
+servidor (no desde `/var/www/laboratorios-crub`):
+
+```bash
+git clone -b feature/prod https://github.com/Ignatius32/laboratorios_crub.git
+cd laboratorios_crub          # las veces siguientes: git pull
+sudo bash scripts/actualizar_servidor.sh --verificar   # no cambia nada
+sudo bash scripts/actualizar_servidor.sh
+```
+
+Qué hace, en orden:
+
+1. Comprueba el `.env` del servidor (`SECRET_KEY`, `USUARIOS_AUTORIZADOS`,
+   Keycloak) y que las dependencias existan para el Python del servidor. Si algo
+   falta, se detiene sin haber tocado nada.
+2. Respalda el código, el `.env` y la base en `/var/backups/laboratorios-crub/`.
+3. Copia el código, arma un venv nuevo y migra la base
+   (`scripts/preparar_base.py`).
+4. Recarga sólo esta aplicación (`touch wsgi.py`), sin reiniciar Apache, y
+   consulta la pantalla de ingreso.
+
+Si algo falla a partir del paso 3, repone solo la versión anterior con la base
+como estaba.
 
 ### Database Backups
 ```bash

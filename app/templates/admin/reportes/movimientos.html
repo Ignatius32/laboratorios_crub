@@ -1,216 +1,131 @@
 {% extends "base.html" %}
 {% from 'macros/pagination.html' import render_pagination %}
+{% from 'macros/ui.html' import page_header, empty_state, field, tipo_movimiento_badge %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Reporte de Movimientos</li>
-        </ol>
-    </nav>
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Filtros de Reporte</h6>
-        </div>
-        <div class="card-body">
-            <form method="POST">
-                {{ form.hidden_tag() }}
-                
-                <div class="row">
-                    <!-- Fecha Inicial -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.fecha_inicial.label(class="form-label") }}
-                        {% if form.fecha_inicial.errors %}
-                            {{ form.fecha_inicial(class="form-control is-invalid", type="date") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.fecha_inicial.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.fecha_inicial(class="form-control", type="date") }}
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Fecha Final -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.fecha_final.label(class="form-label") }}
-                        {% if form.fecha_final.errors %}
-                            {{ form.fecha_final(class="form-control is-invalid", type="date") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.fecha_final.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.fecha_final(class="form-control", type="date") }}
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <!-- Tipo de Producto -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.tipo_producto.label(class="form-label") }}
-                        {% if form.tipo_producto.errors %}
-                            {{ form.tipo_producto(class="form-select is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.tipo_producto.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.tipo_producto(class="form-select") }}
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Laboratorio -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.laboratorio.label(class="form-label") }}
-                        {% if form.laboratorio.errors %}
-                            {{ form.laboratorio(class="form-select is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.laboratorio.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.laboratorio(class="form-select") }}
-                        {% endif %}                    </div>
-                </div>
-                
-                <div class="row">
-                    <!-- Control Sedronar -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.control_sedronar.label(class="form-label") }}
-                        {% if form.control_sedronar.errors %}
-                            {{ form.control_sedronar(class="form-select is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.control_sedronar.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.control_sedronar(class="form-select") }}
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="mt-4 text-end">
-                    <button type="submit" class="btn btn-primary">
-                        Generar Reporte
-                    </button>
-                    
-                    {% if reporte_data %}
-                    <a href="{{ url_for('admin.reporte_movimientos') }}?clear=1" class="btn btn-outline-secondary ms-2">
-                        <i class="fas fa-times me-1"></i>Limpiar Filtros
-                    </a>
-                    {% endif %}
-                </div>
-            </form>
-        </div>
-    </div>
+<nav aria-label="Ubicación" class="mb-3">
+    <ol class="breadcrumb mb-0" style="font-size: var(--texto-sm)">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administración</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Reporte de movimientos</li>
+    </ol>
+</nav>
 
-    {% if reporte_data %}
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Resultados del Reporte</h6>
-            <a href="{{ url_for('admin.exportar_reporte_excel') }}" class="btn btn-sm btn-success">
-                <i class="fas fa-table me-2"></i>Exportar a Excel
-            </a>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="reporte-table" width="100%" cellspacing="0">
-                    <thead>                        <tr>
-                            <th>Fecha</th>
-                            <th>Producto</th>
-                            <th>Stock Inicial - Cantidad</th>
-                            <th>Stock Inicial - Unidad</th>
-                            <th>Movimiento - Tipo</th>
-                            <th>Movimiento - Cantidad</th>
-                            <th>Movimiento - Unidad</th>
-                            <th>Stock Final - Cantidad</th>
-                            <th>Stock Final - Unidad</th>
-                            <th>Documento - Tipo</th>
-                            <th>Documento - Número</th>
-                            <th>CUIT Proveedor</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in reporte_data %}
-                        <tr>
-                            <td>{{ item.fecha.strftime('%d/%m/%Y') }}</td>
-                            <td>{{ item.producto_nombre }}</td>
-                            <td>{{ item.stock_inicial_cantidad }}</td>
-                            <td>{{ item.stock_inicial_unidad }}</td>
-                            <td>
-                                {% if item.tipo_movimiento == 'ingreso' %}
-                                    <span class="badge bg-success">Ingreso</span>
-                                {% elif item.tipo_movimiento == 'compra' %}
-                                    <span class="badge bg-primary">Compra</span>
-                                {% elif item.tipo_movimiento == 'uso' %}
-                                    <span class="badge bg-warning text-dark">Uso</span>
-                                {% elif item.tipo_movimiento == 'transferencia' %}
-                                    <span class="badge bg-info text-dark">Transferencia</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ item.tipo_movimiento|title }}</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ item.cantidad }}</td>
-                            <td>{{ item.unidad_medida }}</td>
-                            <td>{{ item.stock_final_cantidad }}</td>
-                            <td>{{ item.stock_final_unidad }}</td>
-                            <td>
-                                {% if item.tipo_documento %}
-                                    {{ item.tipo_documento|capitalize }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>                            <td>
-                                {% if item.numero_documento %}
-                                    {{ item.numero_documento }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if item.cuit_proveedor %}
-                                    {{ item.cuit_proveedor }}
-                                {% else %}
-                                    -
-                                {% endif %}                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+{{ page_header('Reporte de movimientos',
+               'El detalle de cada movimiento en un período, con el stock antes y después.') }}
+
+<div class="card mb-4">
+    <div class="card-header">Filtros</div>
+    <div class="card-body">
+        <form method="POST" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="row">
+                <div class="col-md-3">{{ field(form.fecha_inicial, type='date') }}</div>
+                <div class="col-md-3">{{ field(form.fecha_final, type='date') }}</div>
+                <div class="col-md-3">{{ field(form.laboratorio) }}</div>
+                <div class="col-md-3">{{ field(form.tipo_producto) }}</div>
             </div>
-            
-            <!-- Paginación -->
-            {% if pagination %}
-            {{ render_pagination(pagination, 'admin.reporte_movimientos', item_name='registros') }}
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-</div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    $(document).ready(function() {
-        $('#reporte-table').DataTable({
-            language: {
-                url: '{{ url_for("static", filename="js/Spanish.json") }}'
-            },
-            dom: 'frti',  // No mostrar la paginación de DataTables
-            buttons: [
-                'copy', 'excel', 'pdf'
-            ],
-            paging: false // Desactivar la paginación de DataTables ya que usamos la del servidor
-        });
-    });
-</script>
+            <div class="row">
+                <div class="col-md-6">{{ field(form.control_sedronar) }}</div>
+            </div>
+
+            <div class="form-actions">
+                {% if reporte_data %}
+                <a href="{{ url_for('admin.reporte_movimientos') }}?clear=1" class="btn btn-secondary">
+                    Limpiar filtros
+                </a>
+                {% endif %}
+                {#
+                  Un reporte sobre un período largo tarda: sin estado de carga
+                  no había forma de saber si el pedido había salido.
+                #}
+                <button type="submit" class="btn btn-primary" data-texto-cargando="Generando…">
+                    <i class="fas fa-chart-column btn-icono"></i>
+                    <span class="btn-texto">Generar reporte</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if reporte_data %}
+<div class="card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Resultados</span>
+        <a href="{{ url_for('admin.exportar_reporte_excel') }}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-file-excel"></i> Exportar a Excel
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="reporte-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Producto</th>
+                    <th class="text-end">Stock previo</th>
+                    <th>Movimiento</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Stock final</th>
+                    <th>Documento</th>
+                    <th>CUIT proveedor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in reporte_data %}
+                <tr>
+                    <td class="text-muted text-nowrap numeros-tabulares">
+                        {{ item.fecha.strftime('%d/%m/%Y') }}
+                    </td>
+                    <td>
+                        <div class="fw-medium">{{ item.producto_nombre }}</div>
+                        <div class="text-tenue" style="font-size: var(--texto-sm)">{{ item.producto_id }}</div>
+                    </td>
+                    <td class="celda-numero text-nowrap">
+                        {{ '%g'|format(item.stock_inicial_cantidad|float) }}
+                        <span class="text-muted">{{ item.stock_inicial_unidad }}</span>
+                    </td>
+                    <td>{{ tipo_movimiento_badge(item.tipo_movimiento) }}</td>
+                    <td class="celda-numero text-nowrap">
+                        {{ '%g'|format(item.cantidad|float) }}
+                        <span class="text-muted">{{ item.unidad_medida }}</span>
+                    </td>
+                    <td class="celda-numero text-nowrap fw-medium">
+                        {{ '%g'|format(item.stock_final_cantidad|float) }}
+                        <span class="text-muted fw-normal">{{ item.stock_final_unidad }}</span>
+                    </td>
+                    <td class="text-muted">
+                        {% if item.tipo_documento %}
+                            {{ item.tipo_documento|capitalize }}
+                            {% if item.numero_documento %}
+                            <span class="numeros-tabulares">{{ item.numero_documento }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-tenue">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted numeros-tabulares">
+                        {{ item.cuit_proveedor or '—' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{ render_pagination(pagination, 'admin.reporte_movimientos', item_name='movimientos') }}
+
+{% else %}
+
+<div class="card">
+    {{ empty_state(
+        'Elegí un período y generá el reporte',
+        'El reporte muestra cada movimiento del rango de fechas con el stock antes y después, y se puede exportar a Excel.',
+        icono='fa-chart-column') }}
+</div>
+
+{% endif %}
 {% endblock %}

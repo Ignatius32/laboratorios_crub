@@ -227,72 +227,6 @@ def monitor_performance(threshold_ms: float = 1000, alert_on_slow: bool = True):
         return wrapper
     return decorator
 
-def log_security_event(event_type: str, risk_level: str = "medium"):
-    """
-    Decorador para eventos de seguridad.
-    
-    Args:
-        event_type: Tipo de evento de seguridad
-        risk_level: Nivel de riesgo (low, medium, high, critical)
-    """
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            security_logger = get_security_logger()
-            
-            security_context = {
-                "event_type": event_type,
-                "risk_level": risk_level,
-                "function": func.__name__,
-                "module": func.__module__,
-                "timestamp": time.time()
-            }
-            
-            # Contexto de usuario y request
-            try:
-                if current_user.is_authenticated:
-                    security_context.update({
-                        "user_id": current_user.idUsuario,
-                        "user_role": current_user.rol
-                    })
-                
-                if request:
-                    security_context.update({
-                        "ip_address": request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr),
-                        "user_agent": request.headers.get('User-Agent'),
-                        "endpoint": request.endpoint,
-                        "method": request.method
-                    })
-            except:
-                pass
-            
-            # Log evento de seguridad
-            log_level = "warning" if risk_level in ["medium", "high"] else "critical" if risk_level == "critical" else "info"
-            
-            getattr(security_logger, log_level)(f"SECURITY EVENT: {event_type}", **security_context)
-            
-            try:
-                result = func(*args, **kwargs)
-                
-                # Log éxito del evento de seguridad
-                security_context["result"] = "success"
-                security_logger.info(f"SECURITY EVENT SUCCESS: {event_type}", **security_context)
-                
-                return result
-                
-            except Exception as e:
-                # Log fallo del evento de seguridad
-                security_context.update({
-                    "result": "failed",
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
-                security_logger.error(f"SECURITY EVENT FAILED: {event_type}", **security_context)
-                raise
-                
-        return wrapper
-    return decorator
-
 # Funciones de utilidad
 
 def _sanitize_args(args: tuple, kwargs: dict) -> dict:
@@ -341,10 +275,6 @@ def log_admin_action(action_description: str):
 def log_data_modification(entity_type: str):
     """Decorador para modificaciones de datos."""
     return audit_user_action(f"DATA_MODIFICATION: {entity_type}", sensitive=True)
-
-def log_authentication_event(event_type: str):
-    """Decorador para eventos de autenticación."""
-    return log_security_event(f"AUTH: {event_type}", risk_level="high")
 
 def log_business_operation(operation_name: str):
     """Decorador para operaciones de negocio importantes."""

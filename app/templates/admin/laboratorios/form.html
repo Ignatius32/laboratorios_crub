@@ -1,119 +1,54 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import page_header, field, form_actions %}
 
 {% block content %}
-<div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Panel de Administración</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_laboratorios') }}">Laboratorios</a></li>
-            <li class="breadcrumb-item active" aria-current="page">{{ 'Editar Laboratorio' if laboratorio else 'Nuevo Laboratorio' }}</li>
-        </ol>
-    </nav>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">{{ 'Editar Laboratorio' if laboratorio else 'Nuevo Laboratorio' }}</h6>
-        </div>
-        <div class="card-body">
-            <form method="POST">
-                {{ form.hidden_tag() }}
-                
-                <div class="row">
-                    <!-- ID Laboratorio -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.idLaboratorio.label(class="form-label") }}
-                        {% if laboratorio %}
-                            {{ form.idLaboratorio(class="form-control", readonly=True) }}
-                        {% else %}
-                            {% if form.idLaboratorio.errors %}
-                                {{ form.idLaboratorio(class="form-control is-invalid") }}
-                                <div class="invalid-feedback">
-                                    {% for error in form.idLaboratorio.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                {{ form.idLaboratorio(class="form-control") }}
-                            {% endif %}
-                        {% endif %}
-                        <small class="form-text text-muted">Identificador único del laboratorio (ej: LAB001)</small>
-                    </div>
-                    
-                    <!-- Nombre -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.nombre.label(class="form-label") }}
-                        {% if form.nombre.errors %}
-                            {{ form.nombre(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.nombre.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.nombre(class="form-control") }}
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <!-- Dirección -->
-                <div class="mb-3">
-                    {{ form.direccion.label(class="form-label") }}
-                    {% if form.direccion.errors %}
-                        {{ form.direccion(class="form-control is-invalid") }}
-                        <div class="invalid-feedback">
-                            {% for error in form.direccion.errors %}
-                                {{ error }}
-                            {% endfor %}
+        <nav aria-label="Ubicación" class="mb-3">
+            <ol class="breadcrumb mb-0" style="font-size: var(--texto-sm)">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administración</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.list_laboratorios') }}">Laboratorios</a></li>
+                <li class="breadcrumb-item active" aria-current="page">
+                    {{ 'Editar' if laboratorio else 'Nuevo' }}
+                </li>
+            </ol>
+        </nav>
+
+        {{ page_header(
+            'Editar laboratorio' if laboratorio else 'Nuevo laboratorio',
+            laboratorio.nombre if laboratorio else 'Un laboratorio es donde se registran los movimientos de stock.') }}
+
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ field(form.idLaboratorio,
+                                     ayuda='Identificador único, por ejemplo LAB001.',
+                                     readonly=(laboratorio is not none)) }}
                         </div>
-                    {% else %}
-                        {{ form.direccion(class="form-control") }}
-                    {% endif %}
-                </div>
-                
-                <div class="row">
-                    <!-- Teléfono -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.telefono.label(class="form-label") }}
-                        {% if form.telefono.errors %}
-                            {{ form.telefono(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.telefono.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.telefono(class="form-control") }}
-                        {% endif %}
+                        <div class="col-md-8">
+                            {{ field(form.nombre, placeholder='Laboratorio de Química Analítica') }}
+                        </div>
                     </div>
-                    
-                    <!-- Email -->
-                    <div class="col-md-6 mb-3">
-                        {{ form.email.label(class="form-label") }}
-                        {% if form.email.errors %}
-                            {{ form.email(class="form-control is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in form.email.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ form.email(class="form-control") }}
-                        {% endif %}
+
+                    {{ field(form.direccion, placeholder='Quintral 1250') }}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ field(form.telefono, placeholder='294 444 5600') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ field(form.email, placeholder='quimica@crub.uncoma.edu.ar') }}
+                        </div>
                     </div>
-                </div>
-                  <div class="mt-4 text-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Guardar
-                    </button>
-                    <a href="{{ url_for('admin.list_laboratorios') }}" class="btn btn-secondary confirm-action" 
-                       data-message="¿Está seguro que desea cancelar?" 
-                       data-warning="Los cambios no guardados se perderán."
-                       data-btn-text="Sí, Cancelar"
-                       data-btn-class="btn-cancel">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </a>
-                </div>
-            </form>
+
+                    {{ form_actions(url_for('admin.list_laboratorios')) }}
+                </form>
+            </div>
         </div>
     </div>
 </div>

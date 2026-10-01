@@ -1,78 +1,50 @@
 {% extends 'base.html' %}
+{% from 'macros/ui.html' import page_header, field, form_actions %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>{{ title }}</h1>
-        <a href="{{ url_for('admin.list_proveedores') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Volver a la lista
-        </a>
-    </div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
 
-    <!-- {% include 'flash_messages.html' %} -->
+        <nav aria-label="Ubicación" class="mb-3">
+            <ol class="breadcrumb mb-0" style="font-size: var(--texto-sm)">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administración</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.list_proveedores') }}">Proveedores</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+            </ol>
+        </nav>
 
-    <div class="card shadow">
-        <div class="card-body">
-            <form method="POST" novalidate>
-                {{ form.hidden_tag() }}
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="nombre" class="form-label">Nombre *</label>
-                        {{ form.nombre(class="form-control" + (" is-invalid" if form.nombre.errors else "")) }}
-                        {% for error in form.nombre.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
+        {{ page_header(title, 'Los proveedores se asocian a los movimientos de tipo compra.') }}
+
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-7">
+                            {{ field(form.nombre, placeholder='Droguería del Sur') }}
+                        </div>
+                        <div class="col-md-5">
+                            {{ field(form.cuit,
+                                     ayuda='Con o sin guiones. Se guarda sólo con los dígitos.',
+                                     placeholder='XX-XXXXXXXX-X') }}
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <label for="cuit" class="form-label">CUIT *</label>
-                        {{ form.cuit(class="form-control" + (" is-invalid" if form.cuit.errors else ""), placeholder="XX-XXXXXXXX-X") }}
-                        {% for error in form.cuit.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                        <small class="form-text text-muted">Formato: XX-XXXXXXXX-X o XXXXXXXXXXX</small>
+
+                    {{ field(form.direccion, placeholder='Dirección del proveedor') }}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ field(form.telefono, placeholder='294 444 5600') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ field(form.email, type='email', placeholder='ventas@proveedor.com') }}
+                        </div>
                     </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <label for="direccion" class="form-label">Dirección</label>
-                        {{ form.direccion(class="form-control" + (" is-invalid" if form.direccion.errors else "")) }}
-                        {% for error in form.direccion.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="telefono" class="form-label">Teléfono</label>
-                        {{ form.telefono(class="form-control" + (" is-invalid" if form.telefono.errors else "")) }}
-                        {% for error in form.telefono.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    <div class="col-md-6">
-                        <label for="email" class="form-label">Email</label>
-                        {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), type="email") }}
-                        {% for error in form.email.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                </div>
-                  <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Guardar
-                    </button>
-                    <a href="{{ url_for('admin.list_proveedores') }}" class="btn btn-secondary confirm-action" 
-                       data-message="¿Está seguro que desea cancelar?" 
-                       data-warning="Los cambios no guardados se perderán."
-                       data-btn-text="Sí, Cancelar"
-                       data-btn-class="btn-cancel">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </a>
-                </div>
-            </form>
+
+                    {{ form_actions(url_for('admin.list_proveedores')) }}
+                </form>
+            </div>
         </div>
     </div>
 </div>

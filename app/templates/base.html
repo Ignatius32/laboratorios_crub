@@ -3,620 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% if title %}{{ title }} | {% endif %}Gestión de Laboratorios CRUB{% endblock %}</title>
-    <!-- Debug configuration -->
-    <meta name="keycloak-debug" content="true">
-    <meta name="browser-debug" content="true">    <!-- Preconect to necessary domains -->
+    <title>{% block title %}{% if title %}{{ title }} | {% endif %}Laboratorios CRUB{% endblock %}</title>
+
+    {#
+      Estos dos metas los lee keycloak-debug.js para decidir si registra cada
+      pedido en la consola. Estaban fijados en "true" a mano, así que el modo
+      depuración quedaba activo en producción sin importar la configuración.
+    #}
+    <meta name="keycloak-debug" content="{{ 'true' if config.KEYCLOAK_DEBUG else 'false' }}">
+    <meta name="browser-debug" content="{{ 'true' if config.BROWSER_DEBUG else 'false' }}">
+
+    {# El color de la barra del navegador móvil, por tema. #}
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0e0e11" media="(prefers-color-scheme: dark)">
+
+    {#
+      Sin esto el navegador pedía /favicon.ico en cada carga y se llevaba un
+      404, que además quedaba registrado como WARNING en security.log una vez
+      por página. logo.svg ya estaba en el proyecto y no lo usaba nadie.
+    #}
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}" type="image/svg+xml">
+    <link rel="alternate icon" href="{{ url_for('static', filename='img/logo-web.png') }}">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3.3 estable (antes: 5.3.0-alpha1) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">    <!-- Variables CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
-    <!-- Helper CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
-    <!-- Common CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
-    <!-- DataTables Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/datatables-custom.css') }}">    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Filters Responsive CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/filters-responsive.css') }}">
-    <!-- Fichas de Seguridad CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/fichas-seguridad.css') }}">
-    {% if 'admin' in request.path %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin-panel.css') }}">
-    {% endif %}
-    {% if 'tecnicos' in request.path %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tecnicos.css') }}">
-    {% endif %}
+    {#
+      Dos hojas y sólo dos. Antes eran ocho, con dos bloques :root distintos y
+      los mismos selectores redefinidos en varias: el resultado dependía del
+      orden de los <link>. tokens.css tiene los valores; app.css, las reglas.
+      El orden importa: los tokens primero.
+    #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+
     {% block styles %}{% endblock %}
 </head>
-<body>    <!-- Navigation - simplificada -->    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+<body>
+    <a href="#contenido" class="saltar-al-contenido">Saltar al contenido</a>
+
+    <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">                
-                <img src="{{ url_for('static', filename='img/logo5.png') }}" alt="CRUB Logo" height="40" class="me-2">
-                <span class="fw-medium separator-symbol">|&nbsp</span>
-                <span class="fw-medium">Laboratorios CRUB</span>
+            {#
+              logo-web.png es el único logo que se usa (con logo.svg de favicon).
+              Las otras variantes que había —logo, logo2, logo3, logo5,
+              logo-portada— eran casi blancas, para fondo oscuro: sobre la barra
+              blanca no se veía nada. No las referenciaba ninguna plantilla.
+            #}
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='img/logo-web.png') }}"
+                     alt="UNCo Bariloche">
+                <span class="separator-symbol">/</span>
+                <span>Laboratorios CRUB</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navPrincipal" aria-controls="navPrincipal"
+                    aria-expanded="false" aria-label="Abrir menú">
                 <span class="navbar-toggler-icon"></span>
-            </button>            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    {% if not current_user.is_authenticated %}
+            </button>
+
+            <div class="collapse navbar-collapse" id="navPrincipal">
+                <ul class="navbar-nav ms-auto align-items-lg-center">
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.rol == 'admin' %}
                         <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('main.index') %}active{% endif %}" href="{{ url_for('main.index') }}">Inicio</a>
+                            <a class="nav-link {{ 'active' if request.path.startswith('/admin') }}"
+                               href="{{ url_for('admin.dashboard') }}">Administración</a>
                         </li>
-                    {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'about' in request.path %}active{% endif %}" href="{{ url_for('main.about') }}">Acerca de</a>
-                    </li>
-                    {% if current_user.is_authenticated %}{% if current_user.rol == 'admin' %}
-                            <li class="nav-item">
-                                <a class="nav-link {% if 'admin' in request.path %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">
-                                    Panel Admin
-                                </a>
-                            </li>
-                        {% else %}
-                            <li class="nav-item">
-                                <a class="nav-link {% if 'tecnicos' in request.path %}active{% endif %}" href="{{ url_for('tecnicos.dashboard') }}">
-                                    Panel Técnico
-                                </a>
-                            </li>
-                        {% endif %}                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
+                        {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.path.startswith('/tecnicos') }}"
+                               href="{{ url_for('tecnicos.dashboard') }}">Laboratorios</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'about' in request.path }}"
+                               href="{{ url_for('main.about') }}">Acerca de</a>
+                        </li>
+
+                        <li class="nav-item dropdown ms-lg-2">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2"
+                               href="#" id="menuUsuario" role="button"
                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user me-1"></i> {{ current_user.nombre }}
+                                <span class="avatar-iniciales" aria-hidden="true">{{
+                                    (current_user.nombre[:1] ~ current_user.apellido[:1])|upper
+                                }}</span>
+                                <span class="d-lg-none">{{ current_user.nombre }}</span>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">                                <li>
-                                    <div class="dropdown-item-text">
-                                        <div class="fw-medium">{{ current_user.nombre }} {{ current_user.apellido }}</div>
-                                        <div class="text-muted small">{{ current_user.email }}</div>
-                                    </div>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="menuUsuario">
+                                <li class="px-3 py-2">
+                                    <div class="fw-semibold">{{ current_user.nombre }} {{ current_user.apellido }}</div>
+                                    <div class="text-muted" style="font-size: var(--texto-sm)">{{ current_user.email }}</div>
+                                    <span class="badge {{ 'bg-primary' if current_user.rol == 'admin' else 'bg-secondary' }} mt-2">
+                                        {{ 'Administrador' if current_user.rol == 'admin' else 'Técnico' }}
+                                    </span>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item confirm-action" href="{{ url_for('auth.logout') }}" data-message="¿Está seguro que desea cerrar sesión?">
-                                    <i class="fas fa-sign-out-alt me-2 opacity-75"></i>Cerrar Sesión
-                                </a></li>
-                            </ul>                        </li>                    {% else %}
+                                <li>
+                                    <a class="dropdown-item confirm-action" href="{{ url_for('auth.logout') }}"
+                                       data-message="¿Cerrar la sesión?"
+                                       data-warning="Vas a tener que volver a ingresar con tu cuenta del CRUB."
+                                       data-btn-text="Cerrar sesión"
+                                       data-btn-class="btn-primary">
+                                        <i class="fas fa-arrow-right-from-bracket me-2 text-muted"></i>Cerrar sesión
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
                         <li class="nav-item">
-                            <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{{ url_for('auth.login') }}">Iniciar Sesión</a>
+                            <a class="nav-link {{ 'active' if request.path == url_for('main.index') }}"
+                               href="{{ url_for('main.index') }}">Inicio</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'about' in request.path }}"
+                               href="{{ url_for('main.about') }}">Acerca de</a>
+                        </li>
+                        <li class="nav-item ms-lg-2">
+                            <a class="btn btn-primary btn-sm" href="{{ url_for('auth.login') }}">Ingresar</a>
                         </li>
                     {% endif %}
                 </ul>
             </div>
         </div>
-    </nav>    <!-- Flash Messages - simplificados -->
-    <div class="container mt-3">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show border-0 shadow-sm" role="alert" style="border-radius: 6px;">
-                        <div class="d-flex">
-                            {% if category == 'success' %}
-                                <i class="fas fa-check-circle me-2 mt-1"></i>
-                            {% elif category == 'danger' or category == 'error' %}
-                                <i class="fas fa-exclamation-circle me-2 mt-1"></i>
-                            {% elif category == 'warning' %}
-                                <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
-                            {% elif category == 'info' %}
-                                <i class="fas fa-info-circle me-2 mt-1"></i>
-                            {% endif %}
-                            <div>{{ message }}</div>
-                        </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
+    </nav>
 
-    <!-- Main Content -->
-    <main class="container my-4">
+    {#
+      Los mensajes flash van fijos arriba a la derecha y se descartan solos
+      (ui.js). Antes se insertaban en el flujo y empujaban toda la página hacia
+      abajo al aparecer, moviendo lo que la persona estaba por tocar.
+    #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-contenedor" role="status" aria-live="polite">
+            {% for category, message in messages %}
+            {% set clase = 'danger' if category in ('error', 'danger') else category %}
+            <div class="alert alert-{{ clase }} alert-dismissible" role="alert">
+                <i class="fas {{
+                    'fa-circle-check' if clase == 'success'
+                    else 'fa-circle-exclamation' if clase == 'danger'
+                    else 'fa-triangle-exclamation' if clase == 'warning'
+                    else 'fa-circle-info' }} mt-1" aria-hidden="true"></i>
+                <div>{{ message }}</div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <main class="container py-4" id="contenido">
         {% block content %}{% endblock %}
-    </main>    <!-- Footer - simplificado -->
-    <footer class="py-4 mt-5 border-top">
+    </main>
+
+    <footer>
         <div class="container">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <img src="{{ url_for('static', filename='img/logo-web.png') }}" alt="CRUB Logo" height="70" class="me-2">
-                    <!-- <div class="fw-medium">Centro Regional Universitario Bariloche</div>
-                    <div class="text-muted small">Universidad Nacional del Comahue</div> -->
+            <div class="row align-items-center g-3">
+                <div class="col-md-7 d-flex align-items-center gap-3">
+                    <img src="{{ url_for('static', filename='img/logo-web.png') }}" alt="CRUB">
+                    <div>
+                        <div class="fw-semibold" style="color: var(--texto)">Centro Regional Universitario Bariloche</div>
+                        <div>Universidad Nacional del Comahue</div>
+                    </div>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <p class="text-muted small mb-0">&copy; {{ now.year }} - Todos los derechos reservados</p>
+                <div class="col-md-5 text-md-end">
+                    <p class="mb-0">&copy; {{ now.year }} — Sistema de Gestión de Laboratorios</p>
                 </div>
             </div>
         </div>
-    </footer><!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    
-    <!-- Modal global para visualizar fichas de seguridad -->
-    <div class="modal fade" id="fichasSeguridadModal" tabindex="-1" aria-labelledby="fichasSeguridadModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
+    </footer>
+
+    {# Modal del visor de fichas de seguridad. Lo maneja fichas-seguridad.js. #}
+    <div class="modal fade" id="fichasSeguridadModal" tabindex="-1"
+         aria-labelledby="fichasSeguridadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="fichasSeguridadModalLabel">
-                        <i class="fas fa-shield-alt me-2 text-warning"></i>
-                        Ficha de Seguridad - <span id="nombreProductoModal">Producto</span>
-                    </h5>
+                    <h2 class="modal-title h5" id="fichasSeguridadModalLabel">
+                        Ficha de seguridad — <span id="nombreProductoModal">Producto</span>
+                    </h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body p-0">
-                    <!-- Barra de herramientas -->
-                    <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
-                        <div class="d-flex align-items-center">
-                            <span class="badge bg-warning text-dark me-2">
-                                <i class="fas fa-exclamation-triangle me-1"></i>
-                                Material de Seguridad
-                            </span>
-                            <small class="text-muted">Documento requerido para manejo seguro</small>
-                        </div>
-                        <div class="btn-group">
-                            <a id="openFichaNewTabBtn" href="#" target="_blank" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-external-link-alt me-1"></i> Abrir en nueva pestaña
+                    <div class="d-flex justify-content-between align-items-center gap-3 px-4 py-3"
+                         style="border-bottom: 1px solid var(--borde); background: var(--superficie-sutil);">
+                        <p class="mb-0 text-muted" style="font-size: var(--texto-sm)">
+                            <i class="fas fa-triangle-exclamation me-1" style="color: var(--aviso)"></i>
+                            Información de riesgos, manipulación y almacenamiento.
+                        </p>
+                        <div class="d-flex gap-2">
+                            <a id="openFichaNewTabBtn" href="#" target="_blank" rel="noopener"
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-arrow-up-right-from-square"></i> Abrir aparte
                             </a>
-                            <a id="downloadFichaBtn" href="#" target="_blank" class="btn btn-outline-success btn-sm">
-                                <i class="fas fa-download me-1"></i> Descargar
+                            <a id="downloadFichaBtn" href="#" target="_blank" rel="noopener"
+                               class="btn btn-secondary btn-sm">
+                                <i class="fas fa-download"></i> Descargar
                             </a>
                         </div>
                     </div>
-                    
-                    <!-- Contenedor del documento -->
+
                     <div id="fichaDocumentContainer" class="position-relative">
-                        <!-- Spinner de carga -->
                         <div id="fichaLoadingSpinner" class="d-none">
-                            <div class="d-flex justify-content-center align-items-center" style="height: 400px;">
-                                <div class="text-center">
-                                    <div class="spinner-border text-primary mb-3" role="status">
-                                        <span class="visually-hidden">Cargando...</span>
-                                    </div>
-                                    <p class="text-muted">Cargando ficha de seguridad...</p>
+                            <div class="empty-state" style="min-height: 380px; justify-content: center;">
+                                <div class="spinner-border mb-3" style="color: var(--acento)" role="status">
+                                    <span class="visually-hidden">Cargando…</span>
                                 </div>
+                                <p class="empty-state-texto mb-0">Cargando la ficha de seguridad…</p>
                             </div>
                         </div>
-                        
-                        <!-- Contenedor del visor -->
                         <div id="fichaViewerContainer"></div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light">
-                    <small class="text-muted me-auto">
-                        <i class="fas fa-info-circle me-1"></i>
-                        La ficha de seguridad contiene información importante sobre riesgos, manipulación y almacenamiento.
-                    </small>
+                <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- DataTables JS -->
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>    <!-- Custom JS -->
-    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/confirm-action.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/filters-responsive.js') }}"></script>
-    <!-- Keycloak Debug JS (only in debug mode) -->
-    {% if config.get('KEYCLOAK_DEBUG', False) or config.get('BROWSER_DEBUG', False) %}
+    {#
+      Las URL de la aplicación, para el JavaScript. Todo lo que el JS necesite
+      construir sale de acá y no de una cadena escrita a mano: bajo un
+      despliegue en subdirectorio (/laboratorios-crub) una ruta absoluta apunta
+      fuera de la aplicación. url_for ya conoce el prefijo.
+    #}
+    <script>
+        window.APP_URLS = {
+            raiz: {{ (request.script_root or '') | tojson }},
+            nuevoProveedor: {{ url_for('tecnicos.api_nuevo_proveedor') | tojson }},
+            descargarArchivo: function (id) {
+                return {{ url_for('main.descargar_archivo_drive', file_id='__ID__') | tojson }}
+                    .replace('__ID__', encodeURIComponent(id));
+            },
+            fichaDirecta: function (id) {
+                return {{ url_for('main.ficha_seguridad_directo', file_id='__ID__') | tojson }}
+                    .replace('__ID__', encodeURIComponent(id));
+            }
+        };
+    </script>
+
+    {#
+      Bootstrap y nada más. Antes bajaban también jQuery, DataTables, DataTables
+      Buttons, JSZip y pdfmake (con vfs_fonts, ~1 MB de fuentes en base64) en
+      TODAS las páginas: cerca de 1,7 MB de JavaScript que no ejecutaba nadie.
+      No quedaba una sola llamada a .DataTable() ni a $() en el proyecto —los
+      listados se paginan en el servidor y el JS propio es nativo—, así que era
+      descarga y parseo puro sin contrapartida.
+    #}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            crossorigin="anonymous"></script>
+
+    {#
+      ui.js reemplaza a common.js, main.js, confirm-action.js y
+      filters-responsive.js: los cuatro se pisaban entre sí (dos inicializaban
+      tooltips, dos cerraban alertas) y ninguno daba estado de carga.
+    #}
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/fichas-seguridad.js') }}"></script>
+
+    {% if config.KEYCLOAK_DEBUG or config.BROWSER_DEBUG %}
     <script src="{{ url_for('static', filename='js/keycloak-debug.js') }}"></script>
     {% endif %}
-    <!-- Fichas de Seguridad JS -->
-    <script src="{{ url_for('static', filename='js/fichas-seguridad-ejemplos.js') }}"></script>
-    
-    <!-- Script global para modal de fichas de seguridad -->
-    <script>
-        /**
-         * Modal global para visualizar fichas de seguridad de productos químicos
-         * Maneja PDFs, documentos de Word e imágenes desde Google Drive
-         */
-        let fichasSeguridadModalInstance = null;
-        let lastFichaDriveId = null;
-        let lastFichaTipo = null;
-        let lastProductoNombre = null;
 
-        /**
-         * Función principal para mostrar una ficha de seguridad
-         * @param {string} driveId - ID del archivo en Google Drive
-         * @param {string} nombreProducto - Nombre del producto químico
-         * @param {string} tipoArchivo - Tipo de archivo (pdf, doc, docx, jpg, png, etc.)
-         */
-        function showFichaSeguridad(driveId, nombreProducto, tipoArchivo = 'pdf') {
-            // Elementos del DOM
-            const modal = document.getElementById('fichasSeguridadModal');
-            const modalTitle = document.getElementById('nombreProductoModal');
-            const viewerContainer = document.getElementById('fichaViewerContainer');
-            const loadingSpinner = document.getElementById('fichaLoadingSpinner');
-            const openBtn = document.getElementById('openFichaNewTabBtn');
-            const downloadBtn = document.getElementById('downloadFichaBtn');
-            
-            // Guardar información para uso posterior
-            lastFichaDriveId = driveId;
-            lastFichaTipo = tipoArchivo;
-            lastProductoNombre = nombreProducto;
-            
-            // Actualizar título del modal
-            modalTitle.textContent = nombreProducto || 'Producto desconocido';
-            
-            // Validar que se haya proporcionado un ID de Drive
-            if (!driveId || driveId.trim() === '') {
-                mostrarErrorFicha('No se ha configurado una ficha de seguridad para este producto.');
-                mostrarModal();
-                return;
-            }
-            
-            // Mostrar spinner de carga
-            mostrarCargaFicha();
-              // Construir URLs para el archivo
-            const fileType = (tipoArchivo || 'pdf').toLowerCase();
-            const previewUrl = `/descargar_archivo_drive/${driveId}`;
-            const previewUrlDirecto = `/ficha_seguridad_directo/${driveId}`;
-            
-            // Configurar botones de acción
-            configurarBotonesFicha(previewUrl, previewUrlDirecto);
-              // Cargar documento según su tipo
-            setTimeout(() => {
-                cargarDocumentoPorTipo(fileType, previewUrl, previewUrlDirecto, nombreProducto);
-            }, 300); // Pequeña pausa para mostrar el spinner
-            
-            // Mostrar modal
-            mostrarModal();
-        }        /**
-         * Carga el documento según su tipo de archivo
-         * @param {string} fileType - Tipo de archivo
-         * @param {string} previewUrl - URL del archivo (método principal)
-         * @param {string} previewUrlDirecto - URL directa de Google Drive (fallback)
-         * @param {string} nombreProducto - Nombre del producto
-         */
-        function cargarDocumentoPorTipo(fileType, previewUrl, previewUrlDirecto, nombreProducto) {
-            const viewerContainer = document.getElementById('fichaViewerContainer');
-
-            try {
-                let nodoVisor;
-
-                if (['pdf'].includes(fileType)) {
-                    // Para PDFs usar iframe con parámetros de embebido y fallback
-                    nodoVisor = crearIframeFicha(
-                        `${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH`,
-                        nombreProducto,
-                        () => cargarConFallback(previewUrlDirecto, nombreProducto)
-                    );
-                } else if (['doc', 'docx'].includes(fileType)) {
-                    // Para documentos de Word, usar iframe con visualizador y fallback
-                    nodoVisor = crearIframeFicha(
-                        previewUrl,
-                        nombreProducto,
-                        () => cargarConFallback(previewUrlDirecto, nombreProducto)
-                    );
-                } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileType)) {
-                    // Para imágenes mostrar directamente con fallback
-                    nodoVisor = document.createElement('div');
-                    nodoVisor.className = 'text-center p-4';
-
-                    const imagen = document.createElement('img');
-                    imagen.src = previewUrl;
-                    imagen.className = 'img-fluid';
-                    imagen.style.maxHeight = '600px';
-                    imagen.style.borderRadius = '8px';
-                    imagen.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
-                    imagen.alt = `Ficha de Seguridad - ${nombreProducto || ''}`;
-                    imagen.addEventListener('load', ocultarCargaFicha);
-                    imagen.addEventListener('error', function manejarError() {
-                        // Primer error: reintentar con la URL directa de Drive.
-                        // Segundo error: ya no hay de dónde cargar.
-                        if (imagen.src.includes('ficha_seguridad_directo')) {
-                            imagen.removeEventListener('error', manejarError);
-                            mostrarErrorFicha('Error al cargar la imagen de la ficha de seguridad.');
-                        } else {
-                            imagen.src = previewUrlDirecto;
-                        }
-                    });
-
-                    nodoVisor.appendChild(imagen);
-                } else {
-                    // Para otros tipos de archivo mostrar mensaje con ambas opciones
-                    nodoVisor = crearAvisoNoVisualizable(fileType, previewUrl, previewUrlDirecto);
-                }
-
-                // Insertar el contenido y ocultar spinner
-                viewerContainer.replaceChildren(nodoVisor);
-
-                // Si es una imagen o contenido sin iframe, ocultar spinner inmediatamente
-                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileType) || !['pdf', 'doc', 'docx'].includes(fileType)) {
-                    setTimeout(ocultarCargaFicha, 500);
-                }
-
-            } catch (error) {
-                console.error('Error al cargar la ficha de seguridad:', error);
-                mostrarErrorFicha('Error técnico al cargar la ficha de seguridad.');
-            }
-        }
-
-        /**
-         * Crea el iframe del visor.
-         * Se construye vía DOM (no innerHTML) para que el nombre del producto
-         * nunca se interprete como marcado.
-         * @param {string} src - URL a cargar
-         * @param {string} nombreProducto - Nombre del producto
-         * @param {Function} [alFallar] - Callback opcional ante error de carga
-         * @returns {HTMLIFrameElement}
-         */
-        function crearIframeFicha(src, nombreProducto, alFallar) {
-            const iframe = document.createElement('iframe');
-            iframe.src = src;
-            iframe.width = '100%';
-            iframe.height = '700px';
-            iframe.style.border = 'none';
-            iframe.style.minHeight = '700px';
-            iframe.title = `Ficha de Seguridad - ${nombreProducto || ''}`;
-            iframe.setAttribute('allow', 'fullscreen');
-            iframe.addEventListener('load', ocultarCargaFicha);
-            if (typeof alFallar === 'function') {
-                iframe.addEventListener('error', alFallar);
-            }
-            return iframe;
-        }
-
-        /**
-         * Crea el aviso para tipos de archivo que no se pueden mostrar en línea
-         * @param {string} fileType - Tipo de archivo
-         * @param {string} previewUrl - URL de descarga
-         * @param {string} previewUrlDirecto - URL directa de Google Drive
-         * @returns {HTMLDivElement}
-         */
-        function crearAvisoNoVisualizable(fileType, previewUrl, previewUrlDirecto) {
-            const aviso = document.createElement('div');
-            aviso.className = 'alert alert-info m-4';
-            aviso.innerHTML = `
-                <i class="fas fa-file-alt fa-2x mb-3 d-block text-center"></i>
-                <h5 class="text-center">Archivo no visualizable en línea</h5>
-                <p class="text-center mb-3"></p>
-                <div class="text-center">
-                    <a class="btn btn-primary me-2" target="_blank" rel="noopener">
-                        <i class="fas fa-download me-2"></i>Descargar archivo
-                    </a>
-                    <a class="btn btn-outline-primary" target="_blank" rel="noopener">
-                        <i class="fas fa-external-link-alt me-2"></i>Abrir en Google Drive
-                    </a>
-                </div>
-            `;
-
-            const parrafo = aviso.querySelector('p');
-            parrafo.textContent = `Este tipo de archivo (${(fileType || '').toUpperCase()}) no puede ser visualizado directamente en el navegador.`;
-
-            const enlaces = aviso.querySelectorAll('a');
-            enlaces[0].href = previewUrl;
-            enlaces[1].href = previewUrlDirecto;
-
-            return aviso;
-        }
-
-        /**
-         * Función de fallback para cargar con URL directa de Google Drive
-         * @param {string} fallbackUrl - URL directa de Google Drive
-         * @param {string} nombreProducto - Nombre del producto
-         */
-        function cargarConFallback(fallbackUrl, nombreProducto) {
-            console.log('Cargando con fallback URL:', fallbackUrl);
-            const viewerContainer = document.getElementById('fichaViewerContainer');
-
-            viewerContainer.replaceChildren(crearIframeFicha(fallbackUrl, nombreProducto));
-            setTimeout(ocultarCargaFicha, 1000);
-        }
-
-        /**
-         * Configura los botones de acción del modal
-         * @param {string} previewUrl - URL del archivo
-         * @param {string} previewUrlDirecto - URL directa de Google Drive
-         */
-        function configurarBotonesFicha(previewUrl, previewUrlDirecto) {
-            const openBtn = document.getElementById('openFichaNewTabBtn');
-            const downloadBtn = document.getElementById('downloadFichaBtn');
-            
-            // Configurar URLs de los botones (usar URL directa para abrir en nueva pestaña)
-            openBtn.href = previewUrlDirecto || previewUrl;
-            downloadBtn.href = previewUrl; // Usar URL de descarga para el botón de descarga
-            
-            // Mostrar botones
-            openBtn.style.display = '';
-            downloadBtn.style.display = '';
-            
-            // Agregar atributo de descarga al botón de descarga
-            downloadBtn.setAttribute('download', `ficha_seguridad_${lastProductoNombre || 'producto'}.${lastFichaTipo || 'pdf'}`);
-        }
-
-        /**
-         * Muestra el spinner de carga
-         */
-        function mostrarCargaFicha() {
-            const viewerContainer = document.getElementById('fichaViewerContainer');
-            const loadingSpinner = document.getElementById('fichaLoadingSpinner');
-            
-            viewerContainer.innerHTML = '';
-            loadingSpinner.classList.remove('d-none');
-        }
-
-        /**
-         * Oculta el spinner de carga
-         */
-        function ocultarCargaFicha() {
-            const loadingSpinner = document.getElementById('fichaLoadingSpinner');
-            loadingSpinner.classList.add('d-none');
-        }
-
-        /**
-         * Muestra un mensaje de error en el modal
-         * @param {string} mensaje - Mensaje de error a mostrar
-         */
-        function mostrarErrorFicha(mensaje) {
-            const viewerContainer = document.getElementById('fichaViewerContainer');
-            const openBtn = document.getElementById('openFichaNewTabBtn');
-            const downloadBtn = document.getElementById('downloadFichaBtn');
-            
-            viewerContainer.innerHTML = `
-                <div class="alert alert-warning m-4">
-                    <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block text-center text-warning"></i>
-                    <h5 class="text-center">Ficha de Seguridad No Disponible</h5>
-                    <p class="text-center mb-0" data-mensaje-error></p>
-                    <hr>
-                    <p class="text-center small text-muted mb-0">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Contacte al administrador del laboratorio para obtener la ficha de seguridad correspondiente.
-                    </p>
-                </div>
-            `;
-            viewerContainer.querySelector('[data-mensaje-error]').textContent = mensaje;
-            
-            // Ocultar botones si hay error
-            openBtn.style.display = 'none';
-            downloadBtn.style.display = 'none';
-            
-            ocultarCargaFicha();
-        }
-
-        /**
-         * Muestra el modal
-         */
-        function mostrarModal() {
-            fichasSeguridadModalInstance = new bootstrap.Modal(document.getElementById('fichasSeguridadModal'));
-            fichasSeguridadModalInstance.show();
-        }
-
-        /**
-         * Maneja el evento de cerrar modal para limpiar contenido
-         */
-        document.addEventListener('DOMContentLoaded', function() {
-            const modal = document.getElementById('fichasSeguridadModal');
-            const openBtn = document.getElementById('openFichaNewTabBtn');
-            const downloadBtn = document.getElementById('downloadFichaBtn');
-
-            // Apertura de fichas de seguridad por delegación.
-            // Los datos viajan en atributos data-*, nunca dentro de un onclick:
-            // así el nombre del producto jamás se evalúa como código.
-            // Al estar delegado en document también funciona con las filas que
-            // DataTables agrega dinámicamente al paginar.
-            document.addEventListener('click', function(evento) {
-                const disparador = evento.target.closest('[data-ficha-url]');
-                if (!disparador) {
-                    return;
-                }
-
-                evento.preventDefault();
-                const url = disparador.dataset.fichaUrl;
-                const nombre = disparador.dataset.fichaNombre || '';
-
-                if (disparador.dataset.fichaModo === 'temporal'
-                        && typeof mostrarFichaSeguridadTemporal === 'function') {
-                    mostrarFichaSeguridadTemporal(url, nombre);
-                } else {
-                    mostrarFichaSeguridadDesdeUrl(url, nombre);
-                }
-            });
-
-            // Limpiar contenido al cerrar el modal
-            modal.addEventListener('hidden.bs.modal', function () {
-                document.getElementById('fichaViewerContainer').innerHTML = '';
-                document.getElementById('nombreProductoModal').textContent = 'Producto';
-                lastFichaDriveId = null;
-                lastFichaTipo = null;
-                lastProductoNombre = null;
-                ocultarCargaFicha();
-            });
-            
-            // Cerrar modal automáticamente al hacer clic en los botones de acción
-            if (openBtn) {
-                openBtn.addEventListener('click', function(e) {
-                    if (fichasSeguridadModalInstance) {
-                        setTimeout(() => {
-                            fichasSeguridadModalInstance.hide();
-                        }, 300);
-                    }
-                });
-            }
-            
-            if (downloadBtn) {
-                downloadBtn.addEventListener('click', function(e) {
-                    if (fichasSeguridadModalInstance) {
-                        setTimeout(() => {
-                            fichasSeguridadModalInstance.hide();
-                        }, 300);
-                    }
-                });
-            }
-        });        /**
-         * Función de utilidad para extraer el ID de Google Drive de una URL
-         * @param {string} url - URL de Google Drive
-         * @returns {string|null} - ID del archivo o null si no se encuentra
-         */
-        function extraerDriveIdDeUrl(url) {
-            if (!url) return null;
-            
-            // Patrones comunes de URLs de Google Drive
-            const patterns = [
-                /\/file\/d\/([a-zA-Z0-9-_]+)/,
-                /id=([a-zA-Z0-9-_]+)/,
-                /\/d\/([a-zA-Z0-9-_]+)/
-            ];
-            
-            for (const pattern of patterns) {
-                const match = url.match(pattern);
-                if (match) return match[1];
-            }
-            
-            // Si la URL parece ser solo el ID
-            if (/^[a-zA-Z0-9-_]+$/.test(url)) {
-                return url;
-            }
-            
-            return null;
-        }
-
-        /**
-         * Función auxiliar que extrae el ID de Drive de una URL y llama a showFichaSeguridad
-         * @param {string} url - URL completa de Google Drive
-         * @param {string} nombreProducto - Nombre del producto
-         * @param {string} tipoArchivo - Tipo de archivo (opcional, por defecto 'pdf')
-         */
-        function mostrarFichaSeguridadDesdeUrl(url, nombreProducto, tipoArchivo = 'pdf') {
-            const driveId = extraerDriveIdDeUrl(url);
-            
-            if (!driveId) {
-                console.error('No se pudo extraer el ID de Google Drive de la URL:', url);
-                mostrarErrorFicha('URL de ficha de seguridad no válida. Contacte al administrador.');
-                mostrarModal();
-                return;
-            }
-            
-            // Intentar detectar el tipo de archivo desde la URL o el nombre
-            let tipoDetectado = tipoArchivo;
-            if (url.includes('.pdf') || url.includes('pdf')) {
-                tipoDetectado = 'pdf';
-            } else if (url.includes('.doc')) {
-                tipoDetectado = url.includes('.docx') ? 'docx' : 'doc';
-            } else if (url.includes('.jpg') || url.includes('.jpeg')) {
-                tipoDetectado = 'jpg';
-            } else if (url.includes('.png')) {
-                tipoDetectado = 'png';
-            }
-            
-            showFichaSeguridad(driveId, nombreProducto, tipoDetectado);
-        }
-    </script>
-    
     {% block scripts %}{% endblock %}
 </body>
 </html>
