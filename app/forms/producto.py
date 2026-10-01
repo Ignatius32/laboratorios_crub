@@ -22,7 +22,7 @@ OPCIONES_UNIDAD = [('', 'Seleccione…')] + [(u, u) for u in UNIDADES]
 # también son de alcance, no descuidos.
 
 class ProductoForm(FlaskForm):
-    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
+    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=200)])
     descripcion = TextAreaField('Descripción', validators=[Optional()])
     tipoProducto = SelectField('Tipo de Producto', 
                               choices=[('botiquin', 'Botiquín'), 
@@ -40,7 +40,7 @@ class ProductoForm(FlaskForm):
 
 
 class ProductoTecnicoForm(FlaskForm):
-    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
+    nombre = StringField('Nombre', validators=[DataRequired(), Length(max=200)])
     descripcion = TextAreaField('Descripción', validators=[Optional()])
     tipoProducto = SelectField('Tipo de Producto', 
                               choices=[('botiquin', 'Botiquín'), 

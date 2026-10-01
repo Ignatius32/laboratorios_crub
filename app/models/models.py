@@ -74,7 +74,9 @@ UNIDADES = ('Lt', 'Kg')
 class Producto(db.Model):
     __tablename__ = 'producto'
     idProducto = db.Column(db.String(10), primary_key=True)
-    nombre = db.Column(db.String(100), nullable=False)
+    # 200 y no 100: algunas sustancias de la lista de Sedronar tienen nombres
+    # que enumeran sales y ésteres y pasan de los cien caracteres.
+    nombre = db.Column(db.String(200), nullable=False)
     descripcion = db.Column(db.Text, nullable=True)
     tipoProducto = db.Column(db.String(50), nullable=False)
     # nullable sólo para poder agregar la columna a una base con datos: los

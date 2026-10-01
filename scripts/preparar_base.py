@@ -40,7 +40,7 @@ from app.models.models import db
 # La última revisión anterior a esta versión. Emparejadas las columnas y los
 # índices, la base queda equivalente a este punto de la cadena.
 REVISION_BASE = 'dc2584637bea'
-REVISIONES_NUEVAS = {'b7c41a9e5d02', 'c93f8a1d4e77', 'e1a5c7d2f404', 'f2b6d8e3a515'}
+REVISIONES_NUEVAS = {'b7c41a9e5d02', 'c93f8a1d4e77', 'e1a5c7d2f404', 'f2b6d8e3a515', 'a3c7e9f1b626'}
 
 TABLAS_CON_DATOS = ('usuario', 'laboratorio', 'proveedor', 'producto',
                     'movimiento', 'user_laboratorio')
@@ -110,8 +110,10 @@ def main():
             insp = inspect(conn)
             columnas_usuario = {c['name'] for c in insp.get_columns('usuario')}
             problemas = []
-            if despues != antes:
-                problemas.append(f'cambió la cantidad de filas: {antes} -> {despues}')
+            # Que no se pierda nada. Pueden aparecer filas: hay migraciones
+            # que dan de alta productos.
+            if any(despues.get(tabla, 0) < filas for tabla, filas in antes.items()):
+                problemas.append(f'se perdieron filas: {antes} -> {despues}')
             if 'password_hash' in columnas_usuario:
                 problemas.append('usuario.password_hash sigue existiendo')
             if 'stock' in insp.get_table_names():
