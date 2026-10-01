@@ -7,6 +7,10 @@ from wtforms.validators import DataRequired, Length, Optional, URL
 
 from app.models.models import UNIDADES
 
+# Con una primera opción vacía: sin ella el desplegable arranca en Lt y un
+# producto que va en Kg queda mal cargado sin que nadie haya elegido nada.
+OPCIONES_UNIDAD = [('', 'Seleccione…')] + [(u, u) for u in UNIDADES]
+
 
 # Estos dos NO se unifican, y la diferencia es deliberada: las opciones de
 # tipoProducto del formulario de técnicos no incluyen 'droguero'. Fusionarlos
@@ -27,9 +31,8 @@ class ProductoForm(FlaskForm):
                                       ('residuos', 'Residuos peligrosos')])
     estadoFisico = SelectField('Estado Físico', 
                               choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
-    unidadMedida = SelectField('Unidad de Medida',
-                               choices=[(u, u) for u in UNIDADES],
-                               validators=[DataRequired()])
+    unidadMedida = SelectField('Unidad de Medida', choices=OPCIONES_UNIDAD,
+                               validators=[DataRequired('Elija la unidad de medida del producto.')])
     stockMinimo = FloatField('Stock Mínimo', validators=[Optional()])
     marca = StringField('Marca', validators=[Optional(), Length(max=100)])
     controlSedronar = BooleanField('Control Sedronar')
@@ -48,9 +51,8 @@ class ProductoTecnicoForm(FlaskForm):
                                       ('residuos', 'Residuos peligrosos')])
     estadoFisico = SelectField('Estado Físico', 
                               choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
-    unidadMedida = SelectField('Unidad de Medida',
-                               choices=[(u, u) for u in UNIDADES],
-                               validators=[DataRequired()])
+    unidadMedida = SelectField('Unidad de Medida', choices=OPCIONES_UNIDAD,
+                               validators=[DataRequired('Elija la unidad de medida del producto.')])
     controlSedronar = BooleanField('Control Sedronar')
     fichaSeguridad = FileField('Ficha de Seguridad', 
                               validators=[Optional(), 

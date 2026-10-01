@@ -124,6 +124,16 @@ with app.test_client() as c:
     with app.app_context():
         check('no acepta una unidad que no sea Lt o Kg', Producto.query.get('MALO') is None)
 
+    check('el desplegable arranca sin nada elegido',
+          re.search(r'<option[^>]*selected[^>]*value=""|<option[^>]*value=""[^>]*selected', html) is not None
+          or re.search(r'<option value="">Seleccione', html) is not None)
+    r = c.post('/admin/productos/new', data=dict(
+        base, idProducto='SINE', unidadMedida='',
+        csrf_token=token(c, '/admin/productos/new')))
+    with app.app_context():
+        check('sin elegir unidad no se da de alta', Producto.query.get('SINE') is None)
+    check('y el formulario lo dice', 'Elija la unidad de medida' in r.get_data(as_text=True))
+
     # La unidad no depende del estado físico: un líquido puede llevarse en Kg.
     c.post('/admin/productos/new', data=dict(
         base, idProducto='LIQK', nombre='Líquido por peso', estadoFisico='liquido',
