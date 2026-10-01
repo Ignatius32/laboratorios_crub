@@ -221,6 +221,10 @@ paso "Permisos"
 mkdir -p "${APP_DIR}/logs" "${APP_DIR}/instance"
 chown -R "${SERVICE_USER}:" "$APP_DIR"   # con ':' toma el grupo del usuario
 chmod 600 "${APP_DIR}/.env"
+# Los logs llevan datos de quien ingresa, y los de la versión anterior guardaban
+# tokens enteros. Cerrando el directorio alcanza también para los archivos que
+# la aplicación cree después, que nacen legibles para todos.
+chmod 700 "${APP_DIR}/logs"
 runuser -u "$SERVICE_USER" -- test -r "${APP_DIR}/.env"
 
 paso "Migrando la base"

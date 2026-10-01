@@ -27,9 +27,11 @@ import logging
 import os
 import time
 import uuid
+from pathlib import Path
 
 import jwt
 import requests
+from dotenv import dotenv_values
 from flask import current_app, request, session
 from flask_login import current_user, login_user, logout_user
 
@@ -45,13 +47,48 @@ TIEMPO_LIMITE = 15  # segundos para que conteste Keycloak
 # configuración
 # --------------------------------------------------------------------------
 
+ARCHIVO_ENV = Path(__file__).resolve().parents[2] / ".env"
+
+
+def _lista_del_entorno() -> str:
+    return os.getenv("USUARIOS_AUTORIZADOS") or os.getenv("DNI_AUTORIZADOS") or ""
+
+
+def _lista_del_archivo():
+    """La lista como está escrita en el .env en este momento.
+
+    None si el archivo no está o no se puede leer: no es lo mismo que una lista
+    vacía, que dejaría a todos afuera.
+    """
+    try:
+        if not ARCHIVO_ENV.is_file():
+            return None
+        valores = dotenv_values(ARCHIVO_ENV)
+    except OSError as e:
+        logger.warning("No se pudo releer %s: %s", ARCHIVO_ENV, e)
+        return None
+    return valores.get("USUARIOS_AUTORIZADOS") or valores.get("DNI_AUTORIZADOS") or ""
+
+
+# Lo que decía el archivo cuando arrancó el proceso. Sirve para saber de dónde
+# salió la lista que está en el entorno: si coincide, vino del .env y entonces
+# manda lo que el archivo diga ahora; si no, alguien la fijó por fuera (las
+# pruebas, una variable del servicio) y se respeta, igual que hace load_dotenv.
+_ARCHIVO_AL_ARRANCAR = _lista_del_archivo()
+
+
 def usuarios_autorizados() -> set:
     """Los DNI que pueden entrar, del .env.
 
-    Se lee en cada ingreso a propósito: agregar o sacar a alguien es editar el
-    .env, sin reiniciar el servicio.
+    Se relee el archivo en cada ingreso: agregar o sacar a alguien es editar el
+    .env, sin reiniciar el servicio. os.getenv solo no alcanza para eso, porque
+    el entorno del proceso se carga una vez, al arrancar.
     """
-    crudo = os.getenv("USUARIOS_AUTORIZADOS") or os.getenv("DNI_AUTORIZADOS") or ""
+    crudo = _lista_del_entorno()
+    if crudo == (_ARCHIVO_AL_ARRANCAR or ""):
+        ahora = _lista_del_archivo()
+        if ahora is not None:
+            crudo = ahora
     return {d.strip() for d in crudo.replace(";", ",").split(",") if d.strip()}
 
 

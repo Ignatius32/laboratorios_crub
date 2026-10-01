@@ -187,12 +187,50 @@ with app.test_client() as c:
         r = c.get(ruta)
         check(f'{ruta} ya no existe', r.status_code == 404, str(r.status_code))
 
-print('\n--- 10. La lista se relee sin reiniciar ---')
+print('\n--- 10. La lista fijada en el entorno manda ---')
 with app.app_context():
     os.environ['USUARIOS_AUTORIZADOS'] = '40555666'
     check('30111222 ya no esta autorizado', '30111222' not in keycloak_auth.usuarios_autorizados())
     os.environ['USUARIOS_AUTORIZADOS'] = '30111222,40555666'
     check('vuelve a estarlo al reponerlo', '30111222' in keycloak_auth.usuarios_autorizados())
+
+print('\n--- 11. La lista del .env se relee sin reiniciar ---')
+# Como en el servidor: el entorno del proceso salió del .env al arrancar, y
+# después alguien edita el archivo. Antes esto no tenía efecto hasta recargar
+# la aplicación, aunque la documentación decía lo contrario.
+archivo = Path(tempfile.gettempdir()) / 'labcrub_test_auth.env'
+archivo.write_text('SECRET_KEY=x\nUSUARIOS_AUTORIZADOS=30111222,40555666\n', encoding='utf-8')
+keycloak_auth.ARCHIVO_ENV = archivo
+keycloak_auth._ARCHIVO_AL_ARRANCAR = '30111222,40555666'
+os.environ['USUARIOS_AUTORIZADOS'] = '30111222,40555666'
+with app.app_context():
+    check('arranca con la lista del archivo',
+          keycloak_auth.usuarios_autorizados() == {'30111222', '40555666'})
+
+    archivo.write_text('SECRET_KEY=x\nUSUARIOS_AUTORIZADOS=40555666, 28999888\n', encoding='utf-8')
+    check('sacar un DNI del archivo le quita el acceso',
+          '30111222' not in keycloak_auth.usuarios_autorizados())
+    check('agregar uno se lo da', '28999888' in keycloak_auth.usuarios_autorizados())
+
+    keycloak_auth._intentos.clear()
+    ESCENARIO.update(password_correcta='buena', roles=['laboratorista'],
+                     userinfo={'preferred_username': '30111222', 'given_name': 'Ana',
+                               'family_name': 'Perez', 'email': 'ana@crub.edu.ar', 'sub': 'kc-1'})
+    with app.test_client() as c:
+        r = c.post('/auth/login', data={'usuario': '30111222', 'contrasena': 'buena'},
+                   follow_redirects=True)
+        check('y el ingreso de quien se sacó se rechaza',
+              'no está habilitado' in r.get_data(as_text=True))
+
+    archivo.unlink()
+    check('si el archivo desaparece vale la lista con que arrancó',
+          keycloak_auth.usuarios_autorizados() == {'30111222', '40555666'})
+
+    os.environ['USUARIOS_AUTORIZADOS'] = '11222333'
+    archivo.write_text('USUARIOS_AUTORIZADOS=40555666\n', encoding='utf-8')
+    check('una lista fijada por fuera del archivo se respeta',
+          keycloak_auth.usuarios_autorizados() == {'11222333'})
+    archivo.unlink()
 
 print('\n' + ('=== TODO OK ===' if not fallos else f'=== {len(fallos)} FALLAS: {fallos} ==='))
 sys.exit(1 if fallos else 0)
