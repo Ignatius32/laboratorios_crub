@@ -24,7 +24,21 @@
 set -Eeuo pipefail
 
 APP_DIR="${APP_DIR:-/var/www/laboratorios-crub}"
-SERVICE_USER="${SERVICE_USER:-www-data}"
+
+# El usuario con el que corren los procesos de Apache, que es el que tiene que
+# poder leer el .env y escribir la base. No se da por sentado que sea www-data:
+# en huayca Apache corre como otro usuario, y con los archivos a nombre de
+# www-data la aplicación no podía ni leer su configuración.
+usuario_de_apache() {
+    local usuario
+    usuario="$(ps -eo uname:32,comm --no-headers \
+        | awk '$2 ~ /^(apache2|httpd)$/ && $1 != "root" { print $1; exit }')"
+    if [ -z "$usuario" ] && [ -r /etc/apache2/envvars ]; then
+        usuario="$(set +u; . /etc/apache2/envvars >/dev/null 2>&1; echo "${APACHE_RUN_USER:-}")"
+    fi
+    echo "${usuario:-www-data}"
+}
+SERVICE_USER="${SERVICE_USER:-$(usuario_de_apache)}"
 URL_APP="${URL_APP:-https://huayca.crub.uncoma.edu.ar/laboratorios-crub/}"
 RESPALDOS="${RESPALDOS:-/var/backups/laboratorios-crub}"
 
@@ -57,6 +71,8 @@ paso "Comprobando la instalación en ${APP_DIR}"
 [ "$ORIGEN" != "$(cd "$APP_DIR" && pwd)" ] || falla "hay que correrlo desde un clon aparte, no desde ${APP_DIR}."
 [ -f "${ORIGEN}/scripts/preparar_base.py" ] || falla "este clon está incompleto: falta scripts/preparar_base.py."
 command -v rsync >/dev/null || falla "falta rsync (apt install rsync)."
+id "$SERVICE_USER" >/dev/null 2>&1 || falla "el usuario '${SERVICE_USER}' no existe."
+echo "Usuario de Apache: ${SERVICE_USER}"
 
 if git -C "$ORIGEN" rev-parse --short HEAD >/dev/null 2>&1; then
     echo "Versión a instalar: $(git -C "$ORIGEN" log -1 --format='%h %s')"
@@ -171,8 +187,9 @@ revertir() {
         rm -rf "${APP_DIR}/venv"
         mv "${APP_DIR}/venv.anterior" "${APP_DIR}/venv"
     fi
+    # tar, corriendo como root, repone también el dueño y los permisos que
+    # tenía cada archivo. No hay que pisarlos con un chown después.
     tar -xzf "${RESPALDO}/aplicacion.tar.gz" -C "$APP_DIR"
-    chown -R "${SERVICE_USER}:${SERVICE_USER}" "$APP_DIR"
     recargar
     echo "Quedó la versión anterior, con la base como estaba. Respaldo: ${RESPALDO}" >&2
     exit 1
@@ -202,8 +219,9 @@ mv "${APP_DIR}/venv" "${APP_DIR}/venv.anterior"
 paso "Permisos"
 
 mkdir -p "${APP_DIR}/logs" "${APP_DIR}/instance"
-chown -R "${SERVICE_USER}:${SERVICE_USER}" "$APP_DIR"
+chown -R "${SERVICE_USER}:" "$APP_DIR"   # con ':' toma el grupo del usuario
 chmod 600 "${APP_DIR}/.env"
+runuser -u "$SERVICE_USER" -- test -r "${APP_DIR}/.env"
 
 paso "Migrando la base"
 
