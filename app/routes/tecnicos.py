@@ -253,6 +253,7 @@ def new_producto(lab_id):
             descripcion=form.descripcion.data,
             tipoProducto=form.tipoProducto.data,
             estadoFisico=form.estadoFisico.data,
+            unidadMedida=form.unidadMedida.data,
             controlSedronar=form.controlSedronar.data,
             urlFichaSeguridad=ficha_seguridad_id,  # Guardar el ID del archivo en lugar de URL
             stockMinimo=form.stockMinimo.data or 0,
@@ -271,7 +272,7 @@ def new_producto(lab_id):
             idMovimiento=movement_id,
             tipoMovimiento='ingreso',
             cantidad=0,  # Stock inicial 0
-            unidadMedida='unidades',  # Unidad por defecto
+            unidadMedida=producto.unidadMedida,
             idProducto=form.idProducto.data,
             idLaboratorio=lab_id,
             created_by=current_user.idUsuario if current_user.is_authenticated else None
@@ -372,6 +373,9 @@ def new_movimiento(lab_id):
         if not producto:
             flash('El producto seleccionado no existe', 'danger')
             return redirect(url_for('tecnicos.new_movimiento', lab_id=lab_id))
+        if not producto.unidadMedida:
+            flash('El producto no tiene unidad de medida. Pida a un administrador que la cargue (Lt o Kg) antes de registrar movimientos.', 'danger')
+            return redirect(url_for('tecnicos.new_movimiento', lab_id=lab_id))
         
         # Variables for movement
         tipo_movimiento = form.tipoMovimiento.data
@@ -452,7 +456,7 @@ def new_movimiento(lab_id):
             stock_actual = laboratorio.get_stock_producto(form.idProducto.data)
             
             if form.cantidad.data > stock_actual:
-                flash(f'No hay suficiente stock disponible en este laboratorio. Stock actual: {stock_actual} {form.unidadMedida.data}', 'danger')
+                flash(f'No hay suficiente stock disponible en este laboratorio. Stock actual: {stock_actual} {producto.unidadMedida}', 'danger')
                 return render_template('tecnicos/movimientos/form.html',
                                      title='Nuevo Movimiento',
                                      form=form,
@@ -461,7 +465,7 @@ def new_movimiento(lab_id):
             idMovimiento=movement_id,
             tipoMovimiento=tipo_movimiento,
             cantidad=form.cantidad.data,
-            unidadMedida=form.unidadMedida.data,
+            unidadMedida=producto.unidadMedida,
             idProducto=form.idProducto.data,
             idLaboratorio=lab_id,
             tipoDocumento=tipo_documento,
@@ -482,7 +486,7 @@ def new_movimiento(lab_id):
                 idMovimiento=movement_id_dest,
                 tipoMovimiento='ingreso',
                 cantidad=form.cantidad.data,
-                unidadMedida=form.unidadMedida.data,
+                unidadMedida=producto.unidadMedida,
                 idProducto=form.idProducto.data,
                 idLaboratorio=lab_destino,
                 # We include a reference to the original movement

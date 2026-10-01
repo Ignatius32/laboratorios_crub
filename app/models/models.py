@@ -66,6 +66,11 @@ class Proveedor(db.Model):
     def __repr__(self):
         return f'<Proveedor {self.nombre} ({self.cuit})>'
 
+# Las únicas unidades en que se lleva el stock. La unidad es del producto, no
+# de cada movimiento ni de su estado físico: un mismo producto se mide siempre
+# igual, y sumar movimientos cargados en unidades distintas no significa nada.
+UNIDADES = ('Lt', 'Kg')
+
 class Producto(db.Model):
     __tablename__ = 'producto'
     idProducto = db.Column(db.String(10), primary_key=True)
@@ -73,6 +78,9 @@ class Producto(db.Model):
     descripcion = db.Column(db.Text, nullable=True)
     tipoProducto = db.Column(db.String(50), nullable=False)
     estadoFisico = db.Column(db.String(20), nullable=False)
+    # nullable sólo para poder agregar la columna a una base con datos: los
+    # formularios y la importación la exigen.
+    unidadMedida = db.Column(db.String(10), nullable=True)
     controlSedronar = db.Column(db.Boolean, default=False)
     urlFichaSeguridad = db.Column(db.String(200), nullable=True)
     stockMinimo = db.Column(db.Float, nullable=True, default=0)

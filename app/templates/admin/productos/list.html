@@ -84,7 +84,7 @@
                     <td>{{ tipo_producto_badge(item.producto.tipoProducto) }}</td>
                     <td>{{ estado_fisico_badge(item.producto.estadoFisico) }}</td>
                     <td class="celda-numero">
-                        {{ stock_badge(item.stock_total, item.producto.stockMinimo or 0) }}
+                        {{ stock_badge(item.stock_total, item.producto.stockMinimo or 0, item.producto.unidadMedida or '') }}
                     </td>
                     <td>
                         <div class="table-acciones">

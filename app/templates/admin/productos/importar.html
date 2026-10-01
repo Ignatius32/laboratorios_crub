@@ -53,6 +53,14 @@
                                 <td class="text-muted">Sólido, Líquido o Gaseoso.</td>
                             </tr>
                             <tr>
+                                <td><code>Unidad de Medida</code></td>
+                                <td><span class="badge bg-danger">Sí</span></td>
+                                <td class="text-muted">
+                                    <code>Lt</code> o <code>Kg</code>. Sólo se puede omitir al
+                                    actualizar un producto que ya tiene unidad.
+                                </td>
+                            </tr>
+                            <tr>
                                 <td><code>Descripción</code></td>
                                 <td><span class="badge bg-secondary">No</span></td>
                                 <td class="text-muted">Texto libre.</td>
@@ -121,12 +129,12 @@
 <script>
     document.getElementById('descargar-plantilla').addEventListener('click', function () {
         const filas = [
-            ['ID Producto', 'Nombre', 'Tipo de Producto', 'Estado Físico',
+            ['ID Producto', 'Nombre', 'Tipo de Producto', 'Estado Físico', 'Unidad de Medida',
              'Descripción', 'URL Ficha de Seguridad', 'Control Sedronar'],
-            ['P001', 'Ácido clorhídrico', 'Droguero', 'Líquido',
+            ['P001', 'Ácido clorhídrico', 'Droguero', 'Líquido', 'Lt',
              'Solución 37%', 'https://drive.google.com/file/d/EJEMPLO/view', 'Sí'],
-            ['P002', 'Microscopio binocular', 'Materiales de vidrio', 'Sólido',
-             'Objetivos 4x, 10x, 40x', '', '']
+            ['P002', 'Hidróxido de sodio', 'Droguero', 'Sólido', 'Kg',
+             'Lentejas', '', '']
         ];
         const libro = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(libro, XLSX.utils.aoa_to_sheet(filas), 'Productos');

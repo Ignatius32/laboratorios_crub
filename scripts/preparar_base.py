@@ -40,7 +40,7 @@ from app.models.models import db
 # La última revisión anterior a esta versión. Emparejadas las columnas y los
 # índices, la base queda equivalente a este punto de la cadena.
 REVISION_BASE = 'dc2584637bea'
-REVISIONES_NUEVAS = {'b7c41a9e5d02', 'c93f8a1d4e77'}
+REVISIONES_NUEVAS = {'b7c41a9e5d02', 'c93f8a1d4e77', 'e1a5c7d2f404'}
 
 TABLAS_CON_DATOS = ('usuario', 'laboratorio', 'proveedor', 'producto',
                     'movimiento', 'user_laboratorio')

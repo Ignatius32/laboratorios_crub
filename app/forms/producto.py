@@ -5,6 +5,8 @@ from flask_wtf.file import FileAllowed
 from wtforms import BooleanField, FileField, FloatField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional, URL
 
+from app.models.models import UNIDADES
+
 
 # Estos dos NO se unifican, y la diferencia es deliberada: las opciones de
 # tipoProducto del formulario de técnicos no incluyen 'droguero'. Fusionarlos
@@ -25,6 +27,9 @@ class ProductoForm(FlaskForm):
                                       ('residuos', 'Residuos peligrosos')])
     estadoFisico = SelectField('Estado Físico', 
                               choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
+    unidadMedida = SelectField('Unidad de Medida',
+                               choices=[(u, u) for u in UNIDADES],
+                               validators=[DataRequired()])
     stockMinimo = FloatField('Stock Mínimo', validators=[Optional()])
     marca = StringField('Marca', validators=[Optional(), Length(max=100)])
     controlSedronar = BooleanField('Control Sedronar')
@@ -43,6 +48,9 @@ class ProductoTecnicoForm(FlaskForm):
                                       ('residuos', 'Residuos peligrosos')])
     estadoFisico = SelectField('Estado Físico', 
                               choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
+    unidadMedida = SelectField('Unidad de Medida',
+                               choices=[(u, u) for u in UNIDADES],
+                               validators=[DataRequired()])
     controlSedronar = BooleanField('Control Sedronar')
     fichaSeguridad = FileField('Ficha de Seguridad', 
                               validators=[Optional(), 

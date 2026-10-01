@@ -31,11 +31,12 @@
 
                         {{ field(form.idProducto) }}
 
+                        {# La unidad no se elige: es la del producto, y figura
+                           junto a su nombre en el desplegable. #}
                         <div class="row">
                             <div class="col-md-6">
                                 {{ field(form.cantidad, type='number', step='any', min='0') }}
                             </div>
-                            <div class="col-md-6">{{ field(form.unidadMedida) }}</div>
                         </div>
                     </div>
 

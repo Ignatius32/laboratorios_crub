@@ -13,6 +13,12 @@ from app.models.models import Laboratorio, Producto, Proveedor
 # la persona tiene acceso. Además difieren en el coerce de idProveedor (str
 # contra int) y en dónde ubican la opción "Nuevo proveedor…". Son dos
 # formularios parecidos, no uno duplicado.
+#
+# Ninguno pide la unidad de medida: es la del producto, y se muestra junto a
+# su nombre en el desplegable para que se vea en qué se está cargando.
+
+def _opcion_producto(p):
+    return (p.idProducto, f"{p.nombre} ({p.unidadMedida})" if p.unidadMedida else p.nombre)
 
 class MovimientoForm(FlaskForm):
     tipoMovimiento = SelectField('Tipo de Movimiento', choices=[
@@ -22,10 +28,6 @@ class MovimientoForm(FlaskForm):
         ('transferencia', 'Transferencia')
     ])
     cantidad = FloatField('Cantidad', validators=[DataRequired()])
-    unidadMedida = SelectField('Unidad de Medida', choices=[
-        ('Lt', 'Litros (Lt)'),
-        ('Kg', 'Kilogramos (Kg)')
-    ], validators=[DataRequired()])
     idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
     idLaboratorio = SelectField('Laboratorio', validators=[DataRequired()], coerce=str)
     
@@ -46,7 +48,7 @@ class MovimientoForm(FlaskForm):
         super(MovimientoForm, self).__init__(*args, **kwargs)
         # Populate choices
         self.idLaboratorio.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
-        self.idProducto.choices = [(p.idProducto, p.nombre) for p in Producto.query.all()]
+        self.idProducto.choices = [_opcion_producto(p) for p in Producto.query.all()]
         self.laboratorioDestino.choices = [(lab.idLaboratorio, lab.nombre) for lab in Laboratorio.query.all()]
         
         # Populate provider choices - Opción vacía al inicio y "Nuevo proveedor..." al final
@@ -76,10 +78,6 @@ class MovimientoTecnicoForm(FlaskForm):
         ('transferencia', 'Transferencia')
     ])
     cantidad = FloatField('Cantidad', validators=[DataRequired()])
-    unidadMedida = SelectField('Unidad de Medida', choices=[
-        ('Lt', 'Litros (Lt)'),
-        ('Kg', 'Kilogramos (Kg)')
-    ], validators=[DataRequired()])
     idProducto = SelectField('Producto', validators=[DataRequired()], coerce=str)
     
     # Campos para movimientos tipo 'compra'    tipoDocumento = SelectField('Tipo de Documento', choices=[
@@ -102,7 +100,7 @@ class MovimientoTecnicoForm(FlaskForm):
         # Populate product choices with all products
         productos = Producto.query.all()
         if productos:
-            self.idProducto.choices = [(p.idProducto, p.nombre) for p in productos]
+            self.idProducto.choices = [_opcion_producto(p) for p in productos]
         else:
             self.idProducto.choices = [('', 'No hay productos disponibles')]
             

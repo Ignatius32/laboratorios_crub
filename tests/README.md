@@ -8,6 +8,7 @@ sistema y la borra al empezar, así que no tocan `instance/laboratorios.db`.
 python tests/test_autenticacion.py
 python tests/test_todas_las_pantallas.py
 python tests/test_stock_y_limpieza.py
+python tests/test_unidad_de_medida.py
 ```
 
 Devuelven código de salida 0 si todo pasa, 1 si algo falla, y listan qué.
@@ -30,6 +31,11 @@ después del refactor de `stock_service` (con números conocidos: 10+5-3-2), que
 las propiedades del modelo deleguen bien, y que lo que se eliminó realmente no
 esté (modelo `Stock`, JavaScript muerto, Bootstrap alpha, metas de depuración
 fijadas en `true`).
+
+**`test_unidad_de_medida.py`** — que la unidad (Lt o Kg) sea del producto: los
+formularios de producto la piden, los de movimiento ya no, y cada movimiento
+toma la del producto aunque el pedido traiga otra. También que el alta desde el
+panel de técnicos no deje un movimiento en `unidades`.
 
 ## Cómo funciona el Keycloak simulado
 

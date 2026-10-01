@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session
 from flask_login import current_user
-from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor
+from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor, UNIDADES
 from sqlalchemy.orm import joinedload
 from app.forms import (ExcelUploadForm, LaboratorioForm, MovimientoForm,
                        ProductoForm, ProveedorForm, ReporteForm, UsuarioForm)
@@ -452,6 +452,7 @@ def new_producto():
             descripcion=form.descripcion.data,
             tipoProducto=form.tipoProducto.data,
             estadoFisico=form.estadoFisico.data,
+            unidadMedida=form.unidadMedida.data,
             stockMinimo=form.stockMinimo.data or 0,
             marca=form.marca.data,
             controlSedronar=form.controlSedronar.data,
@@ -508,6 +509,12 @@ def edit_producto(id):
         producto.descripcion = form.descripcion.data
         producto.tipoProducto = form.tipoProducto.data
         producto.estadoFisico = form.estadoFisico.data
+        if producto.unidadMedida != form.unidadMedida.data:
+            # Los movimientos llevan la unidad del producto: si se corrige
+            # acá, se corrige en todos, para que no queden mezclados.
+            Movimiento.query.filter_by(idProducto=producto.idProducto).update(
+                {'unidadMedida': form.unidadMedida.data})
+        producto.unidadMedida = form.unidadMedida.data
         producto.stockMinimo = form.stockMinimo.data or 0
         producto.marca = form.marca.data
         producto.controlSedronar = form.controlSedronar.data
@@ -684,6 +691,19 @@ def importar_productos():
                             productos_saltados += 1
                             continue
                     
+                    # Unidad de medida. La columna no está entre las
+                    # obligatorias para que las planillas anteriores sigan
+                    # sirviendo para actualizar; un producto nuevo sí la necesita.
+                    unidad_medida = None
+                    if 'Unidad de Medida' in data_frame.columns and not pd.isna(row['Unidad de Medida']):
+                        unidad_excel = str(row['Unidad de Medida']).strip()
+                        if unidad_excel:
+                            unidad_medida = {u.lower(): u for u in UNIDADES}.get(unidad_excel.lower())
+                            if not unidad_medida:
+                                errores.append(f"Fila {index+2}: Unidad de medida '{unidad_excel}' no válida. Valores permitidos: {', '.join(UNIDADES)}")
+                                productos_saltados += 1
+                                continue
+
                     # Manejar Control Sedronar como booleano
                     control_sedronar = False
                     if not pd.isna(row['Control Sedronar']):
@@ -717,10 +737,18 @@ def importar_productos():
                         producto_existente.descripcion = descripcion
                         producto_existente.tipoProducto = tipo_producto
                         producto_existente.estadoFisico = estado_fisico
+                        if unidad_medida and unidad_medida != producto_existente.unidadMedida:
+                            Movimiento.query.filter_by(idProducto=id_producto).update(
+                                {'unidadMedida': unidad_medida})
+                            producto_existente.unidadMedida = unidad_medida
                         producto_existente.controlSedronar = control_sedronar
                         producto_existente.urlFichaSeguridad = url_ficha
                         productos_actualizados += 1
                         logger.info(f"Updated product {id_producto} by user {current_user.idUsuario}")
+                    elif not unidad_medida:
+                        errores.append(f"Fila {index+2}: falta la Unidad de Medida ({' o '.join(UNIDADES)}) del producto nuevo '{id_producto}'")
+                        productos_saltados += 1
+                        continue
                     else:
                         # Crear nuevo producto (ahora son globales, sin asignación a laboratorio)
                         nuevo_producto = Producto(
@@ -729,6 +757,7 @@ def importar_productos():
                             descripcion=descripcion,
                             tipoProducto=tipo_producto,
                             estadoFisico=estado_fisico,
+                            unidadMedida=unidad_medida,
                             controlSedronar=control_sedronar,
                             urlFichaSeguridad=url_ficha
                         )
@@ -837,6 +866,9 @@ def new_movimiento():
         if not producto:
             flash('El producto seleccionado no existe', 'danger')
             return render_template('admin/movimientos/form.html', title='Nuevo Movimiento', form=form)
+        if not producto.unidadMedida:
+            flash('El producto no tiene unidad de medida. Edítelo y elija Lt o Kg antes de cargar movimientos.', 'danger')
+            return render_template('admin/movimientos/form.html', title='Nuevo Movimiento', form=form)
         
         # Variables for movement
         tipo_movimiento = form.tipoMovimiento.data
@@ -896,7 +928,7 @@ def new_movimiento():
             stock_actual = laboratorio.get_stock_producto(form.idProducto.data)
             
             if form.cantidad.data > stock_actual:
-                flash(f'No hay suficiente stock disponible en este laboratorio. Stock actual: {stock_actual} {form.unidadMedida.data}', 'danger')
+                flash(f'No hay suficiente stock disponible en este laboratorio. Stock actual: {stock_actual} {producto.unidadMedida}', 'danger')
                 return render_template('admin/movimientos/form.html', title='Nuevo Movimiento', form=form)
         
         # Create the movement record
@@ -904,7 +936,7 @@ def new_movimiento():
             idMovimiento=movement_id,
             tipoMovimiento=tipo_movimiento,
             cantidad=form.cantidad.data,
-            unidadMedida=form.unidadMedida.data,
+            unidadMedida=producto.unidadMedida,
             idProducto=form.idProducto.data,
             idLaboratorio=form.idLaboratorio.data,
             tipoDocumento=tipo_documento,
@@ -926,7 +958,7 @@ def new_movimiento():
                 idMovimiento=movement_id_dest,
                 tipoMovimiento='ingreso',
                 cantidad=form.cantidad.data,
-                unidadMedida=form.unidadMedida.data,
+                unidadMedida=producto.unidadMedida,
                 idProducto=form.idProducto.data,
                 idLaboratorio=lab_destino,
                 # We include a reference to the original movement

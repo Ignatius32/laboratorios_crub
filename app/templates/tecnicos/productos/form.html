@@ -43,6 +43,10 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-6">{{ field(form.unidadMedida) }}</div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6">
                                 {{ field(form.stockMinimo, type='number', step='any', min='0',
                                          ayuda='Por debajo de este valor el stock se marca en amarillo.') }}
