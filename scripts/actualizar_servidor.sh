@@ -227,7 +227,17 @@ paso "Migrando la base"
 
 # Como el usuario de Apache: así los archivos que cree (la base rehecha por
 # alembic, los logs) quedan con el dueño que después los tiene que escribir.
-(cd "$APP_DIR" && runuser -u "$SERVICE_USER" -- venv/bin/python scripts/preparar_base.py)
+#
+# Con un TMPDIR propio: al arrancar, la aplicación abre su directorio de
+# sesiones en el temporal del sistema. Apache tiene su /tmp privado, pero este
+# proceso usaría el /tmp de verdad, donde puede haber un flask_sessions de otro
+# usuario que no se deja leer. Y sin subshell: con set -E, una falla ahí adentro
+# disparaba la reversión dos veces.
+TMP_MIGRACION="$(mktemp -d /tmp/laboratorios-crub-migracion.XXXXXX)"
+trap 'rm -rf "$RUEDAS" "$TMP_MIGRACION"' EXIT
+chown "${SERVICE_USER}:" "$TMP_MIGRACION"
+runuser -u "$SERVICE_USER" -- env TMPDIR="$TMP_MIGRACION" \
+    "${APP_DIR}/venv/bin/python" "${APP_DIR}/scripts/preparar_base.py"
 
 paso "Recargando la aplicación"
 
