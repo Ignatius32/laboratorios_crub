@@ -197,17 +197,6 @@
 {% endmacro %}
 
 
-{# Etiqueta del estado físico. #}
-{% macro estado_fisico_badge(estado) %}
-{% set ESTADOS = {
-    'solido':  'Sólido',
-    'liquido': 'Líquido',
-    'gaseoso': 'Gaseoso'
-} %}
-<span class="badge bg-secondary">{{ ESTADOS.get(estado, estado|title if estado else '—') }}</span>
-{% endmacro %}
-
-
 {# Etiqueta del tipo de movimiento. #}
 {% macro tipo_movimiento_badge(tipo) %}
 {% set TIPOS = {

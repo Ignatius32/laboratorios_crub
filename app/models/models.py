@@ -77,7 +77,6 @@ class Producto(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     descripcion = db.Column(db.Text, nullable=True)
     tipoProducto = db.Column(db.String(50), nullable=False)
-    estadoFisico = db.Column(db.String(20), nullable=False)
     # nullable sólo para poder agregar la columna a una base con datos: los
     # formularios y la importación la exigen.
     unidadMedida = db.Column(db.String(10), nullable=True)

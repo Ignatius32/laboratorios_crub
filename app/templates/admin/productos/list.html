@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from 'macros/pagination.html' import render_pagination %}
 {% from 'macros/ui.html' import page_header, empty_state, delete_button,
-                                tipo_producto_badge, estado_fisico_badge,
+                                tipo_producto_badge,
                                 ficha_seguridad_btn, stock_badge %}
 
 {% block content %}
@@ -63,7 +63,6 @@
                 <tr>
                     <th>Producto</th>
                     <th>Tipo</th>
-                    <th>Estado</th>
                     <th class="text-end">Stock total</th>
                     <th class="text-end">Acciones</th>
                 </tr>
@@ -82,7 +81,6 @@
                         </div>
                     </td>
                     <td>{{ tipo_producto_badge(item.producto.tipoProducto) }}</td>
-                    <td>{{ estado_fisico_badge(item.producto.estadoFisico) }}</td>
                     <td class="celda-numero">
                         {{ stock_badge(item.stock_total, item.producto.stockMinimo or 0, item.producto.unidadMedida or '') }}
                     </td>

@@ -29,8 +29,6 @@ class ProductoForm(FlaskForm):
                                       ('vidrio', 'Materiales de vidrio'), 
                                       ('seguridad', 'Elementos de seguridad'),
                                       ('residuos', 'Residuos peligrosos')])
-    estadoFisico = SelectField('Estado Físico', 
-                              choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
     unidadMedida = SelectField('Unidad de Medida', choices=OPCIONES_UNIDAD,
                                validators=[DataRequired('Elija la unidad de medida del producto.')])
     stockMinimo = FloatField('Stock Mínimo', validators=[Optional()])
@@ -49,8 +47,6 @@ class ProductoTecnicoForm(FlaskForm):
                                       ('vidrio', 'Materiales de vidrio'), 
                                       ('seguridad', 'Elementos de seguridad'),
                                       ('residuos', 'Residuos peligrosos')])
-    estadoFisico = SelectField('Estado Físico', 
-                              choices=[('solido', 'Sólido'), ('liquido', 'Líquido'), ('gaseoso', 'Gaseoso')])
     unidadMedida = SelectField('Unidad de Medida', choices=OPCIONES_UNIDAD,
                                validators=[DataRequired('Elija la unidad de medida del producto.')])
     controlSedronar = BooleanField('Control Sedronar')

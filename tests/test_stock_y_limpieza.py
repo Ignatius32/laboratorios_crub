@@ -45,7 +45,7 @@ with app.app_context():
                                        telefono='1', email=l + '@c.ar'))
     if not Producto.query.get('P001'):
         db.session.add(Producto(idProducto='P001', nombre='Etanol',
-                                tipoProducto='droguero', estadoFisico='liquido'))
+                                tipoProducto='droguero', unidadMedida='Lt'))
     db.session.commit()
     Movimiento.query.delete()
     db.session.commit()

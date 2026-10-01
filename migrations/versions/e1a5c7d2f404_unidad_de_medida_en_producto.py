@@ -100,8 +100,11 @@ def upgrade():
     if 'unidadMedida' not in columnas:
         op.add_column('producto', sa.Column('unidadMedida', sa.String(length=10), nullable=True))
 
+    # estadoFisico se quita en la migración siguiente, y una base creada
+    # después con create_all ya no lo tiene: sin él, la tercera regla no corre.
+    estado = '"estadoFisico"' if 'estadoFisico' in columnas else 'NULL'
     productos = conn.execute(sa.text(
-        'SELECT "idProducto", nombre, "estadoFisico" FROM producto '
+        f'SELECT "idProducto", nombre, {estado} FROM producto '
         'WHERE "unidadMedida" IS NULL ORDER BY nombre')).fetchall()
 
     for id_producto, nombre, estado in productos:
@@ -114,8 +117,11 @@ def upgrade():
                 {'id': id_producto}).first()
             if fila:
                 unidad, regla = fila[0], 'movimientos'
-            else:
+            elif estado:
                 unidad, regla = ('Kg' if estado == 'solido' else 'Lt'), 'estado físico'
+            else:
+                print(f'  SIN UNIDAD: {id_producto}  {nombre} (cargarla desde el formulario del producto)')
+                continue
         conn.execute(sa.text('UPDATE producto SET "unidadMedida" = :u WHERE "idProducto" = :id'),
                      {'u': unidad, 'id': id_producto})
         print(f'  unidad {unidad}  ({regla:<13})  {id_producto}  {nombre}')

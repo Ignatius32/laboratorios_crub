@@ -451,7 +451,6 @@ def new_producto():
             nombre=form.nombre.data,
             descripcion=form.descripcion.data,
             tipoProducto=form.tipoProducto.data,
-            estadoFisico=form.estadoFisico.data,
             unidadMedida=form.unidadMedida.data,
             stockMinimo=form.stockMinimo.data or 0,
             marca=form.marca.data,
@@ -508,7 +507,6 @@ def edit_producto(id):
         producto.nombre = form.nombre.data
         producto.descripcion = form.descripcion.data
         producto.tipoProducto = form.tipoProducto.data
-        producto.estadoFisico = form.estadoFisico.data
         if producto.unidadMedida != form.unidadMedida.data:
             # Los movimientos llevan la unidad del producto: si se corrige
             # acá, se corrige en todos, para que no queden mezclados.
@@ -604,8 +602,10 @@ def importar_productos():
                 flash('El archivo no contiene datos para procesar', 'warning')
                 return redirect(url_for('admin.importar_productos'))
               # Validar las columnas del archivo
-            required_columns = ['ID Producto', 'Nombre', 'Tipo de Producto', 
-                               'Estado Físico', 'URL Ficha de Seguridad', 'Descripción', 'Control Sedronar']
+            # 'Estado Físico' ya no existe: una planilla vieja que todavía
+            # traiga esa columna se acepta igual y la columna se ignora.
+            required_columns = ['ID Producto', 'Nombre', 'Tipo de Producto',
+                               'URL Ficha de Seguridad', 'Descripción', 'Control Sedronar']
             
             # Verificar si todas las columnas requeridas están presentes
             missing_columns = [col for col in required_columns if col not in data_frame.columns]
@@ -621,12 +621,6 @@ def importar_productos():
                 'Materiales de vidrio': 'vidrio',
                 'Elementos de seguridad': 'seguridad',
                 'Residuos peligrosos': 'residuos'
-            }
-            
-            estado_fisico_map = {
-                'Sólido': 'solido',
-                'Líquido': 'liquido',
-                'Gaseoso': 'gaseoso'
             }
             
             # Contadores para la información de proceso
@@ -671,23 +665,6 @@ def importar_productos():
                             tipo_producto = tipo_producto_excel.lower()
                         else:
                             errores.append(f"Fila {index+2}: Tipo de producto '{tipo_producto_excel}' no válido. Valores permitidos: {', '.join(tipo_producto_map.keys())}")
-                            productos_saltados += 1
-                            continue
-                    
-                    # Mapear estado físico
-                    if pd.isna(row['Estado Físico']):
-                        errores.append(f"Fila {index+2}: Estado físico está vacío")
-                        productos_saltados += 1
-                        continue
-                    
-                    estado_fisico_excel = str(row['Estado Físico']).strip()
-                    estado_fisico = estado_fisico_map.get(estado_fisico_excel, None)
-                    if not estado_fisico:
-                        if estado_fisico_excel.lower() in estado_fisico_map.values():
-                            # Si es una clave válida directamente
-                            estado_fisico = estado_fisico_excel.lower()
-                        else:
-                            errores.append(f"Fila {index+2}: Estado físico '{estado_fisico_excel}' no válido. Valores permitidos: {', '.join(estado_fisico_map.keys())}")
                             productos_saltados += 1
                             continue
                     
@@ -736,7 +713,6 @@ def importar_productos():
                         producto_existente.nombre = str(row['Nombre']).strip()
                         producto_existente.descripcion = descripcion
                         producto_existente.tipoProducto = tipo_producto
-                        producto_existente.estadoFisico = estado_fisico
                         if unidad_medida and unidad_medida != producto_existente.unidadMedida:
                             Movimiento.query.filter_by(idProducto=id_producto).update(
                                 {'unidadMedida': unidad_medida})
@@ -756,7 +732,6 @@ def importar_productos():
                             nombre=str(row['Nombre']).strip(),
                             descripcion=descripcion,
                             tipoProducto=tipo_producto,
-                            estadoFisico=estado_fisico,
                             unidadMedida=unidad_medida,
                             controlSedronar=control_sedronar,
                             urlFichaSeguridad=url_ficha

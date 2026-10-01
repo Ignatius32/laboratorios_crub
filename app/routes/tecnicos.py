@@ -252,7 +252,6 @@ def new_producto(lab_id):
             nombre=form.nombre.data,
             descripcion=form.descripcion.data,
             tipoProducto=form.tipoProducto.data,
-            estadoFisico=form.estadoFisico.data,
             unidadMedida=form.unidadMedida.data,
             controlSedronar=form.controlSedronar.data,
             urlFichaSeguridad=ficha_seguridad_id,  # Guardar el ID del archivo en lugar de URL
@@ -597,7 +596,6 @@ def _vista_stock(lab_id, es_global):
             'nombre': producto.nombre,
             'descripcion': producto.descripcion,
             'tipo': producto.tipoProducto,
-            'estado_fisico': producto.estadoFisico,
             'control_sedronar': producto.controlSedronar,
         }
 

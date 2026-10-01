@@ -48,11 +48,6 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td><code>Estado Físico</code></td>
-                                <td><span class="badge bg-danger">Sí</span></td>
-                                <td class="text-muted">Sólido, Líquido o Gaseoso.</td>
-                            </tr>
-                            <tr>
                                 <td><code>Unidad de Medida</code></td>
                                 <td><span class="badge bg-danger">Sí</span></td>
                                 <td class="text-muted">
@@ -129,11 +124,11 @@
 <script>
     document.getElementById('descargar-plantilla').addEventListener('click', function () {
         const filas = [
-            ['ID Producto', 'Nombre', 'Tipo de Producto', 'Estado Físico', 'Unidad de Medida',
+            ['ID Producto', 'Nombre', 'Tipo de Producto', 'Unidad de Medida',
              'Descripción', 'URL Ficha de Seguridad', 'Control Sedronar'],
-            ['P001', 'Ácido clorhídrico', 'Droguero', 'Líquido', 'Lt',
+            ['P001', 'Ácido clorhídrico', 'Droguero', 'Lt',
              'Solución 37%', 'https://drive.google.com/file/d/EJEMPLO/view', 'Sí'],
-            ['P002', 'Hidróxido de sodio', 'Droguero', 'Sólido', 'Kg',
+            ['P002', 'Hidróxido de sodio', 'Droguero', 'Kg',
              'Lentejas', '', '']
         ];
         const libro = XLSX.utils.book_new();

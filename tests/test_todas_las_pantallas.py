@@ -40,8 +40,7 @@ with app.app_context():
                                    direccion='Quintral 1250', telefono='294',
                                    email='q@crub.edu.ar'))
         db.session.add(Proveedor(nombre='Drogueria Sur', cuit='30123456789'))
-        db.session.add(Producto(idProducto='P001', nombre='Etanol', tipoProducto='droguero',
-                                estadoFisico='liquido', stockMinimo=5, marca='X'))
+        db.session.add(Producto(idProducto='P001', nombre='Etanol', tipoProducto='droguero', unidadMedida='Lt', stockMinimo=5, marca='X'))
         db.session.commit()
         db.session.add(Movimiento(idMovimiento='M001', tipoMovimiento='ingreso', cantidad=10,
                                   unidadMedida='Lt', idProducto='P001', idLaboratorio='LAB001'))

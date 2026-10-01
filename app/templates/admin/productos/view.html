@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from 'macros/ui.html' import page_header, empty_state, stat_tile,
-                                tipo_producto_badge, estado_fisico_badge,
+                                tipo_producto_badge,
                                 tipo_movimiento_badge, stock_badge %}
 
 {% block content %}
@@ -71,9 +71,6 @@
                 <dl class="mb-0" style="display:grid; grid-template-columns:auto 1fr; gap:.75rem 1.5rem; font-size:var(--texto-base)">
                     <dt class="text-muted fw-normal">Tipo</dt>
                     <dd class="mb-0">{{ tipo_producto_badge(producto.tipoProducto) }}</dd>
-
-                    <dt class="text-muted fw-normal">Estado</dt>
-                    <dd class="mb-0">{{ estado_fisico_badge(producto.estadoFisico) }}</dd>
 
                     <dt class="text-muted fw-normal">Unidad</dt>
                     <dd class="mb-0">{{ producto.unidadMedida or '—' }}</dd>

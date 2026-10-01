@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from 'macros/pagination.html' import render_pagination %}
 {% from 'macros/ui.html' import page_header, empty_state, lab_breadcrumb,
-                                tipo_producto_badge, estado_fisico_badge, stock_badge %}
+                                tipo_producto_badge, stock_badge %}
 
 {% block content %}
 
@@ -83,7 +83,6 @@
                 <tr>
                     <th>Producto</th>
                     <th>Tipo</th>
-                    <th>Estado</th>
                     {% if es_global %}
                     <th class="text-end">Total</th>
                     <th class="text-end">Acá</th>
@@ -107,7 +106,6 @@
                         </div>
                     </td>
                     <td>{{ tipo_producto_badge(producto.tipo) }}</td>
-                    <td>{{ estado_fisico_badge(producto.estado_fisico) }}</td>
 
                     {% if es_global %}
                     <td class="celda-numero">{{ stock_badge(producto.stock_global) }}</td>

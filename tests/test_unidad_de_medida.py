@@ -81,7 +81,7 @@ with app.app_context():
                                    email=f'{lab}@crub.edu.ar'))
     # Como queda un producto importado antes de este cambio, si algo falló.
     db.session.add(Producto(idProducto='SINU', nombre='Sin unidad',
-                            tipoProducto='droguero', estadoFisico='liquido'))
+                            tipoProducto='droguero'))
     db.session.commit()
 
 
@@ -104,12 +104,14 @@ with app.test_client() as c:
     print('\n--- el producto lleva la unidad ---')
     html = c.get('/admin/productos/new').get_data(as_text=True)
     check('el formulario de producto ofrece la unidad', 'name="unidadMedida"' in html)
+    check('y ya no pide el estado físico',
+          'estadoFisico' not in html and 'Estado Físico' not in html)
     check('las opciones son Lt y Kg, sin Litros ni Kilogramos',
           'value="Lt"' in html and 'value="Kg"' in html
           and 'Litros' not in html and 'Kilogramos' not in html)
 
     base = {'nombre': 'Hidróxido de sodio', 'descripcion': '', 'tipoProducto': 'droguero',
-            'estadoFisico': 'solido', 'stockMinimo': '1', 'marca': ''}
+            'stockMinimo': '1', 'marca': ''}
     c.post('/admin/productos/new', data=dict(
         base, idProducto='NAOH', unidadMedida='Kg',
         csrf_token=token(c, '/admin/productos/new')))
@@ -134,16 +136,15 @@ with app.test_client() as c:
         check('sin elegir unidad no se da de alta', Producto.query.get('SINE') is None)
     check('y el formulario lo dice', 'Elija la unidad de medida' in r.get_data(as_text=True))
 
-    # La unidad no depende del estado físico: un líquido puede llevarse en Kg.
     c.post('/admin/productos/new', data=dict(
-        base, idProducto='LIQK', nombre='Líquido por peso', estadoFisico='liquido',
+        base, idProducto='LIQK', nombre='Otro producto',
         unidadMedida='Kg', csrf_token=token(c, '/admin/productos/new')))
     with app.app_context():
         p = Producto.query.get('LIQK')
-        check('un líquido puede llevarse en Kg', p is not None and p.unidadMedida == 'Kg')
+        check('se da de alta sin estado físico', p is not None and p.unidadMedida == 'Kg')
 
     c.post('/admin/productos/edit/LIQK', data=dict(
-        base, idProducto='LIQK', nombre='Líquido por peso', estadoFisico='liquido',
+        base, idProducto='LIQK', nombre='Otro producto',
         unidadMedida='Lt', csrf_token=token(c, '/admin/productos/edit/LIQK')))
     with app.app_context():
         check('la unidad se puede corregir al editar',
@@ -197,7 +198,7 @@ with app.test_client() as c:
     check('el formulario de técnicos ofrece la unidad', 'name="unidadMedida"' in html)
     c.post(ruta, data={
         'idProducto': 'TEC1', 'nombre': 'Carbonato de sodio', 'descripcion': '',
-        'tipoProducto': 'botiquin', 'estadoFisico': 'solido', 'unidadMedida': 'Kg',
+        'tipoProducto': 'botiquin', 'unidadMedida': 'Kg',
         'stockMinimo': '0', 'marca': '', 'csrf_token': token(c, ruta)})
     with app.app_context():
         p = Producto.query.get('TEC1')

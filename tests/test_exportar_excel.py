@@ -83,7 +83,7 @@ with app.app_context():
                                    direccion='Quintral 1250', telefono='294',
                                    email='q@crub.edu.ar'))
         db.session.add(Producto(idProducto='P001', nombre='Etanol',
-                                tipoProducto='droguero', estadoFisico='liquido',
+                                tipoProducto='droguero', unidadMedida='Lt',
                                 stockMinimo=2))
         db.session.commit()
     Movimiento.query.delete()
