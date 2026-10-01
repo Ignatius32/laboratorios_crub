@@ -135,7 +135,11 @@ def create_app(config_class=Config):
             return None
         flash('Su sesión expiró, vuelva a ingresar.' if vencida
               else 'Por favor, inicie sesión para acceder a esta página.', 'info')
-        return redirect(url_for('auth.login', next=request.full_path))
+        # Con script_root: bajo Apache la aplicación vive en /laboratorios-crub,
+        # y full_path no trae ese prefijo. Sin él, después de ingresar se
+        # volvía a /admin/ en la raíz del host, fuera de la aplicación.
+        volver = request.script_root + request.full_path.rstrip('?')
+        return redirect(url_for('auth.login', next=volver))
 
     with app.app_context():
         db.create_all()
