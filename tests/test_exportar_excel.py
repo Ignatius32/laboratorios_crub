@@ -175,6 +175,68 @@ check('las celdas vacías quedan vacías, no dicen "nan"',
       all(c.value in (None, '') for c in hoja[2][9:12]),
       [c.value for c in hoja[2][9:12]])
 
+print('\n--- la planilla va por producto y, en Sedronar, con todo el catálogo ---')
+with app.app_context():
+    # Dos controlados con movimientos, cargados en orden cruzado, y uno que no
+    # se movió nunca. 'Ácido' tiene que ordenarse con la A, no después de la Z.
+    for id_p, nombre in (('S001', 'Tolueno'), ('S002', 'Ácido sulfúrico'), ('S003', 'Benceno')):
+        db.session.add(Producto(idProducto=id_p, nombre=nombre, tipoProducto='droguero',
+                                unidadMedida='Lt', controlSedronar=True))
+    for i, (id_p, tipo, cantidad, dias) in enumerate([
+            ('S001', 'ingreso', 20, 9), ('S002', 'compra', 8, 8),
+            ('S001', 'uso', 5, 7), ('S002', 'uso', 2, 6), ('S001', 'uso', 1, 5)]):
+        db.session.add(Movimiento(
+            idMovimiento=f'MS{i}', tipoMovimiento=tipo, cantidad=cantidad,
+            unidadMedida='Lt', idProducto=id_p, idLaboratorio='LAB001',
+            timestamp=ahora - timedelta(days=dias)))
+    db.session.commit()
+
+
+def planilla(cliente, control_sedronar):
+    """Genera el reporte con ese filtro y devuelve (tabla en pantalla, filas del Excel)."""
+    html = cliente.get('/admin/reportes/movimientos').get_data(as_text=True)
+    tok = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', html).group(1)
+    r = cliente.post('/admin/reportes/movimientos', data={
+        'csrf_token': tok, 'fecha_inicial': desde, 'fecha_final': hasta,
+        'laboratorio': '', 'tipo_producto': '', 'control_sedronar': control_sedronar})
+    html = r.get_data(as_text=True)
+    libro = openpyxl.load_workbook(BytesIO(cliente.get('/admin/reportes/movimientos/excel').data))
+    filas = [[c.value for c in fila]
+             for fila in libro['Reporte de Movimientos'].iter_rows(min_row=2)]
+    return html[html.find('<tbody'):html.find('</tbody>')], filas
+
+
+with app.test_client() as c:
+    entrar(c)
+
+    pantalla, filas = planilla(c, 'true')
+    productos = [f[1] for f in filas]
+    check('lista los tres controlados, también el que no se movió',
+          set(productos) == {'Ácido sulfúrico', 'Benceno', 'Tolueno'}, set(productos))
+    check('y ninguno que no sea Sedronar', 'Etanol' not in productos)
+    check('por orden alfabético, con los movimientos de cada producto seguidos',
+          productos == ['Ácido sulfúrico'] * 2 + ['Benceno'] + ['Tolueno'] * 3, productos)
+    fechas = [f[0] for f in filas if f[1] == 'Tolueno']
+    check('y dentro de cada producto, por fecha',
+          [f[5] for f in filas if f[1] == 'Tolueno'] == [20, 5, 1], fechas)
+    check('con los códigos de tipo', [f[4] for f in filas if f[1] == 'Tolueno'] == ['CPR', 'USA', 'USA'],
+          [f[4] for f in filas])
+    benceno = next(f for f in filas if f[1] == 'Benceno')
+    check('el que no se movió va sin fecha ni movimiento',
+          benceno[0] is None and benceno[4] is None and benceno[5] is None, benceno)
+    check('con su stock y su unidad',
+          (benceno[2], benceno[3], benceno[7], benceno[8]) == (0, 'Lt', 0, 'Lt'), benceno)
+    check('en pantalla el que no se movió sigue sin aparecer', 'Benceno' not in pantalla)
+    check('y el orden en pantalla sigue siendo por fecha',
+          pantalla.find('Tolueno') < pantalla.find('Ácido sulfúrico') < pantalla.rfind('Tolueno'))
+
+    _, filas = planilla(c, '')
+    productos = [f[1] for f in filas]
+    check('sin el filtro Sedronar no se agregan los que no se movieron',
+          'Benceno' not in productos and len(filas) == 8, productos)
+    check('pero la planilla igual va por producto',
+          productos == ['Ácido sulfúrico'] * 2 + ['Etanol'] * 3 + ['Tolueno'] * 3, productos)
+
 print('\n' + ('=== TODO OK ===' if not fallos
               else '=== ' + str(len(fallos)) + ' FALLAS: ' + str(fallos) + ' ==='))
 sys.exit(1 if fallos else 0)

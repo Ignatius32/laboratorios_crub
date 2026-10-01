@@ -1163,6 +1163,7 @@ def reporte_movimientos():
     if request.args.get('clear'):
         session.pop('reporte_filtros', None)
         session.pop('reporte_data_completo', None)
+        session.pop('reporte_sin_movimientos', None)
         return redirect(url_for('admin.reporte_movimientos'))
     
     # Obtener página actual desde parámetros GET
@@ -1270,11 +1271,30 @@ def reporte_movimientos():
                 db.session.query(Proveedor.idProveedor, Proveedor.cuit))
 
             # Para cada producto, recorrer sus movimientos y calcular stocks
+            sin_movimientos = []
             for producto in productos:
                 movimientos_producto = movimientos_por_producto.get(producto.idProducto)
 
-                # Si no hay movimientos para este producto en el período, no lo incluimos en el reporte
+                # Sin movimientos en el período no aparece en pantalla. Se
+                # anota aparte: la planilla de productos Sedronar tiene que
+                # listarlos igual, con el stock que traían.
                 if not movimientos_producto:
+                    stock = saldo_previo.get(producto.idProducto, 0)
+                    sin_movimientos.append({
+                        'fecha': None,
+                        'producto_id': producto.idProducto,
+                        'producto_nombre': producto.nombre,
+                        'stock_inicial_cantidad': stock,
+                        'stock_inicial_unidad': producto.unidadMedida,
+                        'tipo_movimiento': None,
+                        'cantidad': None,
+                        'unidad_medida': None,
+                        'stock_final_cantidad': stock,
+                        'stock_final_unidad': producto.unidadMedida,
+                        'tipo_documento': None,
+                        'numero_documento': None,
+                        'cuit_proveedor': None
+                    })
                     continue
 
                 stock_inicial = saldo_previo.get(producto.idProducto, 0)
@@ -1321,6 +1341,7 @@ def reporte_movimientos():
                  for k, v in item.items()}
                 for item in reporte_data
             ]
+            session['reporte_sin_movimientos'] = sin_movimientos
             
             # Implementar paginación manual
             total_items = len(reporte_data)
@@ -1356,17 +1377,37 @@ def reporte_movimientos():
 @admin.route('/reportes/movimientos/excel')
 @admin_required
 def exportar_reporte_excel():
+    import unicodedata
     import pandas as pd
     from datetime import datetime
     from io import BytesIO
     from flask import send_file
       # Recuperar datos completos de la sesión
-    reporte_data = session.get('reporte_data_completo', [])
-    
+    reporte_data = list(session.get('reporte_data_completo', []))
+
+    # El reporte de productos Sedronar lista todo el catálogo controlado, no
+    # sólo lo que se movió: los que no tuvieron movimientos en el período van
+    # con una fila propia, con el stock que traían. Sólo en la planilla.
+    filtros = session.get('reporte_filtros') or {}
+    if filtros.get('control_sedronar') == 'true':
+        reporte_data += session.get('reporte_sin_movimientos', [])
+
     if not reporte_data:
         flash('No hay datos para exportar', 'warning')
         return redirect(url_for('admin.reporte_movimientos'))
-    
+
+    # En la planilla, por producto en orden alfabético y dentro de cada uno
+    # por fecha, para que todos los movimientos de un producto queden
+    # seguidos. En pantalla el reporte sigue ordenado por fecha.
+    def orden_planilla(fila):
+        nombre = unicodedata.normalize('NFD', fila.get('producto_nombre') or '')
+        nombre = ''.join(c for c in nombre if unicodedata.category(c) != 'Mn').casefold()
+        fecha = fila.get('fecha')
+        fecha = datetime.strptime(fecha, '%d/%m/%Y %H:%M:%S') if fecha else datetime.min
+        return (nombre, fila.get('producto_id') or '', fecha)
+
+    reporte_data.sort(key=orden_planilla)
+
     # Crear DataFrame con pandas
     df = pd.DataFrame(reporte_data)
       # Reordenar columnas según el formato solicitado
@@ -1395,7 +1436,8 @@ def exportar_reporte_excel():
     codigos_tipo = {'compra': 'CPR', 'ingreso': 'CPR', 'uso': 'USA'}
     if 'tipo_movimiento' in df.columns:
         df['tipo_movimiento'] = df['tipo_movimiento'].map(
-            lambda tipo: codigos_tipo.get(str(tipo).strip().lower(), tipo))
+            lambda tipo: tipo if pd.isna(tipo)
+            else codigos_tipo.get(str(tipo).strip().lower(), tipo))
       # Renombrar las columnas para el archivo Excel
     columnas_excel = {
         'fecha': 'Fecha',
