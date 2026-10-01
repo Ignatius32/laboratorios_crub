@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
-from app.models.models import db, Laboratorio, Producto, Movimiento, Proveedor
+from app.models.models import db, Laboratorio, Producto, Movimiento, Proveedor, siguiente_id_producto
 from app import csrf
 from app.forms import (MovimientoTecnicoForm, ProductoTecnicoForm,
                        ProveedorTecnicoForm)
@@ -172,14 +172,8 @@ def new_producto(lab_id):
     form = ProductoTecnicoForm()
     
     if form.validate_on_submit():
-        # Check if product ID already exists
-        if Producto.query.filter_by(idProducto=form.idProducto.data).first():
-            flash('El ID de producto ya existe', 'danger')
-            return render_template('tecnicos/productos/form.html', 
-                                  title='Nuevo Producto', 
-                                  form=form,
-                                  laboratorio=laboratorio)
-        
+        id_producto = siguiente_id_producto()
+
         # Verificar que no se está intentando crear un producto tipo droguero
         if form.tipoProducto.data == 'droguero':
             flash('Los técnicos no están autorizados para crear productos de tipo Droguero', 'danger')
@@ -228,7 +222,7 @@ def new_producto(lab_id):
                                           laboratorio=laboratorio)
                   # Subir el archivo a Google Drive
                 result = drive_integration.upload_ficha_seguridad(
-                    form.idProducto.data,
+                    id_producto,
                     file_b64,
                     file_extension
                 )
@@ -248,7 +242,7 @@ def new_producto(lab_id):
                 # Continuar creando el producto sin la ficha
         
         producto = Producto(
-            idProducto=form.idProducto.data,
+            idProducto=id_producto,
             nombre=form.nombre.data,
             descripcion=form.descripcion.data,
             tipoProducto=form.tipoProducto.data,
@@ -272,7 +266,7 @@ def new_producto(lab_id):
             tipoMovimiento='ingreso',
             cantidad=0,  # Stock inicial 0
             unidadMedida=producto.unidadMedida,
-            idProducto=form.idProducto.data,
+            idProducto=id_producto,
             idLaboratorio=lab_id,
             created_by=current_user.idUsuario if current_user.is_authenticated else None
         )
@@ -280,7 +274,7 @@ def new_producto(lab_id):
         db.session.add(movimiento)
         db.session.commit()
         
-        flash('Producto creado correctamente', 'success')
+        flash(f'Producto creado correctamente con el ID {id_producto}', 'success')
         return redirect(url_for('tecnicos.list_productos', lab_id=lab_id))
     
     return render_template('tecnicos/productos/form.html',

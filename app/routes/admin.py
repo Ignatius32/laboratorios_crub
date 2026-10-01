@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session
 from flask_login import current_user
-from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor, UNIDADES
+from app.models.models import db, Usuario, Laboratorio, Producto, Movimiento, Proveedor, UNIDADES, siguiente_id_producto
 from sqlalchemy.orm import joinedload
 from app.forms import (ExcelUploadForm, LaboratorioForm, MovimientoForm,
                        ProductoForm, ProveedorForm, ReporteForm, UsuarioForm)
@@ -412,10 +412,7 @@ def new_producto():
     form = ProductoForm()
     
     if form.validate_on_submit():
-        # Check if product ID already exists
-        if Producto.query.filter_by(idProducto=form.idProducto.data).first():
-            flash('El ID de producto ya existe', 'danger')
-            return render_template('admin/productos/form.html', title='Nuevo Producto', form=form)
+        id_producto = siguiente_id_producto()
         
         # Handle file upload for ficha de seguridad
         url_ficha = form.urlFichaSeguridad.data
@@ -429,7 +426,7 @@ def new_producto():
 
                 # Upload file to Google Drive
                 result = drive_integration.upload_ficha_seguridad(
-                    form.idProducto.data,
+                    id_producto,
                     file_b64,
                     file_extension
                 )
@@ -447,7 +444,7 @@ def new_producto():
                 flash(f'Error al procesar la ficha de seguridad: {str(e)}', 'warning')
         
         producto = Producto(
-            idProducto=form.idProducto.data,
+            idProducto=id_producto,
             nombre=form.nombre.data,
             descripcion=form.descripcion.data,
             tipoProducto=form.tipoProducto.data,
@@ -461,7 +458,7 @@ def new_producto():
         
         db.session.add(producto)
         db.session.commit()
-        flash('Producto creado correctamente', 'success')
+        flash(f'Producto creado correctamente con el ID {id_producto}', 'success')
         return redirect(url_for('admin.list_productos'))
     
     return render_template('admin/productos/form.html', title='Nuevo Producto', form=form)
@@ -604,7 +601,7 @@ def importar_productos():
               # Validar las columnas del archivo
             # 'Estado Físico' ya no existe: una planilla vieja que todavía
             # traiga esa columna se acepta igual y la columna se ignora.
-            required_columns = ['ID Producto', 'Nombre', 'Tipo de Producto',
+            required_columns = ['Nombre', 'Tipo de Producto',
                                'URL Ficha de Seguridad', 'Descripción', 'Control Sedronar']
             
             # Verificar si todas las columnas requeridas están presentes
@@ -631,25 +628,17 @@ def importar_productos():
               # Procesar cada fila del Excel
             for index, row in data_frame.iterrows():
                 try:
-                    # Validar que ID Producto no esté vacío
-                    if pd.isna(row['ID Producto']) or str(row['ID Producto']).strip() == '':
-                        errores.append(f"Fila {index+2}: ID Producto está vacío")
-                        productos_saltados += 1
-                        continue
-                    
                     # Validar que Nombre no esté vacío
                     if pd.isna(row['Nombre']) or str(row['Nombre']).strip() == '':
                         errores.append(f"Fila {index+2}: Nombre del producto está vacío")
                         productos_saltados += 1
                         continue
                     
-                    id_producto = str(row['ID Producto']).strip()
-                    
-                    # Validar longitud del ID Producto
-                    if len(id_producto) < 4 or len(id_producto) > 10:
-                        errores.append(f"Fila {index+2}: ID Producto '{id_producto}' debe tener entre 4 y 10 caracteres")
-                        productos_saltados += 1
-                        continue
+                    # El ID sólo sirve para señalar qué producto actualizar.
+                    # Una fila sin ID es un alta, y el ID se asigna solo.
+                    id_producto = ''
+                    if 'ID Producto' in data_frame.columns and not pd.isna(row['ID Producto']):
+                        id_producto = str(row['ID Producto']).strip()
                     
                     # Mapear tipo de producto
                     if pd.isna(row['Tipo de Producto']):
@@ -706,7 +695,12 @@ def importar_productos():
                             continue
                     
                     # Verificar si el producto ya existe
-                    producto_existente = Producto.query.filter_by(idProducto=id_producto).first()
+                    producto_existente = (Producto.query.filter_by(idProducto=id_producto).first()
+                                          if id_producto else None)
+                    if id_producto and not producto_existente:
+                        errores.append(f"Fila {index+2}: no existe un producto con ID '{id_producto}'. Para darlo de alta deje el ID vacío: se asigna solo.")
+                        productos_saltados += 1
+                        continue
                     
                     if producto_existente:
                         # Actualizar producto existente
@@ -722,11 +716,12 @@ def importar_productos():
                         productos_actualizados += 1
                         logger.info(f"Updated product {id_producto} by user {current_user.idUsuario}")
                     elif not unidad_medida:
-                        errores.append(f"Fila {index+2}: falta la Unidad de Medida ({' o '.join(UNIDADES)}) del producto nuevo '{id_producto}'")
+                        errores.append(f"Fila {index+2}: falta la Unidad de Medida ({' o '.join(UNIDADES)}) del producto nuevo")
                         productos_saltados += 1
                         continue
                     else:
                         # Crear nuevo producto (ahora son globales, sin asignación a laboratorio)
+                        id_producto = siguiente_id_producto()
                         nuevo_producto = Producto(
                             idProducto=id_producto,
                             nombre=str(row['Nombre']).strip(),

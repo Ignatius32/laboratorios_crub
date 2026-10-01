@@ -31,8 +31,11 @@
                         <tbody>
                             <tr>
                                 <td><code>ID Producto</code></td>
-                                <td><span class="badge bg-danger">Sí</span></td>
-                                <td class="text-muted">Identificador único, por ejemplo <code>P001</code>.</td>
+                                <td><span class="badge bg-secondary">No</span></td>
+                                <td class="text-muted">
+                                    Vacío para dar de alta: el ID se asigna solo. Con el ID de un
+                                    producto que ya existe, ese producto se actualiza.
+                                </td>
                             </tr>
                             <tr>
                                 <td><code>Nombre</code></td>
@@ -76,7 +79,7 @@
             </div>
             <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <p class="mb-0 text-muted" style="font-size: var(--texto-sm)">
-                    Si un ID ya existe, ese producto se <strong>actualiza</strong> con los datos de la planilla.
+                    Las filas sin ID se dan de <strong>alta</strong>; las que traen el ID de un producto existente lo <strong>actualizan</strong>.
                 </p>
                 <button type="button" class="btn btn-secondary btn-sm" id="descargar-plantilla">
                     <i class="fas fa-download"></i> Descargar plantilla
@@ -126,9 +129,9 @@
         const filas = [
             ['ID Producto', 'Nombre', 'Tipo de Producto', 'Unidad de Medida',
              'Descripción', 'URL Ficha de Seguridad', 'Control Sedronar'],
-            ['P001', 'Ácido clorhídrico', 'Droguero', 'Lt',
+            ['', 'Ácido clorhídrico', 'Droguero', 'Lt',
              'Solución 37%', 'https://drive.google.com/file/d/EJEMPLO/view', 'Sí'],
-            ['P002', 'Hidróxido de sodio', 'Droguero', 'Kg',
+            ['', 'Hidróxido de sodio', 'Droguero', 'Kg',
              'Lentejas', '', '']
         ];
         const libro = XLSX.utils.book_new();

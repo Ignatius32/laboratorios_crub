@@ -50,9 +50,13 @@ requests==2.31.0
 # exportan (admin.exportar_reporte_excel usa engine='xlsxwriter'). xlsxwriter
 # faltaba acá aunque el código lo necesita: en una máquina limpia la
 # exportación fallaba con ModuleNotFoundError.
+#
+# pandas 3 exige openpyxl 3.1.5 o posterior para leer planillas. Con 3.1.2 la
+# importación de productos fallaba siempre con "Error al procesar el archivo",
+# y ninguna prueba subía una planilla para notarlo.
 pandas==3.0.1
 numpy==2.2.6
-openpyxl==3.1.2
+openpyxl==3.1.5
 xlsxwriter==3.2.9
 
 # --- Configuración ---

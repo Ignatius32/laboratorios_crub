@@ -103,6 +103,24 @@ class Producto(db.Model):
         from app.utils.stock_service import get_stock_for_product_in_lab
         return get_stock_for_product_in_lab(self.idProducto, lab_id)
 
+def siguiente_id_producto():
+    """El próximo ID de producto: P0001, P0002, ...
+
+    Nadie lo escribe a mano. Sigue al número más alto entre los ID con esa
+    forma, de modo que borrar un producto no hace que su ID se reutilice
+    mientras haya uno posterior. Los ID con otra forma se ignoran.
+
+    Se llama con la sesión abierta: los productos agregados y todavía sin
+    confirmar cuentan, porque la consulta los vuelca antes de leer.
+    """
+    mayor = 0
+    for (id_producto,) in db.session.query(Producto.idProducto).all():
+        resto = id_producto[1:] if id_producto[:1] in ('P', 'p') else ''
+        if resto.isdigit():
+            mayor = max(mayor, int(resto))
+    return f'P{mayor + 1:04d}'
+
+
 class Movimiento(db.Model):
     __tablename__ = 'movimiento'
     idMovimiento = db.Column(db.String(10), primary_key=True)

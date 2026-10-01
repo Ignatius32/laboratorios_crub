@@ -21,11 +21,8 @@
                         <p class="form-section-title">Identificación</p>
 
                         <div class="row">
-                            <div class="col-md-4">
-                                {{ field(form.idProducto, ayuda='Único, por ejemplo P001.',
-                                         readonly=(producto is not none)) }}
-                            </div>
-                            <div class="col-md-8">
+                            {# El ID no se escribe: se asigna solo al dar de alta. #}
+                            <div class="col-12">
                                 {{ field(form.nombre, placeholder='Ácido clorhídrico') }}
                             </div>
                         </div>

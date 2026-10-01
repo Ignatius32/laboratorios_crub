@@ -32,7 +32,9 @@ las propiedades del modelo deleguen bien, y que lo que se eliminó realmente no
 esté (modelo `Stock`, JavaScript muerto, Bootstrap alpha, metas de depuración
 fijadas en `true`).
 
-**`test_unidad_de_medida.py`** — que la unidad (Lt o Kg) sea del producto: los
+**`test_unidad_de_medida.py`** — que el ID de producto se asigne solo (P0001,
+P0002, …), en los formularios y al importar una planilla, y que la unidad (Lt o
+Kg) sea del producto: los
 formularios de producto la piden, los de movimiento ya no, y cada movimiento
 toma la del producto aunque el pedido traiga otra. También que el alta desde el
 panel de técnicos no deje un movimiento en `unidades`.

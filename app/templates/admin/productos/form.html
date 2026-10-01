@@ -28,11 +28,18 @@
                         <p class="form-section-title">Identificación</p>
 
                         <div class="row">
+                            {# El ID no se escribe: se asigna solo al dar de alta.
+                               Al editar se muestra, sin poder cambiarlo. #}
+                            {% if producto %}
                             <div class="col-md-4">
-                                {{ field(form.idProducto, ayuda='Único, por ejemplo P001.',
-                                         readonly=(producto is not none)) }}
+                                <div class="mb-3">
+                                    <label class="form-label" for="idProducto">ID Producto</label>
+                                    <input class="form-control" id="idProducto" type="text"
+                                           value="{{ producto.idProducto }}" readonly disabled>
+                                </div>
                             </div>
-                            <div class="col-md-8">
+                            {% endif %}
+                            <div class="{{ 'col-md-8' if producto else 'col-12' }}">
                                 {{ field(form.nombre, placeholder='Ácido clorhídrico') }}
                             </div>
                         </div>

@@ -12,6 +12,8 @@ from app.models.models import UNIDADES
 OPCIONES_UNIDAD = [('', 'Seleccione…')] + [(u, u) for u in UNIDADES]
 
 
+# Ninguno pide el ID: lo asigna siguiente_id_producto() al dar de alta.
+#
 # Estos dos NO se unifican, y la diferencia es deliberada: las opciones de
 # tipoProducto del formulario de técnicos no incluyen 'droguero'. Fusionarlos
 # habilitaría a cualquier laboratorista a dar de alta productos de droguero,
@@ -20,7 +22,6 @@ OPCIONES_UNIDAD = [('', 'Seleccione…')] + [(u, u) for u in UNIDADES]
 # también son de alcance, no descuidos.
 
 class ProductoForm(FlaskForm):
-    idProducto = StringField('ID Producto', validators=[DataRequired(), Length(min=4, max=10)])
     nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
     descripcion = TextAreaField('Descripción', validators=[Optional()])
     tipoProducto = SelectField('Tipo de Producto', 
@@ -39,7 +40,6 @@ class ProductoForm(FlaskForm):
 
 
 class ProductoTecnicoForm(FlaskForm):
-    idProducto = StringField('ID Producto', validators=[DataRequired(), Length(min=4, max=10)])
     nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
     descripcion = TextAreaField('Descripción', validators=[Optional()])
     tipoProducto = SelectField('Tipo de Producto', 
