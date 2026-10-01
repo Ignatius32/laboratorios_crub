@@ -13,8 +13,10 @@ class UsuarioForm(FlaskForm):
     No hay campo de contraseña: las administra Keycloak. Nombre, apellido, mail
     y rol se sobrescriben con lo que diga el realm en el próximo ingreso de esa
     persona; lo que de verdad se administra acá son los laboratorios asignados.
+    Por eso también sirve para dar de alta a alguien antes de su primer
+    ingreso: es la forma de dejarle los laboratorios ya asignados.
     """
-    idUsuario = StringField('ID Usuario', validators=[DataRequired(), Length(min=4, max=10)])
+    idUsuario = StringField('DNI', validators=[DataRequired(), Length(min=4, max=10)])
     nombre = StringField('Nombre', validators=[DataRequired(), Length(max=100)])
     apellido = StringField('Apellido', validators=[DataRequired(), Length(max=100)])
     email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])

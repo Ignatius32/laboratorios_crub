@@ -81,17 +81,50 @@ def list_usuarios():
 @log_admin_action("crear nuevo usuario")
 @audit_user_action("user_creation")
 def new_usuario():
-    """No se crean usuarios acá.
+    """Alta anticipada: el perfil de alguien que todavía no ingresó nunca.
 
-    Una fila sin cuenta en Keycloak no serviría para entrar, y una con cuenta
-    se crea sola en el primer ingreso. Para dar acceso hay dos pasos, ninguno
-    en esta pantalla: la cuenta la crea Sistemas en el realm, y el DNI se agrega
-    a USUARIOS_AUTORIZADOS en el .env.
+    Sirve para dejarle asignados los laboratorios antes de su primer ingreso;
+    si no, la persona entra y no ve nada hasta que un administrador la
+    encuentre en la lista. No da acceso por sí sola: entrar sigue dependiendo
+    de la cuenta en Keycloak y de que el DNI esté en USUARIOS_AUTORIZADOS.
+
+    El ID es el DNI, que es el nombre de usuario en Keycloak: así, cuando la
+    persona ingrese, sincronizar_usuario() encuentra esta fila en vez de crear
+    otra, y conserva los laboratorios.
     """
-    flash('Los usuarios no se crean acá: se dan de alta agregando el DNI a '
-          'USUARIOS_AUTORIZADOS en el .env, y la fila se crea sola en el primer '
-          'ingreso. También puede traerlos con el botón de sincronizar.', 'info')
-    return redirect(url_for('admin.list_usuarios'))
+    from app.utils import keycloak_auth
+
+    form = UsuarioForm()
+
+    if form.validate_on_submit():
+        dni = form.idUsuario.data.strip()
+        if not dni.isdigit():
+            form.idUsuario.errors.append('El DNI va sólo con números, sin puntos ni espacios.')
+        elif Usuario.query.get(dni):
+            form.idUsuario.errors.append('Ya hay un usuario con ese DNI.')
+        elif Usuario.query.filter_by(email=form.email.data).first():
+            form.email.errors.append('El email ya está registrado.')
+        else:
+            usuario = Usuario(idUsuario=dni,
+                              nombre=form.nombre.data,
+                              apellido=form.apellido.data,
+                              email=form.email.data,
+                              telefono=form.telefono.data,
+                              rol=form.rol.data)
+            for lab_id in form.labs_asignados.data:
+                lab = Laboratorio.query.get(lab_id)
+                if lab:
+                    usuario.laboratorios.append(lab)
+            db.session.add(usuario)
+            db.session.commit()
+
+            flash('Usuario creado correctamente', 'success')
+            if dni not in keycloak_auth.usuarios_autorizados():
+                flash(f'Para que pueda ingresar falta agregar el DNI {dni} a '
+                      'USUARIOS_AUTORIZADOS en el .env del servidor.', 'warning')
+            return redirect(url_for('admin.list_usuarios'))
+
+    return render_template('admin/usuarios/form.html', title='Nuevo Usuario', form=form, usuario=None)
 
 @admin.route('/usuarios/edit/<string:id>', methods=['GET', 'POST'])
 @admin_required

@@ -5,7 +5,11 @@
 {% block content %}
 
 {% call page_header('Usuarios',
-    'Se crean solos al ingresar. Desde acá se administran los laboratorios asignados a cada técnico.') %}
+    'Se crean solos al ingresar, o se dan de alta antes para dejarles los laboratorios asignados.') %}
+    <a href="{{ url_for('admin.new_usuario') }}" class="btn btn-primary">
+        <i class="fas fa-plus btn-icono"></i>
+        <span class="btn-texto">Nuevo usuario</span>
+    </a>
     <form method="POST" action="{{ url_for('admin.sync_users_from_keycloak') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-secondary confirm-action"

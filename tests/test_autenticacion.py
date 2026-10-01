@@ -232,5 +232,69 @@ with app.app_context():
           keycloak_auth.usuarios_autorizados() == {'11222333'})
     archivo.unlink()
 
+print('\n--- 12. Alta anticipada: laboratorios asignados antes del primer ingreso ---')
+os.environ['USUARIOS_AUTORIZADOS'] = '40555666,27333444'
+keycloak_auth._intentos.clear()
+with app.app_context():
+    for lab in ('LABA', 'LABB'):
+        db.session.add(Laboratorio(idLaboratorio=lab, nombre=f'Laboratorio {lab}',
+                                   direccion='Quintral 1250'))
+    db.session.commit()
+
+ESCENARIO.update(password_correcta='buena', roles=['app_admin'],
+                 userinfo={'preferred_username': '40555666', 'given_name': 'Bea',
+                           'family_name': 'Jefa', 'email': 'bea@crub.edu.ar', 'sub': 'kc-2'})
+with app.test_client() as c:
+    c.post('/auth/login', data={'usuario': '40555666', 'contrasena': 'buena'})
+    html = c.get('/admin/usuarios').get_data(as_text=True)
+    check('el listado ofrece dar de alta un usuario', '/admin/usuarios/new' in html)
+    r = c.get('/admin/usuarios/new')
+    check('el formulario de alta abre', r.status_code == 200, str(r.status_code))
+
+    nuevo = {'nombre': 'Carla', 'apellido': 'Provisoria', 'email': 'carla@provisorio.com',
+             'telefono': '', 'rol': 'tecnico', 'labs_asignados': ['LABA', 'LABB']}
+    r = c.post('/admin/usuarios/new', data=dict(nuevo, idUsuario='27.333.444'))
+    with app.app_context():
+        check('un DNI con puntos no se acepta', Usuario.query.count() == Usuario.query.filter(
+            Usuario.idUsuario != '27.333.444').count() and r.status_code == 200)
+
+    r = c.post('/admin/usuarios/new', data=dict(nuevo, idUsuario='27333444'), follow_redirects=True)
+    texto = r.get_data(as_text=True)
+    with app.app_context():
+        u = Usuario.query.get('27333444')
+        check('se crea el perfil con el DNI como ID', u is not None)
+        check('con los laboratorios asignados',
+              u is not None and sorted(l.idLaboratorio for l in u.laboratorios) == ['LABA', 'LABB'])
+    check('no avisa de la lista si el DNI ya está habilitado', 'falta agregar el DNI' not in texto)
+
+    r = c.post('/admin/usuarios/new', data=dict(nuevo, idUsuario='27333444', email='otra@x.com'))
+    check('no deja dar de alta dos veces el mismo DNI',
+          'Ya hay un usuario con ese DNI' in r.get_data(as_text=True))
+
+    r = c.post('/admin/usuarios/new', follow_redirects=True, data=dict(
+        nuevo, idUsuario='25000111', email='fuera@x.com', labs_asignados=['LABA']))
+    check('avisa si el DNI todavía no está en la lista de habilitados',
+          'falta agregar el DNI 25000111' in r.get_data(as_text=True))
+
+# Ahora esa persona ingresa por primera vez. Keycloak trae sus datos reales.
+ESCENARIO.update(roles=['laboratorista'],
+                 userinfo={'preferred_username': '27333444', 'given_name': 'Carla',
+                           'family_name': 'Gomez', 'email': 'carla@crub.edu.ar', 'sub': 'kc-7'})
+with app.test_client() as c:
+    r = c.post('/auth/login', data={'usuario': '27333444', 'contrasena': 'buena'})
+    check('en su primer ingreso entra al panel de técnico',
+          r.status_code == 302 and '/tecnicos/' in r.headers.get('Location', ''),
+          str(r.headers.get('Location')))
+with app.app_context():
+    filas = Usuario.query.filter(Usuario.idUsuario == '27333444').all()
+    u = filas[0] if filas else None
+    check('no se crea un segundo perfil',
+          len(filas) == 1 and Usuario.query.filter_by(email='carla@provisorio.com').first() is None)
+    check('los datos se actualizan con los de Keycloak',
+          u is not None and (u.apellido, u.email) == ('Gomez', 'carla@crub.edu.ar'),
+          str((u.apellido, u.email)) if u else '')
+    check('y conserva los laboratorios que se le habían asignado',
+          u is not None and sorted(l.idLaboratorio for l in u.laboratorios) == ['LABA', 'LABB'])
+
 print('\n' + ('=== TODO OK ===' if not fallos else f'=== {len(fallos)} FALLAS: {fallos} ==='))
 sys.exit(1 if fallos else 0)

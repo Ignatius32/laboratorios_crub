@@ -303,7 +303,10 @@ class KeycloakAdminClient:
             
             try:
                 from app.models.models import db, Usuario
-                from app.utils.keycloak_auth import map_keycloak_roles_to_app_roles
+                # Antes se importaba map_keycloak_roles_to_app_roles, que dejó
+                # de existir cuando se rehízo el ingreso: la sincronización
+                # fallaba siempre con "Import error".
+                from app.utils.keycloak_auth import rol_de_la_app
             except ImportError as e:
                 self.security_logger.error("Failed to import required modules",
                                          operation="sync_users",
@@ -348,13 +351,9 @@ class KeycloakAdminClient:
                     
                     # Map Keycloak roles to app roles
                     kc_roles = kc_user.get('roles', [])
-                    app_roles = map_keycloak_roles_to_app_roles(kc_roles)
-                    
-                    # Extract primary role (ensure it's a string, not a list)
-                    if isinstance(app_roles, list):
-                        primary_role = app_roles[0] if app_roles else 'tecnico'
-                    else:
-                        primary_role = app_roles if app_roles else 'tecnico'
+                    # La misma traducción que usa el ingreso. Vacío es que no
+                    # tiene ninguno de los dos roles de la aplicación.
+                    primary_role = rol_de_la_app(kc_roles) or 'tecnico'
                     
                     # Check if user already exists
                     existing_user = Usuario.query.filter(
