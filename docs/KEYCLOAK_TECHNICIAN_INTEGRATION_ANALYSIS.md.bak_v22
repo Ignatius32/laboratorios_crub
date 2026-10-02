@@ -16,7 +16,7 @@
    - Status: Created in local database
 
 4. **Role Mapping**: Correctly identified users by role:
-   - 1 user with `app_admin` role: `37099475`
+   - 1 user with `app_admin` role: `<admin-dni>`
    - 1 user with `laboratorista` role: `12345678`
 
 ### ❌ Current Issues
